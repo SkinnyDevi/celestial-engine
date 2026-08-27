@@ -1,0 +1,46 @@
+# ────────────────────────────────  Junk  ────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+*.swp
+
+# ────────────────────────────────  CMake build artifacts  ───────────────────────
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+
+CMakeFiles/
+build/
+
+*.o          # object files
+*.obj        # Windows object files (just in case)
+*.a          # static libraries
+*.so         # shared libs on Linux
+*.dylib      # shared libs on macOS
+*.exe        # Windows binaries
+
+# ────────────────────────────────  IDE artefacts  ─────────────────────
+*.xcworkspace
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+*.moc
+*_generated.h
+
+# ────────────────────────────────  Miscellaneous  ─────────────────────────────
+*.log
+*.bak
+*~
+
+.vscode/
+.idea/
+
+Package.resolved
