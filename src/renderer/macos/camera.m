@@ -2,13 +2,26 @@
 
 #include <math.h>
 
+// Blender turntable orbit sensitivity: ~0.4 degrees per pixel ≈ 0.007 rad/pixel
+static const float kOrbitSensitivity = 0.007f;
+
+// Elevation clamped to ±89° to prevent gimbal lock at the poles
+static const float kMaxElevation = 1.5533f; // ~89°
+
+// Zoom multiplier per scroll unit — exponential for distance-independent feel
+static const float kZoomFactor = 1.1f;
+
+// Minimum orbit distance
+static const float kMinDistance = 0.5f;
+
 void camera_init(Camera *camera) {
   if (!camera) {
     return;
   }
 
-  camera->yaw = 0.7f;
-  camera->pitch = 0.9f;
+  // Blender-style 3/4 elevated view: 45° azimuth, ~25° elevation
+  camera->azimuth = 0.7854f;  // 45°
+  camera->elevation = 0.4363f; // 25°
   camera->distance = 12.0f;
   camera->center = simd_make_float3(0.0f, 0.0f, 0.0f);
 }
@@ -18,28 +31,66 @@ simd_float3 camera_orbit_position(const Camera *camera) {
     return simd_make_float3(0.0f, 0.0f, 0.0f);
   }
 
-  float horizontalDistance = cosf(camera->pitch) * camera->distance;
-  simd_float3 orbitOffset = simd_make_float3(
-      cosf(camera->yaw) * horizontalDistance,
-      sinf(camera->pitch) * camera->distance,
-      sinf(camera->yaw) * horizontalDistance);
+  // Derived from the view matrix: camera world position is
+  // center + R^T * (0, 0, distance), where R = Rx(elev) * Ry(az).
+  float ce = cosf(camera->elevation);
+  float se = sinf(camera->elevation);
+  float ca = cosf(camera->azimuth);
+  float sa = sinf(camera->azimuth);
 
-  return camera->center + orbitOffset;
+  simd_float3 offset = simd_make_float3(
+      -ce * sa * camera->distance,
+       se * camera->distance,
+       ce * ca * camera->distance);
+
+  return camera->center + offset;
 }
 
-simd_float4x4 camera_look_at(simd_float3 eye, simd_float3 target, simd_float3 up) {
-  simd_float3 zAxis = simd_normalize(eye - target);
-  simd_float3 xAxis = simd_normalize(simd_cross(up, zAxis));
-  simd_float3 yAxis = simd_cross(zAxis, xAxis);
+simd_float4x4 camera_view_matrix(const Camera *camera) {
+  if (!camera) {
+    simd_float4x4 identity = {0};
+    identity.columns[0] = simd_make_float4(1, 0, 0, 0);
+    identity.columns[1] = simd_make_float4(0, 1, 0, 0);
+    identity.columns[2] = simd_make_float4(0, 0, 1, 0);
+    identity.columns[3] = simd_make_float4(0, 0, 0, 1);
+    return identity;
+  }
 
+  // Blender-style "rotate the world" view matrix construction:
+  //   V = Translate(0, 0, -distance) * RotateX(elevation) * RotateY(azimuth) * Translate(-center)
+  //
+  // Instead of positioning the camera on a sphere and using look_at (which
+  // re-derives orientation from position + target + up, causing wobble and
+  // axis inconsistencies), this directly applies the rotation to the entire
+  // scene. The camera conceptually stays at the origin looking down -Z,
+  // and the world rotates around the pivot point.
+  //
+  // R = Rx(elev) * Ry(az):
+  //   row 0: ( ca,        0,       sa      )   ← camera right in world space
+  //   row 1: ( se·sa,     ce,     -se·ca   )   ← camera up in world space
+  //   row 2: (-ce·sa,     se,      ce·ca   )   ← camera backward (-forward) in world space
+
+  float ca = cosf(camera->azimuth);
+  float sa = sinf(camera->azimuth);
+  float ce = cosf(camera->elevation);
+  float se = sinf(camera->elevation);
+  float d  = camera->distance;
+
+  float cx = camera->center.x;
+  float cy = camera->center.y;
+  float cz = camera->center.z;
+
+  // Translation = R * (-center) + (0, 0, -distance)
+  float tx =          ca * (-cx)                + sa * (-cz);
+  float ty = se * sa * (-cx) + ce * (-cy) - se * ca * (-cz);
+  float tz = -ce * sa * (-cx) + se * (-cy) + ce * ca * (-cz) - d;
+
+  // Column-major: columns[i] = (row0_i, row1_i, row2_i, 0)
   simd_float4x4 view;
-  view.columns[0] = simd_make_float4(xAxis.x, yAxis.x, zAxis.x, 0.0f);
-  view.columns[1] = simd_make_float4(xAxis.y, yAxis.y, zAxis.y, 0.0f);
-  view.columns[2] = simd_make_float4(xAxis.z, yAxis.z, zAxis.z, 0.0f);
-  view.columns[3] = simd_make_float4(-simd_dot(xAxis, eye),
-                                      -simd_dot(yAxis, eye),
-                                      -simd_dot(zAxis, eye),
-                                      1.0f);
+  view.columns[0] = simd_make_float4(    ca,  se * sa, -ce * sa, 0.0f);
+  view.columns[1] = simd_make_float4(  0.0f,       ce,       se, 0.0f);
+  view.columns[2] = simd_make_float4(    sa, -se * ca,  ce * ca, 0.0f);
+  view.columns[3] = simd_make_float4(    tx,       ty,       tz, 1.0f);
 
   return view;
 }
@@ -58,13 +109,62 @@ simd_float4x4 camera_perspective(float fovRadians, float aspect, float nearZ, fl
   return projection;
 }
 
-void camera_update_from_input(Camera *camera, float dx, float dy, float scrollDelta) {
+void camera_orbit_from_input(Camera *camera, float dx, float dy) {
   if (!camera) {
     return;
   }
 
-  camera->yaw += dx * 0.003f;
-  camera->pitch += dy * 0.003f;
-  camera->pitch = fminf(1.4f, fmaxf(-1.4f, camera->pitch));
-  camera->distance = fmaxf(2.0f, camera->distance - scrollDelta * 0.05f);
+  // Blender turntable orbit:
+  // - Drag RIGHT → azimuth decreases → world rotates CW from top → camera orbits right
+  // - Drag UP    → elevation increases → world tilts forward → camera orbits up
+  camera->azimuth -= dx * kOrbitSensitivity;
+  camera->elevation += dy * kOrbitSensitivity;
+  camera->elevation = fminf(kMaxElevation, fmaxf(-kMaxElevation, camera->elevation));
+}
+
+void camera_pan_from_input(Camera *camera, float dx, float dy) {
+  if (!camera) {
+    return;
+  }
+
+  // Camera right and up in world space, derived from the view rotation matrix.
+  // These are rows 0 and 1 of R = Rx(elev) * Ry(az).
+  float ca = cosf(camera->azimuth);
+  float sa = sinf(camera->azimuth);
+  float ce = cosf(camera->elevation);
+  float se = sinf(camera->elevation);
+
+  simd_float3 right = simd_make_float3(ca, 0.0f, sa);
+  simd_float3 up    = simd_make_float3(se * sa, ce, -se * ca);
+
+  // Scale pan speed relative to distance for consistent feel at all zoom levels.
+  // Subtract: dragging right moves center left → scene slides right on screen (grab metaphor).
+  float panSpeed = camera->distance * 0.002f;
+  camera->center = camera->center - right * (dx * panSpeed) - up * (dy * panSpeed);
+}
+
+void camera_zoom_from_input(Camera *camera, float scrollDelta) {
+  if (!camera) {
+    return;
+  }
+
+  // Exponential zoom: multiply/divide distance by a factor per scroll unit.
+  // This gives consistent zoom feel regardless of distance, matching Blender's scroll zoom.
+  if (scrollDelta > 0.0f) {
+    camera->distance /= powf(kZoomFactor, scrollDelta);
+  } else if (scrollDelta < 0.0f) {
+    camera->distance *= powf(kZoomFactor, -scrollDelta);
+  }
+  camera->distance = fmaxf(kMinDistance, camera->distance);
+}
+
+void camera_focus_on(Camera *camera, simd_float3 target, float distance) {
+  if (!camera) {
+    return;
+  }
+
+  camera->center = target;
+  if (distance > 0.0f) {
+    camera->distance = fmaxf(kMinDistance, distance);
+  }
 }

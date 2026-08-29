@@ -28,14 +28,14 @@ static void update_camera_uniforms(RenderState *state) {
   }
 
   Camera *camera = RenderState_GetCamera(state);
-  simd_float3 eye = camera_orbit_position(camera);
 
   CAMetalLayer *metalLayer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
   float aspect =
       metalLayer.drawableSize.width / MAX(metalLayer.drawableSize.height, 1.0f);
-  simd_float4x4 view =
-      camera_look_at(eye, camera->center, simd_make_float3(0.0f, 1.0f, 0.0f));
+
+  // Build view matrix by rotating the world (Blender-style), not via look_at
+  simd_float4x4 view = camera_view_matrix(camera);
   simd_float4x4 projection =
       camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 100.0f);
 
@@ -213,13 +213,13 @@ void pump_os_events(void) {
       } else if ([event type] == NSEventTypeLeftMouseDragged) {
         NSPoint current = [event locationInWindow];
         MousePoint point = {current.x, current.y};
-        event_left_mouse_drag(state, point);
+        bool shiftHeld = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
+        event_left_mouse_drag(state, point, shiftHeld);
       } else if ([event type] == NSEventTypeLeftMouseUp) {
         RenderState_SetDragging(state, false);
       } else if ([event type] == NSEventTypeScrollWheel) {
         Camera *camera = RenderState_GetCamera(state);
-        camera_update_from_input(camera, 0.0f, 0.0f,
-                                 (float)[event scrollingDeltaY]);
+        camera_zoom_from_input(camera, (float)[event scrollingDeltaY]);
       }
     }
   }

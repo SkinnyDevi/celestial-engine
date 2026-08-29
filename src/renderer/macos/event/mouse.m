@@ -5,7 +5,7 @@ void event_left_mouse_down(RenderState *state, MousePoint mouse) {
   RenderState_SetLastMouse(state, mouse.x, mouse.y);
 }
 
-void event_left_mouse_drag(RenderState *state, MousePoint current) {
+void event_left_mouse_drag(RenderState *state, MousePoint current, bool shiftHeld) {
   double lastX = 0.0;
   double lastY = 0.0;
   RenderState_GetLastMouse(state, &lastX, &lastY);
@@ -15,5 +15,9 @@ void event_left_mouse_drag(RenderState *state, MousePoint current) {
   RenderState_SetLastMouse(state, current.x, current.y);
 
   Camera *camera = RenderState_GetCamera(state);
-  camera_update_from_input(camera, (float)dx, (float)dy, 0.0f);
+  if (shiftHeld) {
+    camera_pan_from_input(camera, (float)dx, (float)dy);
+  } else {
+    camera_orbit_from_input(camera, (float)dx, (float)dy);
+  }
 }

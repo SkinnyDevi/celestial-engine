@@ -218,25 +218,25 @@ void debug_overlay_update_camera(DebugOverlay *overlay, const Camera *camera) {
   }
 
   DebugOverlayField cameraFields[] = {
-      {"yaw", ""},
-      {"pitch", ""},
+      {"azimuth", ""},
+      {"elevation", ""},
       {"distance", ""},
       {"center", ""},
   };
 
-  char yawBuf[32];
-  char pitchBuf[32];
+  char azBuf[32];
+  char elBuf[32];
   char distBuf[32];
   char centerBuf[64];
 
-  snprintf(yawBuf, sizeof(yawBuf), "%0.3f", camera->yaw);
-  snprintf(pitchBuf, sizeof(pitchBuf), "%0.3f", camera->pitch);
+  snprintf(azBuf, sizeof(azBuf), "%0.3f", camera->azimuth);
+  snprintf(elBuf, sizeof(elBuf), "%0.3f", camera->elevation);
   snprintf(distBuf, sizeof(distBuf), "%0.3f", camera->distance);
   snprintf(centerBuf, sizeof(centerBuf), "(%0.2f, %0.2f, %0.2f)",
            camera->center.x, camera->center.y, camera->center.z);
 
-  cameraFields[0].value = strdup(yawBuf);
-  cameraFields[1].value = strdup(pitchBuf);
+  cameraFields[0].value = strdup(azBuf);
+  cameraFields[1].value = strdup(elBuf);
   cameraFields[2].value = strdup(distBuf);
   cameraFields[3].value = strdup(centerBuf);
 

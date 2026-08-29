@@ -6,14 +6,17 @@
 
 typedef struct
 {
-	float yaw, pitch, distance;
+	float azimuth, elevation, distance;
 	simd_float3 center;
 } Camera;
 
 void camera_init(Camera *camera);
 simd_float3 camera_orbit_position(const Camera *camera);
-simd_float4x4 camera_look_at(simd_float3 eye, simd_float3 target, simd_float3 up);
+simd_float4x4 camera_view_matrix(const Camera *camera);
 simd_float4x4 camera_perspective(float fovRadians, float aspect, float nearZ, float farZ);
-void camera_update_from_input(Camera *camera, float dx, float dy, float scrollDelta);
+void camera_orbit_from_input(Camera *camera, float dx, float dy);
+void camera_pan_from_input(Camera *camera, float dx, float dy);
+void camera_zoom_from_input(Camera *camera, float scrollDelta);
+void camera_focus_on(Camera *camera, simd_float3 target, float distance);
 
 #endif
