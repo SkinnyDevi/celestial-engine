@@ -1,6 +1,12 @@
 #ifndef MACOS_RENDERER_H
 #define MACOS_RENDERER_H
 
+#include "render_handler.h"
+#include "grid/spatial_grid.h"
+#include "../camera/camera.h"
+#include "../../spatial/spatial.h"
+#include "event/mouse.h"
+
 // Renderer state handler
 typedef void *RendererHandle;
 

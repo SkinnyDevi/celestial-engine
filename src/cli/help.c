@@ -6,4 +6,7 @@ void print_command_help() {
   puts("-- RENDERING ENGINE --");
   puts("--macos  | Use Metal as a rendering engine.");
   puts("--vulkan | Use Vulkan as a rendering engine.");
+	puts("--   OTHER OPTIONS  --");
+	puts("--debug  | Enable debug mode.");
+	puts("--help   | Show this help message.");
 }
