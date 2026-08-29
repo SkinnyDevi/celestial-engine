@@ -10,6 +10,7 @@ add_executable(celengine
   cli/functions.c
   renderer/app_renderer.c
   renderer/camera/camera.h
+  renderer/macos/app.m
   renderer/macos/camera.m
   renderer/macos/render_handler.m
   renderer/macos/grid/spatial_grid.m
@@ -30,6 +31,7 @@ target_link_libraries(celengine PRIVATE
 )
 
 set_source_files_properties(
+    renderer/macos/app.m
     renderer/macos/render_handler.m
     renderer/macos/grid/spatial_grid.m
     renderer/macos/event/mouse.m

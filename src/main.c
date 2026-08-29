@@ -10,7 +10,17 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if (cli_parse_args(argc, argv) == EXIT_SUCCESS) {
+  cli_parse_args(argc, argv);
+
+	if (cli_find_arg("--macos", argc, argv)) {
+    puts("Using Metal rendering engine.");
+    render_with(Metal);
+    return EXIT_SUCCESS;
+  }
+
+  if (cli_find_arg("--vulkan", argc, argv)) {
+    puts("Using Vulkan rendering engine.");
+    render_with(Vulkan);
     return EXIT_SUCCESS;
   }
 
