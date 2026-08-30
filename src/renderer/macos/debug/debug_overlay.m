@@ -220,7 +220,7 @@ void debug_overlay_update_camera(DebugOverlay *overlay, const Camera *camera) {
   DebugOverlayField cameraFields[] = {
       {"azimuth", ""},
       {"elevation", ""},
-      {"distance", ""},
+      {"zoom", ""},
       {"center", ""},
   };
 
@@ -231,7 +231,7 @@ void debug_overlay_update_camera(DebugOverlay *overlay, const Camera *camera) {
 
   snprintf(azBuf, sizeof(azBuf), "%0.3f", camera->azimuth);
   snprintf(elBuf, sizeof(elBuf), "%0.3f", camera->elevation);
-  snprintf(distBuf, sizeof(distBuf), "%0.3f", camera->distance);
+  snprintf(distBuf, sizeof(distBuf), "%0.3f", camera->zoom);
   snprintf(centerBuf, sizeof(centerBuf), "(%0.2f, %0.2f, %0.2f)",
            camera->center.x, camera->center.y, camera->center.z);
 
