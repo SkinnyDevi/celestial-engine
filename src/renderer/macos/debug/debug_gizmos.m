@@ -55,65 +55,90 @@ static int generate_circle(Vertex *v, int idx, int segments, float radius,
   return idx;
 }
 
-Vertex *debug_generate_sphere_wireframe(int segments_per_circle,
-                                        int *out_vertex_count) {
-  // 3 horizontal rings: equator + latitudes at y=±0.5
-  // 3 vertical meridians at 0°, 60°, 120°
-  int num_circles = 6;
-  int verts_per_circle = segments_per_circle * 2;
-  int total = num_circles * verts_per_circle;
+Vertex *generate_sphere_wireframe(int num_circles, int segments_per_circle,
+                                  int *out_vertex_count) {
+  int vertices_per_circle = segments_per_circle * 2;
+  int total_vertices = num_circles * vertices_per_circle;
 
-  Vertex *v = calloc(total, sizeof(Vertex));
+  Vertex *vertices = calloc(total_vertices, sizeof(Vertex));
   int idx = 0;
 
   LOG_DEBUG("Generating orbit sphere wireframe: %d circles, %d segments each, "
             "%d total vertices",
-            num_circles, segments_per_circle, total);
+            num_circles, segments_per_circle, total_vertices);
 
   // Horizontal rings
-  float latitudes[] = {0.0f, 0.5f, -0.5f};
-  for (int c = 0; c < 3; c++) {
-    float y = latitudes[c];
-    float r = sqrtf(1.0f - y * y);
-    idx = generate_circle(v, idx, segments_per_circle, r, y, 0);
-    LOG_DEBUG("  Latitude ring y=%.2f, radius=%.3f, idx now=%d", y, r, idx);
+  int num_latitudes = num_circles / 2;
+  for (int i = 0; i < num_latitudes; i++) {
+    float latitude = (float)i / num_latitudes * M_PI - M_PI / 2.0f;
+    float radius = cosf(latitude);
+    float offset = sinf(latitude);
+    idx =
+        generate_circle(vertices, idx, segments_per_circle, radius, offset, 0);
+    LOG_DEBUG(
+        "Generated latitude ring: latitude=%.2f, radius=%.3f, offset=%.3f, "
+        "idx=%d",
+        latitude, radius, offset, idx);
   }
 
   // Vertical meridians
-  float meridians[] = {0.0f, (float)M_PI / 3.0f, 2.0f * (float)M_PI / 3.0f};
-  for (int c = 0; c < 3; c++) {
+  int num_meridians = num_circles - num_latitudes;
+  for (int i = 0; i < num_meridians; i++) {
+    float longitude = (float)i / num_meridians * 2.0f * (float)M_PI;
     idx =
-        generate_circle(v, idx, segments_per_circle, 1.0f, meridians[c], 1);
-    LOG_DEBUG("  Meridian ring rot=%.3f rad, idx now=%d", meridians[c], idx);
+        generate_circle(vertices, idx, segments_per_circle, 1.0f, longitude, 1);
+    LOG_DEBUG("Generated meridian ring: longitude=%.2f, radius=%.3f, "
+              "offset=%.3f, idx=%d",
+              longitude, 1.0f, longitude, idx);
   }
 
-  LOG_DEBUG("Orbit sphere: generated %d vertices (expected %d)", idx, total);
+  LOG_DEBUG("Orbit sphere: generated %d vertices (expected %d)", idx,
+            total_vertices);
   *out_vertex_count = idx;
-  return v;
+
+  return vertices;
 }
 
-Vertex *debug_generate_point_sphere(int segments_per_circle,
-                                    int *out_vertex_count) {
-  // Small sphere with 3 rings (equator + 2 meridians) for the fixation point
-  int num_circles = 3;
-  int verts_per_circle = segments_per_circle * 2;
-  int total = num_circles * verts_per_circle;
+Vertex *debug_generate_quality_sphere_wireframe(int quality,
+                                                WireframeQuality mesh_quality,
+                                                int *out_vertex_count) {
+  int num_circles = 4 * quality;
+  int vertices_per_circle = mesh_quality * 2;
+  int total_vertices = num_circles * vertices_per_circle;
 
-  Vertex *v = calloc(total, sizeof(Vertex));
+  Vertex *vertices = calloc(total_vertices, sizeof(Vertex));
   int idx = 0;
 
-  LOG_DEBUG("Generating fixation point sphere: %d circles, %d segments each",
-            num_circles, segments_per_circle);
+  LOG_DEBUG("Generating orbit sphere wireframe: %d circles, %d segments each, "
+            "%d total vertices",
+            num_circles, mesh_quality, total_vertices);
 
-  // One equator
-  idx = generate_circle(v, idx, segments_per_circle, 1.0f, 0.0f, 0);
+  // Horizontal rings
+  int num_latitudes = num_circles / 2;
+  for (int i = 0; i < num_latitudes; i++) {
+    float latitude = (float)i / num_latitudes * M_PI - M_PI / 2.0f;
+    float radius = cosf(latitude);
+    float offset = sinf(latitude);
+    idx = generate_circle(vertices, idx, mesh_quality, radius, offset, 0);
+    LOG_DEBUG(
+        "Generated latitude ring: latitude=%.2f, radius=%.3f, offset=%.3f, "
+        "idx=%d",
+        latitude, radius, offset, idx);
+  }
 
-  // Two meridians at 0° and 90°
-  idx = generate_circle(v, idx, segments_per_circle, 1.0f, 0.0f, 1);
-  idx = generate_circle(v, idx, segments_per_circle, 1.0f,
-                        (float)M_PI / 2.0f, 1);
+  // Vertical meridians
+  int num_meridians = num_circles - num_latitudes;
+  for (int i = 0; i < num_meridians; i++) {
+    float longitude = (float)i / num_meridians * 2.0f * (float)M_PI;
+    idx = generate_circle(vertices, idx, mesh_quality, 1.0f, longitude, 1);
+    LOG_DEBUG("Generated meridian ring: longitude=%.2f, radius=%.3f, "
+              "offset=%.3f, idx=%d",
+              longitude, 1.0f, longitude, idx);
+  }
 
-  LOG_DEBUG("Fixation sphere: generated %d vertices (expected %d)", idx, total);
+  LOG_DEBUG("Orbit sphere: generated %d vertices (expected %d)", idx,
+            total_vertices);
   *out_vertex_count = idx;
-  return v;
+
+  return vertices;
 }

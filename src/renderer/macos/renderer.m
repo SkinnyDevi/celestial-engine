@@ -1,4 +1,5 @@
 #import "renderer.h"
+#include "debug/debug_gizmos.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -175,7 +176,8 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
 
     // Orbit path sphere (unit sphere, will be scaled by zoom at draw time)
     int orbitCount = 0;
-    Vertex *orbitVerts = debug_generate_sphere_wireframe(48, &orbitCount);
+    Vertex *orbitVerts =
+        debug_generate_quality_sphere_wireframe(4, MEDIUM_QUALITY, &orbitCount);
     g_debugOrbitSphereBuffer =
         [metalLayer.device newBufferWithBytes:orbitVerts
                                        length:(sizeof(Vertex) * orbitCount)
@@ -187,7 +189,8 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
 
     // Fixation point sphere (unit sphere, will be scaled small at draw time)
     int fixCount = 0;
-    Vertex *fixVerts = debug_generate_point_sphere(24, &fixCount);
+    Vertex *fixVerts =
+        debug_generate_quality_sphere_wireframe(4, MEDIUM_QUALITY, &fixCount);
     g_debugFixationSphereBuffer =
         [metalLayer.device newBufferWithBytes:fixVerts
                                        length:(sizeof(Vertex) * fixCount)

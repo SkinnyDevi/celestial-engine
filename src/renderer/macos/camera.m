@@ -3,13 +3,12 @@
 
 // Turntable orbit sensitivity
 static const float kOrbitSensitivity = 0.007f;
-// Elevation clamped to ±89° to prevent gimbal lock at the poles
-static const float kMaxElevation = 1.5533f; // ~89°
+static const float kMaxElevation = M_PI / 2.0f; // 90 degree clamp
 // Zoom multiplier per scroll unit
 static const float kZoomFactor = 1.05f;
 // Minimum orbit zoom
 static const float kMinzoom = 0.5f;
-static const float kMaxzoom = 50000.0f;
+static const float kMaxzoom = 1000.0f;
 
 void camera_init(Camera *camera) {
   if (!camera) {
