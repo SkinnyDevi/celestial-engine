@@ -1,7 +1,7 @@
-#ifndef MACOS_DEBUG_GIZMOS_H
-#define MACOS_DEBUG_GIZMOS_H
+#ifndef MACOS_DEBUG_SPHERE_WIREFRAME_H
+#define MACOS_DEBUG_SPHERE_WIREFRAME_H
 
-#include "../grid/displaced_mesh.h"
+#include "macos/grid/displaced_mesh.h"
 
 typedef enum {
   LOW_QUALITY = 8,

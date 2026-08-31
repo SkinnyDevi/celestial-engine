@@ -1,12 +1,10 @@
-#include "../camera/camera.h"
 #include <math.h>
 
-// Turntable orbit sensitivity
+#include "core/renderer/camera/camera.h"
+
 static const float kOrbitSensitivity = 0.007f;
 static const float kMaxElevation = M_PI / 2.0f; // 90 degree clamp
-// Zoom multiplier per scroll unit
 static const float kZoomFactor = 1.05f;
-// Minimum orbit zoom
 static const float kMinzoom = 0.5f;
 static const float kMaxzoom = 1000.0f;
 

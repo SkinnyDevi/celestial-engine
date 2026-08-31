@@ -1,7 +1,8 @@
-#import "debug_gizmos.h"
-#import "../../../core/log/log.h"
+#import "sphere_wireframe.h"
 #import <math.h>
 #import <stdlib.h>
+
+#import "core/log/log.h"
 
 // Generates a wireframe circle as line segment pairs.
 // plane: 0 = XZ (horizontal), 1 = XY, 2 = YZ

@@ -2,8 +2,6 @@
 #define CLI_FUNCTIONS_H
 
 #include <stdbool.h>
-#include "help.h"
-#include "../renderer/app_renderer.h"
 
 void cli_parse_args(int argc, char **args);
 bool cli_find_arg(const char *arg, int argc, char **args);

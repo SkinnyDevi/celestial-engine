@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "help.h"
+
 static bool IS_DEBUG_MODE = false;
 
 bool cli_find_arg(const char *arg, int argc, char **args) {

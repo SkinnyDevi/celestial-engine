@@ -2,7 +2,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "cli/functions.h"
+#include "core/cli/functions.h"
+#include "core/renderer/app_renderer.h"
+
+#include "macos/app.h"
+
+void render_with(RenderingEngine engine) {
+  switch (engine) {
+  case Metal:
+    run_macos_app();
+    break;
+  case Vulkan:
+    break;
+  }
+}
 
 int main(int argc, char *argv[]) {
   if (argc <= 1) {

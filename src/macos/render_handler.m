@@ -1,8 +1,9 @@
 #import "render_handler.h"
-#import "debug/debug_overlay.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
+
+#import "debug/overlay.h"
 
 typedef struct {
   NSWindow *window;
@@ -10,7 +11,7 @@ typedef struct {
   id<MTLCommandQueue> commandQueue;
   id<MTLBuffer> vec3Buffer;
   id<MTLBuffer> uniformBuffer;
-  id<MTLLibrary> shaderLibrary;
+  id<MTLLibrary> grid_shader_lib;
   id<MTLRenderPipelineState> pipelineState;
   DebugOverlay *debugOverlay;
   Camera camera;
@@ -33,7 +34,7 @@ RenderState *RenderState_Create(void) {
   impl->commandQueue = nil;
   impl->vec3Buffer = nil;
   impl->uniformBuffer = nil;
-  impl->shaderLibrary = nil;
+  impl->grid_shader_lib = nil;
   impl->pipelineState = nil;
   impl->debugOverlay = nil;
   camera_init(&impl->camera);
@@ -55,7 +56,7 @@ void RenderState_Init(RenderState *state, void *window) {
   [impl->window.contentView.layer addSublayer:impl->metalLayer];
 
   impl->commandQueue = [impl->metalLayer.device newCommandQueue];
-  impl->shaderLibrary = [impl->metalLayer.device newDefaultLibrary];
+  impl->grid_shader_lib = [impl->metalLayer.device newDefaultLibrary];
   impl->debugOverlay = NULL;
   camera_init(&impl->camera);
   impl->dragging = false;
@@ -71,7 +72,7 @@ void RenderState_Destroy(RenderState *state) {
   RenderStateImpl *impl = (RenderStateImpl *)state;
   impl->vec3Buffer = nil;
   impl->uniformBuffer = nil;
-  impl->shaderLibrary = nil;
+  impl->grid_shader_lib = nil;
   impl->pipelineState = nil;
   impl->commandQueue = nil;
   impl->metalLayer = nil;
@@ -121,12 +122,12 @@ void *RenderState_GetUniformBuffer(RenderState *state) {
   return (__bridge void *)((RenderStateImpl *)state)->uniformBuffer;
 }
 
-void *RenderState_GetShaderLibrary(RenderState *state) {
+void *RenderState_GetGridShaderLib(RenderState *state) {
   if (!state) {
     return NULL;
   }
 
-  return (__bridge void *)((RenderStateImpl *)state)->shaderLibrary;
+  return (__bridge void *)((RenderStateImpl *)state)->grid_shader_lib;
 }
 
 void *RenderState_GetPipelineState(RenderState *state) {
@@ -169,12 +170,13 @@ void RenderState_SetUniformBuffer(RenderState *state, void *buffer) {
   ((RenderStateImpl *)state)->uniformBuffer = (__bridge id<MTLBuffer>)buffer;
 }
 
-void RenderState_SetShaderLibrary(RenderState *state, void *library) {
+void RenderState_SetGridShaderLib(RenderState *state, void *library) {
   if (!state) {
     return;
   }
 
-  ((RenderStateImpl *)state)->shaderLibrary = (__bridge id<MTLLibrary>)library;
+  ((RenderStateImpl *)state)->grid_shader_lib =
+      (__bridge id<MTLLibrary>)library;
 }
 
 void RenderState_SetPipelineState(RenderState *state, void *pipelineState) {

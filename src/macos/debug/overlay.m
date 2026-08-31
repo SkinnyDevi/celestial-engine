@@ -1,4 +1,4 @@
-#import "debug_overlay.h"
+#import "overlay.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -218,11 +218,8 @@ void debug_overlay_update_camera(DebugOverlay *overlay, const Camera *camera) {
   }
 
   DebugOverlayField cameraFields[] = {
-      {"azimuth", ""},
-      {"elevation", ""},
-      {"zoom", ""},
-      {"center", ""},
-      {"position", ""},
+      {"azimuth", ""}, {"elevation", ""}, {"zoom", ""},
+      {"center", ""},  {"position", ""},
   };
 
   char azBuf[32];
@@ -238,8 +235,8 @@ void debug_overlay_update_camera(DebugOverlay *overlay, const Camera *camera) {
   snprintf(distBuf, sizeof(distBuf), "%0.3f", camera->zoom);
   snprintf(centerBuf, sizeof(centerBuf), "(%0.2f, %0.2f, %0.2f)",
            camera->center.x, camera->center.y, camera->center.z);
-  snprintf(posBuf, sizeof(posBuf), "(%0.2f, %0.2f, %0.2f)",
-           pos.x, pos.y, pos.z);
+  snprintf(posBuf, sizeof(posBuf), "(%0.2f, %0.2f, %0.2f)", pos.x, pos.y,
+           pos.z);
 
   cameraFields[0].value = strdup(azBuf);
   cameraFields[1].value = strdup(elBuf);

@@ -1,7 +1,7 @@
 #ifndef MACOS_WINDOW_EVENT_MOUSE_H
 #define MACOS_WINDOW_EVENT_MOUSE_H
 
-#include "../render_handler.h"
+#include "macos/render_handler.h"
 #include <stdbool.h>
 
 typedef struct {
@@ -10,6 +10,7 @@ typedef struct {
 } MousePoint;
 
 void event_left_mouse_down(RenderState *state, MousePoint mouse);
-void event_left_mouse_drag(RenderState *state, MousePoint mouse, bool shiftHeld);
+void event_left_mouse_drag(RenderState *state, MousePoint mouse,
+                           bool shiftHeld);
 
 #endif

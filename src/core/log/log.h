@@ -1,8 +1,9 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "../../cli/functions.h"
 #include <stdio.h>
+
+#include "core/cli/functions.h"
 
 #define LOG_DEBUG(format, ...)                                                 \
   do {                                                                         \

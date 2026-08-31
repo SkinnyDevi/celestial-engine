@@ -3,9 +3,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "core/log/log.h"
+#include "renderer.h"
+
 int run_macos_app(void) {
+  NSRect screen_rect = [[NSScreen mainScreen] frame];
+  int screen_width = (int)screen_rect.size.width;
+  int screen_height = (int)screen_rect.size.height;
+
   RendererHandle handler =
-      init_metal_window(1280, 720, "Celestial Body Engine");
+      init_metal_window(screen_width, screen_height, "Celestial Body Engine");
 
   NSMenu *menuBar = [[NSMenu alloc] init];
   NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];

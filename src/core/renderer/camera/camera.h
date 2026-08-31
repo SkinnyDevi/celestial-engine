@@ -1,7 +1,6 @@
 #ifndef RENDERER_CAMERA_H
 #define RENDERER_CAMERA_H
 
-#include "spatial/spatial.h"
 #include <simd/simd.h>
 
 typedef struct {

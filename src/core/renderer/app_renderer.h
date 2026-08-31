@@ -4,6 +4,4 @@
 enum RenderingEngine { Metal, Vulkan };
 typedef enum RenderingEngine RenderingEngine;
 
-void render_with(RenderingEngine engine);
-
 #endif
