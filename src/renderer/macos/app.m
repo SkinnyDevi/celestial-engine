@@ -1,5 +1,4 @@
 #import "app.h"
-#import "renderer.h"
 #include <AppKit/AppKit.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,10 +25,11 @@ int run_macos_app(void) {
   [NSApp setMainMenu:menuBar];
 
   if (!handler) {
-    puts("Failed to initialize Metal window.");
+    LOG_ERROR("Failed to initialize Metal window.", NULL);
     exit(EXIT_FAILURE);
   }
 
+  LOG_INFO("Using Metal rendering engine.", NULL);
   while (1) {
     pump_os_events();    // Keep the window responsive
     draw_frame(handler); // Issue GPU commands

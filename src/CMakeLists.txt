@@ -14,8 +14,10 @@ add_executable(celengine
   renderer/macos/camera.m
   renderer/macos/render_handler.m
   renderer/macos/grid/spatial_grid.m
+  renderer/macos/grid/displaced_mesh.m
   renderer/macos/event/mouse.m
   renderer/macos/debug/debug_overlay.m
+  renderer/macos/debug/debug_gizmos.m
   renderer/macos/renderer.m
 )
 
@@ -34,8 +36,10 @@ set_source_files_properties(
     renderer/macos/app.m
     renderer/macos/render_handler.m
     renderer/macos/grid/spatial_grid.m
+    renderer/macos/grid/displaced_mesh.m
     renderer/macos/event/mouse.m
     renderer/macos/debug/debug_overlay.m
+    renderer/macos/debug/debug_gizmos.m
     renderer/macos/renderer.m
     PROPERTIES
     COMPILE_OPTIONS "-fobjc-arc"

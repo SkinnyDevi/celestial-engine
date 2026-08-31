@@ -12,8 +12,7 @@ int main(int argc, char *argv[]) {
 
   cli_parse_args(argc, argv);
 
-	if (cli_find_arg("--macos", argc, argv)) {
-    puts("Using Metal rendering engine.");
+  if (cli_find_arg("--macos", argc, argv)) {
     render_with(Metal);
     return EXIT_SUCCESS;
   }

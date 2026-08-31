@@ -18,5 +18,6 @@ void camera_orbit_from_input(Camera *camera, float dx, float dy);
 void camera_pan_from_input(Camera *camera, float dx, float dy);
 void camera_zoom_from_input(Camera *camera, float scrollDelta);
 void camera_focus_on(Camera *camera, simd_float3 target, float zoom);
+void camera_set_position(Camera *camera, simd_float3 position);
 
 #endif

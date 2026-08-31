@@ -1,25 +1,56 @@
 #import "renderer.h"
-#import "../../cli/functions.h"
-#import "debug/debug_overlay.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 
 static RenderState *g_activeRenderState = NULL;
 
-static NSString *const kGridShaderSource =
+// Debug gizmo buffers (orbit sphere + fixation point sphere)
+static id<MTLBuffer> g_debugOrbitSphereBuffer = nil;
+static int g_debugOrbitSphereVertexCount = 0;
+static id<MTLBuffer> g_debugFixationSphereBuffer = nil;
+static int g_debugFixationSphereVertexCount = 0;
+
+// Throttle per-frame debug logs (log every N frames)
+static int g_debugFrameCounter = 0;
+
+static simd_float4x4 make_scale_matrix(float s) {
+  simd_float4x4 m = {0};
+  m.columns[0] = simd_make_float4(s, 0, 0, 0);
+  m.columns[1] = simd_make_float4(0, s, 0, 0);
+  m.columns[2] = simd_make_float4(0, 0, s, 0);
+  m.columns[3] = simd_make_float4(0, 0, 0, 1);
+  return m;
+}
+
+static simd_float4x4 make_translation_matrix(simd_float3 t) {
+  simd_float4x4 m = {0};
+  m.columns[0] = simd_make_float4(1, 0, 0, 0);
+  m.columns[1] = simd_make_float4(0, 1, 0, 0);
+  m.columns[2] = simd_make_float4(0, 0, 1, 0);
+  m.columns[3] = simd_make_float4(t.x, t.y, t.z, 1);
+  return m;
+}
+
+// Inline shader source matching displaced_grid_mesh.msl
+static NSString *const kDisplacedGridShaderSource =
     @"#include <metal_stdlib>\n"
      "using namespace metal;\n"
-     "struct VertexIn { float3 pos [[attribute(0)]]; };\n"
-     "struct GridUniforms { float4x4 viewProjection; };\n"
-     "struct VertexOut { float4 pos [[position]]; };\n"
-     "vertex VertexOut vertex_main(VertexIn in [[stage_in]], "
-     "constant GridUniforms &uniforms [[buffer(1)]]) {\n"
+     "struct VertexIn { packed_float3 position; };\n"
+     "struct VertexOut { float4 position [[position]]; };\n"
+     "struct Uniforms { float4x4 mvpMatrix; float4 gridColor; };\n"
+     "vertex VertexOut grid_vertex(const device VertexIn *vertices "
+     "[[buffer(0)]], "
+     "constant Uniforms &uniforms [[buffer(1)]], "
+     "uint vid [[vertex_id]]) {\n"
      "  VertexOut out;\n"
-     "  out.pos = uniforms.viewProjection * float4(in.pos, 1.0);\n"
+     "  out.position = uniforms.mvpMatrix * float4(vertices[vid].position, "
+     "1.0);\n"
      "  return out;\n"
      "}\n"
-     "fragment float4 fragment_main() { return float4(0.75, 0.82, 1.0, 1.0); "
+     "fragment float4 grid_fragment(VertexOut in [[stage_in]], "
+     "constant Uniforms &uniforms [[buffer(1)]]) {\n"
+     "  return uniforms.gridColor;\n"
      "}\n";
 
 static void update_camera_uniforms(RenderState *state) {
@@ -39,7 +70,10 @@ static void update_camera_uniforms(RenderState *state) {
   simd_float4x4 projection =
       camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 100.0f);
 
-  GridUniforms uniforms = {simd_mul(projection, view)};
+  DisplacedMeshUniforms uniforms;
+  uniforms.mvpMatrix = simd_mul(projection, view);
+  uniforms.gridColor = (simd_float4){1.0f, 1.0f, 1.0f, 0.85f};
+
   id<MTLBuffer> uniformBuffer =
       (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
   memcpy([uniformBuffer contents], &uniforms, sizeof(uniforms));
@@ -77,11 +111,28 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   metalLayer.autoresizingMask = kCALayerWidthSizable | kCALayerHeightSizable;
   metalLayer.drawableSize = CGSizeMake(width, height);
 
+  // --- Generate displaced grid mesh vertices on CPU ---
+  int grid_size = 10;
+  float spacing = 1.0f;
+  int num_vertices = (grid_size * 2 + 1) * 4;
+  Vertex *vertices = generate_grid_vertices(grid_size, spacing, num_vertices);
+  id<MTLBuffer> vertexBuffer =
+      [metalLayer.device newBufferWithBytes:vertices
+                                     length:(sizeof(Vertex) * num_vertices)
+                                    options:MTLResourceStorageModeShared];
+  RenderState_SetVec3Buffer(state, (__bridge void *)vertexBuffer);
+  RenderState_SetVertexCount(state, num_vertices);
+  free(vertices);
+
+  LOG_DEBUG("Grid mesh: %d vertices, buffer size: %lu bytes", num_vertices,
+            (unsigned long)(sizeof(Vertex) * num_vertices));
+
+  // --- Compile the displaced grid shader ---
   NSError *error = nil;
-  MTLCompileOptions *options = [MTLCompileOptions new];
+  MTLCompileOptions *compileOptions = [MTLCompileOptions new];
   id<MTLLibrary> shaderLibrary =
-      [metalLayer.device newLibraryWithSource:kGridShaderSource
-                                      options:options
+      [metalLayer.device newLibraryWithSource:kDisplacedGridShaderSource
+                                      options:compileOptions
                                         error:&error];
   if (error) {
     NSLog(@"Error creating shader library: %@", error);
@@ -90,28 +141,19 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   }
   RenderState_SetShaderLibrary(state, (__bridge void *)shaderLibrary);
 
-  build_grid_mesh(state);
+  // --- Create uniform buffer for MVP + grid color ---
   id<MTLBuffer> uniformBuffer =
-      [metalLayer.device newBufferWithLength:sizeof(GridUniforms)
+      [metalLayer.device newBufferWithLength:sizeof(DisplacedMeshUniforms)
                                      options:MTLResourceStorageModeShared];
   RenderState_SetUniformBuffer(state, (__bridge void *)uniformBuffer);
 
+  // --- Build the render pipeline ---
   MTLRenderPipelineDescriptor *pipelineDescriptor =
       [[MTLRenderPipelineDescriptor alloc] init];
-  MTLVertexDescriptor *vertexDescriptor =
-      [MTLVertexDescriptor vertexDescriptor];
-  vertexDescriptor.attributes[0].format = MTLVertexFormatFloat3;
-  vertexDescriptor.attributes[0].offset = 0;
-  vertexDescriptor.attributes[0].bufferIndex = 0;
-  vertexDescriptor.layouts[0].stride = sizeof(Vec3);
-  vertexDescriptor.layouts[0].stepRate = 1;
-  vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
-
   pipelineDescriptor.vertexFunction =
-      [shaderLibrary newFunctionWithName:@"vertex_main"];
+      [shaderLibrary newFunctionWithName:@"grid_vertex"];
   pipelineDescriptor.fragmentFunction =
-      [shaderLibrary newFunctionWithName:@"fragment_main"];
-  pipelineDescriptor.vertexDescriptor = vertexDescriptor;
+      [shaderLibrary newFunctionWithName:@"grid_fragment"];
   pipelineDescriptor.colorAttachments[0].pixelFormat = metalLayer.pixelFormat;
 
   id<MTLRenderPipelineState> pipelineState =
@@ -128,7 +170,42 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
     DebugOverlay *overlay = debug_overlay_create((__bridge void *)window);
     RenderState_SetDebugOverlay(state, overlay);
     debug_overlay_update_camera(overlay, RenderState_GetCamera(state));
+
+    // --- Generate debug gizmo geometry ---
+
+    // Orbit path sphere (unit sphere, will be scaled by zoom at draw time)
+    int orbitCount = 0;
+    Vertex *orbitVerts = debug_generate_sphere_wireframe(48, &orbitCount);
+    g_debugOrbitSphereBuffer =
+        [metalLayer.device newBufferWithBytes:orbitVerts
+                                       length:(sizeof(Vertex) * orbitCount)
+                                      options:MTLResourceStorageModeShared];
+    g_debugOrbitSphereVertexCount = orbitCount;
+    free(orbitVerts);
+    LOG_DEBUG("Orbit sphere buffer: %d vertices, buffer=%p", orbitCount,
+              (__bridge void *)g_debugOrbitSphereBuffer);
+
+    // Fixation point sphere (unit sphere, will be scaled small at draw time)
+    int fixCount = 0;
+    Vertex *fixVerts = debug_generate_point_sphere(24, &fixCount);
+    g_debugFixationSphereBuffer =
+        [metalLayer.device newBufferWithBytes:fixVerts
+                                       length:(sizeof(Vertex) * fixCount)
+                                      options:MTLResourceStorageModeShared];
+    g_debugFixationSphereVertexCount = fixCount;
+    free(fixVerts);
+    LOG_DEBUG("Fixation sphere buffer: %d vertices, buffer=%p", fixCount,
+              (__bridge void *)g_debugFixationSphereBuffer);
   }
+
+  Camera *camera = RenderState_GetCamera(state);
+  camera_set_position(camera, simd_make_float3(5.0f, 5.0f, 5.0f));
+
+  simd_float3 camPos = camera_orbit_position(camera);
+  LOG_DEBUG("Camera initialized: az=%.3f el=%.3f zoom=%.3f center=(%.2f, "
+            "%.2f, %.2f) pos=(%.2f, %.2f, %.2f)",
+            camera->azimuth, camera->elevation, camera->zoom, camera->center.x,
+            camera->center.y, camera->center.z, camPos.x, camPos.y, camPos.z);
 
   update_camera_uniforms(state);
   [NSApp finishLaunching];
@@ -142,6 +219,7 @@ void draw_frame(RendererHandle handle) {
   }
 
   update_camera_uniforms(state);
+  g_debugFrameCounter++;
 
   if (cli_is_debug_mode()) {
     DebugOverlay *overlay = RenderState_GetDebugOverlay(state);
@@ -179,11 +257,71 @@ void draw_frame(RendererHandle handle) {
     id<MTLRenderCommandEncoder> encoder =
         [commandBuffer renderCommandEncoderWithDescriptor:passDescriptor];
     [encoder setRenderPipelineState:pipelineState];
+
+    // --- Draw the grid ---
     [encoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
     [encoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
+    [encoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
     [encoder drawPrimitives:MTLPrimitiveTypeLine
                 vertexStart:0
                 vertexCount:RenderState_GetVertexCount(state)];
+
+    // --- Debug gizmo draws ---
+    if (cli_is_debug_mode() && g_debugOrbitSphereBuffer &&
+        g_debugFixationSphereBuffer) {
+      Camera *cam = RenderState_GetCamera(state);
+      float aspect = metalLayer.drawableSize.width /
+                     MAX(metalLayer.drawableSize.height, 1.0f);
+      simd_float4x4 view = camera_view_matrix(cam);
+      simd_float4x4 proj = camera_perspective(70.0f * (float)M_PI / 180.0f,
+                                              aspect, 0.1f, 100.0f);
+      simd_float4x4 vp = simd_mul(proj, view);
+
+      // Log camera state every 120 frames (~2 seconds at 60fps)
+      if (g_debugFrameCounter % 120 == 0) {
+        simd_float3 camPos = camera_orbit_position(cam);
+        LOG_DEBUG("[Frame %d] Camera: zoom=%.3f center=(%.2f, %.2f, %.2f) "
+                  "pos=(%.2f, %.2f, %.2f)",
+                  g_debugFrameCounter, cam->zoom, cam->center.x, cam->center.y,
+                  cam->center.z, camPos.x, camPos.y, camPos.z);
+      }
+
+      // 1) Orbit sphere (PINK): unit sphere scaled by zoom, at center
+      {
+        simd_float4x4 model = simd_mul(make_translation_matrix(cam->center),
+                                       make_scale_matrix(cam->zoom));
+        DisplacedMeshUniforms u;
+        u.mvpMatrix = simd_mul(vp, model);
+        u.gridColor = (simd_float4){1.0f, 0.41f, 0.71f, 0.7f}; // Hot pink
+
+        [encoder setVertexBuffer:g_debugOrbitSphereBuffer offset:0 atIndex:0];
+        [encoder setVertexBytes:&u length:sizeof(u) atIndex:1];
+        [encoder setFragmentBytes:&u length:sizeof(u) atIndex:1];
+        [encoder drawPrimitives:MTLPrimitiveTypeLine
+                    vertexStart:0
+                    vertexCount:g_debugOrbitSphereVertexCount];
+      }
+
+      // 2) Fixation point sphere (RED): small sphere at center
+      {
+        float fixationRadius = 0.15f; // Fixed small size
+        simd_float4x4 model = simd_mul(make_translation_matrix(cam->center),
+                                       make_scale_matrix(fixationRadius));
+        DisplacedMeshUniforms u;
+        u.mvpMatrix = simd_mul(vp, model);
+        u.gridColor = (simd_float4){1.0f, 0.15f, 0.15f, 1.0f}; // Red
+
+        [encoder setVertexBuffer:g_debugFixationSphereBuffer
+                          offset:0
+                         atIndex:0];
+        [encoder setVertexBytes:&u length:sizeof(u) atIndex:1];
+        [encoder setFragmentBytes:&u length:sizeof(u) atIndex:1];
+        [encoder drawPrimitives:MTLPrimitiveTypeLine
+                    vertexStart:0
+                    vertexCount:g_debugFixationSphereVertexCount];
+      }
+    }
+
     [encoder endEncoding];
 
     [commandBuffer presentDrawable:drawable];
@@ -213,7 +351,8 @@ void pump_os_events(void) {
       } else if ([event type] == NSEventTypeLeftMouseDragged) {
         NSPoint current = [event locationInWindow];
         MousePoint point = {current.x, current.y};
-        bool shiftHeld = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
+        bool shiftHeld =
+            ([event modifierFlags] & NSEventModifierFlagShift) != 0;
         event_left_mouse_drag(state, point, shiftHeld);
       } else if ([event type] == NSEventTypeLeftMouseUp) {
         RenderState_SetDragging(state, false);

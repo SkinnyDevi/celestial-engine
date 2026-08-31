@@ -1,14 +1,11 @@
 #ifndef SPATIAL_VEC3_H
 #define SPATIAL_VEC3_H
 
-typedef struct
-{
-	float x, y, z;
-} Vec3;
+#include <simd/simd.h>
 
 typedef struct
 {
-	Vec3 position, rotation, scale;
+	simd_float3 position, rotation, scale;
 } Transform;
 
 typedef struct

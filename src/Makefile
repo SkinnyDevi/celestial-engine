@@ -273,6 +273,30 @@ renderer/macos/camera.m.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/camera.m.s
 .PHONY : renderer/macos/camera.m.s
 
+renderer/macos/debug/debug_gizmos.o: renderer/macos/debug/debug_gizmos.m.o
+.PHONY : renderer/macos/debug/debug_gizmos.o
+
+# target to build an object file
+renderer/macos/debug/debug_gizmos.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_gizmos.m.o
+.PHONY : renderer/macos/debug/debug_gizmos.m.o
+
+renderer/macos/debug/debug_gizmos.i: renderer/macos/debug/debug_gizmos.m.i
+.PHONY : renderer/macos/debug/debug_gizmos.i
+
+# target to preprocess a source file
+renderer/macos/debug/debug_gizmos.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_gizmos.m.i
+.PHONY : renderer/macos/debug/debug_gizmos.m.i
+
+renderer/macos/debug/debug_gizmos.s: renderer/macos/debug/debug_gizmos.m.s
+.PHONY : renderer/macos/debug/debug_gizmos.s
+
+# target to generate assembly for a file
+renderer/macos/debug/debug_gizmos.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_gizmos.m.s
+.PHONY : renderer/macos/debug/debug_gizmos.m.s
+
 renderer/macos/debug/debug_overlay.o: renderer/macos/debug/debug_overlay.m.o
 .PHONY : renderer/macos/debug/debug_overlay.o
 
@@ -320,6 +344,30 @@ renderer/macos/event/mouse.s: renderer/macos/event/mouse.m.s
 renderer/macos/event/mouse.m.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/event/mouse.m.s
 .PHONY : renderer/macos/event/mouse.m.s
+
+renderer/macos/grid/displaced_mesh.o: renderer/macos/grid/displaced_mesh.m.o
+.PHONY : renderer/macos/grid/displaced_mesh.o
+
+# target to build an object file
+renderer/macos/grid/displaced_mesh.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/displaced_mesh.m.o
+.PHONY : renderer/macos/grid/displaced_mesh.m.o
+
+renderer/macos/grid/displaced_mesh.i: renderer/macos/grid/displaced_mesh.m.i
+.PHONY : renderer/macos/grid/displaced_mesh.i
+
+# target to preprocess a source file
+renderer/macos/grid/displaced_mesh.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/displaced_mesh.m.i
+.PHONY : renderer/macos/grid/displaced_mesh.m.i
+
+renderer/macos/grid/displaced_mesh.s: renderer/macos/grid/displaced_mesh.m.s
+.PHONY : renderer/macos/grid/displaced_mesh.s
+
+# target to generate assembly for a file
+renderer/macos/grid/displaced_mesh.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/displaced_mesh.m.s
+.PHONY : renderer/macos/grid/displaced_mesh.m.s
 
 renderer/macos/grid/spatial_grid.o: renderer/macos/grid/spatial_grid.m.o
 .PHONY : renderer/macos/grid/spatial_grid.o
@@ -420,12 +468,18 @@ help:
 	@echo "... renderer/macos/camera.o"
 	@echo "... renderer/macos/camera.i"
 	@echo "... renderer/macos/camera.s"
+	@echo "... renderer/macos/debug/debug_gizmos.o"
+	@echo "... renderer/macos/debug/debug_gizmos.i"
+	@echo "... renderer/macos/debug/debug_gizmos.s"
 	@echo "... renderer/macos/debug/debug_overlay.o"
 	@echo "... renderer/macos/debug/debug_overlay.i"
 	@echo "... renderer/macos/debug/debug_overlay.s"
 	@echo "... renderer/macos/event/mouse.o"
 	@echo "... renderer/macos/event/mouse.i"
 	@echo "... renderer/macos/event/mouse.s"
+	@echo "... renderer/macos/grid/displaced_mesh.o"
+	@echo "... renderer/macos/grid/displaced_mesh.i"
+	@echo "... renderer/macos/grid/displaced_mesh.s"
 	@echo "... renderer/macos/grid/spatial_grid.o"
 	@echo "... renderer/macos/grid/spatial_grid.i"
 	@echo "... renderer/macos/grid/spatial_grid.s"
