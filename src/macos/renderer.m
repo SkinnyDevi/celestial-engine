@@ -121,10 +121,11 @@ void create_render_pipeline(RenderState *state) {
 }
 
 void generate_debug_graphics(RenderState *state) {
+  if (cli_should_show_fps() || cli_is_debug_mode())
+    debug_create_fps_counter_overlay(state);
+
   if (!cli_is_debug_mode())
     return;
-
-  debug_create_fps_counter_overlay(state);
 
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
   debug_create_camera_properties_overlay(state);
@@ -220,7 +221,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
 
 void draw_debug_fps(RenderState *state, bool use_extended_data,
                     FPSData *out_data) {
-  if (!cli_is_debug_mode())
+  if (!cli_is_debug_mode() && !cli_should_show_fps())
     return;
 
   DebugOverlay *overlay = RenderState_GetFPSCounterOverlay(state);
@@ -233,6 +234,12 @@ void draw_debug_fps(RenderState *state, bool use_extended_data,
 
 void draw_debug_graphics(RenderState *state,
                          id<MTLRenderCommandEncoder> encoder) {
+  FPSData fps_data;
+  draw_debug_fps(state,
+                 DEBUG_FPS_COUNTER_ADVANCED_VISIBLE &&
+                     cli_should_show_advanced_fps(),
+                 &fps_data);
+
   if (!cli_is_debug_mode())
     return;
 
@@ -246,9 +253,6 @@ void draw_debug_graphics(RenderState *state,
   simd_float4x4 proj =
       camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 100.0f);
   simd_float4x4 vp = simd_mul(proj, view);
-
-  FPSData fps_data;
-  draw_debug_fps(state, true, &fps_data);
 
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
   unsigned long long debug_frame_counter = fps_data.frame_count;
