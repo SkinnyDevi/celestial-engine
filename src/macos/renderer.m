@@ -9,6 +9,7 @@
 
 #import "macos/debug/camera_properties.h"
 #import "macos/debug/flags.h"
+#import "macos/debug/fps_counter.h"
 #import "macos/debug/overlay.h"
 #import "macos/debug/sphere_wireframe.h"
 
@@ -29,10 +30,6 @@ static int debug_camera_orbit_sphere_vertices = 0;
 #if DEBUG_CAMERA_FIXATION_POINT_VISIBLE
 static id<MTLBuffer> debug_camera_fixation_sphere_buffer = nil;
 static int debug_camera_fixation_sphere_vertices = 0;
-#endif
-
-#if DEBUG_CAMERA_PROPERTIES_VISIBLE
-static int debug_frame_counter = 0;
 #endif
 
 static simd_float4x4 make_scale_matrix(float s) {
@@ -127,6 +124,8 @@ void generate_debug_graphics(RenderState *state) {
   if (!cli_is_debug_mode())
     return;
 
+  debug_create_fps_counter_overlay(state);
+
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
   debug_create_camera_properties_overlay(state);
 #endif
@@ -219,6 +218,19 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   return (RendererHandle)state;
 }
 
+void draw_debug_fps(RenderState *state, bool use_extended_data,
+                    FPSData *out_data) {
+  if (!cli_is_debug_mode())
+    return;
+
+  DebugOverlay *overlay = RenderState_GetFPSCounterOverlay(state);
+  if (!overlay)
+    return;
+
+  debug_overlay_clear(overlay);
+  debug_overlay_update_fps(overlay, use_extended_data, out_data);
+}
+
 void draw_debug_graphics(RenderState *state,
                          id<MTLRenderCommandEncoder> encoder) {
   if (!cli_is_debug_mode())
@@ -235,13 +247,18 @@ void draw_debug_graphics(RenderState *state,
       camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 100.0f);
   simd_float4x4 vp = simd_mul(proj, view);
 
+  FPSData fps_data;
+  draw_debug_fps(state, true, &fps_data);
+
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
+  unsigned long long debug_frame_counter = fps_data.frame_count;
   if (debug_frame_counter % 120 == 0) {
     simd_float3 cam_pos = camera_orbit_position(cam);
-    LOG_DEBUG("[Frame %d] Camera: zoom=%.3f center=(%.2f, %.2f, %.2f) "
-              "pos=(%.2f, %.2f, %.2f)",
-              debug_frame_counter, cam->zoom, cam->center.x, cam->center.y,
-              cam->center.z, cam_pos.x, cam_pos.y, cam_pos.z);
+    LOG_DEBUG(
+        "[Frame %llu | FPS %.2f] Camera: zoom=%.3f center=(%.2f, %.2f, %.2f) "
+        "pos=(%.2f, %.2f, %.2f)",
+        debug_frame_counter, fps_data.fps_avg, cam->zoom, cam->center.x,
+        cam->center.y, cam->center.z, cam_pos.x, cam_pos.y, cam_pos.z);
   }
 #endif
 
@@ -309,9 +326,6 @@ void draw_frame(RendererHandle handle) {
     return;
 
   update_camera_uniforms(state);
-#if DEBUG_CAMERA_PROPERTIES_VISIBLE
-  debug_frame_counter++;
-#endif
 
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
   if (cli_is_debug_mode()) {

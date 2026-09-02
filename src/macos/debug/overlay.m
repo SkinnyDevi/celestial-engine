@@ -159,6 +159,24 @@ void debug_overlay_clear(DebugOverlay *overlay) {
     [overlay->view setNeedsDisplay:YES];
 }
 
+float wrap_x_coordinate(float x, float width) {
+  if (width <= 0.0f)
+    return x;
+  float wrapX = fmodf(x, width);
+  if (wrapX < 0.0f)
+    wrapX += width;
+  return wrapX;
+}
+
+float wrap_y_coordinate(float y, float height) {
+  if (height <= 0.0f)
+    return y;
+  float wrapY = fmodf(y, height);
+  if (wrapY < 0.0f)
+    wrapY += height;
+  return wrapY;
+}
+
 void debug_overlay_add_panel(DebugOverlay *overlay, const char *title, float x,
                              float y, float width, float height, float alpha,
                              const DebugOverlayField *fields,
@@ -171,8 +189,8 @@ void debug_overlay_add_panel(DebugOverlay *overlay, const char *title, float x,
 
   DebugPanel *panel = &overlay->panels[overlay->panelCount++];
   snprintf(panel->title, sizeof(panel->title), "%s", title);
-  panel->x = x;
-  panel->y = y;
+  panel->x = wrap_x_coordinate(x, overlay->view.bounds.size.width);
+  panel->y = wrap_y_coordinate(y, overlay->view.bounds.size.height);
   panel->width = width;
   panel->height = height;
   panel->alpha = alpha;

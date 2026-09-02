@@ -21,6 +21,7 @@ add_executable(celengine
   macos/debug/overlay.m
   macos/debug/sphere_wireframe.m
   macos/debug/camera_properties.m
+  macos/debug/fps_counter.m
   macos/renderer.m
 )
 
@@ -52,6 +53,7 @@ set_source_files_properties(
     macos/debug/overlay.m
     macos/debug/sphere_wireframe.m
     macos/debug/camera_properties.m
+    macos/debug/fps_counter.m
     macos/renderer.m
     PROPERTIES
     COMPILE_OPTIONS "-fobjc-arc"
