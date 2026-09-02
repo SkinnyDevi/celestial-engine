@@ -1,0 +1,4 @@
+#ifndef MACOS_DEBUG_FPS_COUNTER
+#define MACOS_DEBUG_FPS_COUNTER
+
+#endif

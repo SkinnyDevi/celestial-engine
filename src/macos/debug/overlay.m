@@ -35,13 +35,11 @@ static void debug_draw_panel(NSView *hostView, DebugPanel *panel);
 - (void)drawRect:(NSRect)dirtyRect {
   [super drawRect:dirtyRect];
 
-  if (!self.overlay || !self.overlay->visible) {
+  if (!self.overlay || !self.overlay->visible)
     return;
-  }
 
-  for (size_t i = 0; i < self.overlay->panelCount; ++i) {
+  for (size_t i = 0; i < self.overlay->panelCount; ++i)
     debug_draw_panel(self, &self.overlay->panels[i]);
-  }
 }
 @end
 
@@ -57,9 +55,8 @@ static NSFont *debug_font(void) {
 }
 
 static void debug_clear_panel_fields(DebugPanel *panel) {
-  if (!panel) {
+  if (!panel)
     return;
-  }
 
   for (size_t i = 0; i < panel->fieldCount; ++i) {
     free((void *)panel->fields[i].label);
@@ -71,9 +68,8 @@ static void debug_clear_panel_fields(DebugPanel *panel) {
 }
 
 static void debug_draw_panel(NSView *hostView, DebugPanel *panel) {
-  if (!hostView || !panel) {
+  if (!hostView || !panel)
     return;
-  }
 
   NSRect frame = NSMakeRect(panel->x, panel->y, panel->width, panel->height);
   NSBezierPath *background = [NSBezierPath bezierPathWithRoundedRect:frame
@@ -93,9 +89,8 @@ static void debug_draw_panel(NSView *hostView, DebugPanel *panel) {
 
   CGFloat rowY = frame.origin.y + frame.size.height - 34.0;
   for (size_t i = 0; i < panel->fieldCount; ++i) {
-    if (i >= DEBUG_OVERLAY_MAX_FIELDS) {
+    if (i >= DEBUG_OVERLAY_MAX_FIELDS)
       break;
-    }
 
     DebugOverlayField *field = &panel->fields[i];
     NSString *label = [NSString stringWithUTF8String:field->label];
@@ -115,9 +110,8 @@ static void debug_draw_panel(NSView *hostView, DebugPanel *panel) {
 
 DebugOverlay *debug_overlay_create(void *window) {
   DebugOverlay *overlay = calloc(1, sizeof(DebugOverlay));
-  if (!overlay) {
+  if (!overlay)
     return NULL;
-  }
 
   overlay->window = (__bridge NSWindow *)window;
   overlay->visible = true;
@@ -140,9 +134,8 @@ DebugOverlay *debug_overlay_create(void *window) {
 }
 
 void debug_overlay_destroy(DebugOverlay *overlay) {
-  if (!overlay) {
+  if (!overlay)
     return;
-  }
 
   debug_overlay_clear(overlay);
 
@@ -155,30 +148,26 @@ void debug_overlay_destroy(DebugOverlay *overlay) {
 }
 
 void debug_overlay_clear(DebugOverlay *overlay) {
-  if (!overlay) {
+  if (!overlay)
     return;
-  }
 
-  for (size_t i = 0; i < overlay->panelCount; ++i) {
+  for (size_t i = 0; i < overlay->panelCount; ++i)
     debug_clear_panel_fields(&overlay->panels[i]);
-  }
+
   overlay->panelCount = 0;
-  if (overlay->view) {
+  if (overlay->view)
     [overlay->view setNeedsDisplay:YES];
-  }
 }
 
 void debug_overlay_add_panel(DebugOverlay *overlay, const char *title, float x,
                              float y, float width, float height, float alpha,
                              const DebugOverlayField *fields,
                              size_t fieldCount) {
-  if (!overlay || !title || !fields || fieldCount == 0) {
+  if (!overlay || !title || !fields || fieldCount == 0)
     return;
-  }
 
-  if (overlay->panelCount >= DEBUG_OVERLAY_MAX_PANELS) {
+  if (overlay->panelCount >= DEBUG_OVERLAY_MAX_PANELS)
     return;
-  }
 
   DebugPanel *panel = &overlay->panels[overlay->panelCount++];
   snprintf(panel->title, sizeof(panel->title), "%s", title);
@@ -196,59 +185,22 @@ void debug_overlay_add_panel(DebugOverlay *overlay, const char *title, float x,
     panel->fields[i].value = strdup(fields[i].value ? fields[i].value : "");
   }
 
-  if (overlay->view) {
+  if (overlay->view)
     [overlay->view setNeedsDisplay:YES];
-  }
 }
 
 void debug_overlay_set_visible(DebugOverlay *overlay, bool visible) {
-  if (!overlay) {
+  if (!overlay)
     return;
-  }
 
   overlay->visible = visible;
-  if (overlay->view) {
+  if (overlay->view)
     [overlay->view setNeedsDisplay:YES];
-  }
 }
 
-void debug_overlay_update_camera(DebugOverlay *overlay, const Camera *camera) {
-  if (!overlay || !camera || !overlay->visible) {
-    return;
-  }
+bool debug_overlay_is_visible(const DebugOverlay *overlay) {
+  if (!overlay)
+    return false;
 
-  DebugOverlayField cameraFields[] = {
-      {"azimuth", ""}, {"elevation", ""}, {"zoom", ""},
-      {"center", ""},  {"position", ""},
-  };
-
-  char azBuf[32];
-  char elBuf[32];
-  char distBuf[32];
-  char centerBuf[64];
-  char posBuf[64];
-
-  simd_float3 pos = camera_orbit_position(camera);
-
-  snprintf(azBuf, sizeof(azBuf), "%0.3f", camera->azimuth);
-  snprintf(elBuf, sizeof(elBuf), "%0.3f", camera->elevation);
-  snprintf(distBuf, sizeof(distBuf), "%0.3f", camera->zoom);
-  snprintf(centerBuf, sizeof(centerBuf), "(%0.2f, %0.2f, %0.2f)",
-           camera->center.x, camera->center.y, camera->center.z);
-  snprintf(posBuf, sizeof(posBuf), "(%0.2f, %0.2f, %0.2f)", pos.x, pos.y,
-           pos.z);
-
-  cameraFields[0].value = strdup(azBuf);
-  cameraFields[1].value = strdup(elBuf);
-  cameraFields[2].value = strdup(distBuf);
-  cameraFields[3].value = strdup(centerBuf);
-  cameraFields[4].value = strdup(posBuf);
-
-  debug_overlay_add_panel(overlay, "Camera", 20.0f, 20.0f, 230.0f, 136.0f, 0.6f,
-                          cameraFields, 5);
-
-  for (size_t i = 0; i < 5; ++i) {
-    free((void *)cameraFields[i].value);
-    cameraFields[i].value = NULL;
-  }
+  return overlay->visible;
 }

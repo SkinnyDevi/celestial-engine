@@ -1,7 +1,7 @@
 #ifndef MACOS_RENDER_HANDLER_H
 #define MACOS_RENDER_HANDLER_H
 
-#include "../core/renderer/camera/camera.h"
+#include "core/renderer/camera/camera.h"
 #include <simd/simd.h>
 #include <stdbool.h>
 
@@ -27,14 +27,15 @@ void *RenderState_GetVec3Buffer(RenderState *state);
 void *RenderState_GetUniformBuffer(RenderState *state);
 void *RenderState_GetGridShaderLib(RenderState *state);
 void *RenderState_GetPipelineState(RenderState *state);
-DebugOverlay *RenderState_GetDebugOverlay(RenderState *state);
+DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);
 Camera *RenderState_GetCamera(RenderState *state);
 
 void RenderState_SetVec3Buffer(RenderState *state, void *buffer);
 void RenderState_SetUniformBuffer(RenderState *state, void *buffer);
 void RenderState_SetGridShaderLib(RenderState *state, void *library);
 void RenderState_SetPipelineState(RenderState *state, void *pipelineState);
-void RenderState_SetDebugOverlay(RenderState *state, DebugOverlay *overlay);
+void RenderState_SetCameraDebugOverlay(RenderState *state,
+                                       DebugOverlay *overlay);
 void RenderState_SetVertexCount(RenderState *state, unsigned long count);
 unsigned long RenderState_GetVertexCount(const RenderState *state);
 void RenderState_SetDragging(RenderState *state, bool dragging);

@@ -1,7 +1,7 @@
 #ifndef MACOS_DEBUG_OVERLAY_H
 #define MACOS_DEBUG_OVERLAY_H
 
-#include "macos/render_handler.h"
+#include "core/renderer/camera/camera.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -20,6 +20,6 @@ void debug_overlay_add_panel(DebugOverlay *overlay, const char *title, float x,
                              const DebugOverlayField *fields,
                              size_t fieldCount);
 void debug_overlay_set_visible(DebugOverlay *overlay, bool visible);
-void debug_overlay_update_camera(DebugOverlay *overlay, const Camera *camera);
+bool debug_overlay_is_visible(const DebugOverlay *overlay);
 
 #endif

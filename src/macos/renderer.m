@@ -3,18 +3,21 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 
-#include "core/cli/functions.h"
-#include "core/log/log.h"
-#include "core/renderer/camera/camera.h"
+#import "core/cli/functions.h"
+#import "core/log/log.h"
+#import "core/renderer/camera/camera.h"
 
-#include "macos/debug/flags.h"
-#include "macos/debug/overlay.h"
-#include "macos/debug/sphere_wireframe.h"
-#include "macos/event/mouse.h"
-#include "macos/grid/displaced_mesh.h"
-#include "macos/grid/spatial_grid.h"
-#include "macos/render_handler.h"
-#include "macos/shaders/shader_loader.h"
+#import "macos/debug/camera_properties.h"
+#import "macos/debug/flags.h"
+#import "macos/debug/overlay.h"
+#import "macos/debug/sphere_wireframe.h"
+
+#import "macos/event/mouse.h"
+
+#import "macos/grid/displaced_mesh.h"
+#import "macos/grid/spatial_grid.h"
+#import "macos/render_handler.h"
+#import "macos/shaders/shader_loader.h"
 
 static RenderState *app_render_state = NULL;
 
@@ -120,14 +123,12 @@ void create_render_pipeline(RenderState *state) {
   RenderState_SetPipelineState(state, (__bridge void *)pipeline_state);
 }
 
-void generate_debug_graphics(RenderState *state, NSWindow *window) {
+void generate_debug_graphics(RenderState *state) {
   if (!cli_is_debug_mode())
     return;
 
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
-  DebugOverlay *overlay = debug_overlay_create((__bridge void *)window);
-  RenderState_SetDebugOverlay(state, overlay);
-  debug_overlay_update_camera(overlay, RenderState_GetCamera(state));
+  debug_create_camera_properties_overlay(state);
 #endif
 
   CAMetalLayer *metal_layer =
@@ -203,7 +204,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   RenderState_SetUniformBuffer(state, (__bridge void *)uniform_buffer);
 
   create_render_pipeline(state);
-  generate_debug_graphics(state, window);
+  generate_debug_graphics(state);
 
   Camera *camera = RenderState_GetCamera(state);
   simd_float3 cam_pos = camera_orbit_position(camera);
@@ -304,9 +305,8 @@ void draw_grid(RenderState *state, id<MTLRenderCommandEncoder> encoder) {
 
 void draw_frame(RendererHandle handle) {
   RenderState *state = (RenderState *)handle;
-  if (!state || !RenderState_GetPipelineState(state)) {
+  if (!state || !RenderState_GetPipelineState(state))
     return;
-  }
 
   update_camera_uniforms(state);
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
@@ -315,7 +315,7 @@ void draw_frame(RendererHandle handle) {
 
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
   if (cli_is_debug_mode()) {
-    DebugOverlay *overlay = RenderState_GetDebugOverlay(state);
+    DebugOverlay *overlay = RenderState_GetCameraDebugOverlay(state);
     if (overlay) {
       debug_overlay_clear(overlay);
       debug_overlay_update_camera(overlay, RenderState_GetCamera(state));

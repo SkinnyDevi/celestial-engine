@@ -13,7 +13,7 @@ typedef struct {
   id<MTLBuffer> uniformBuffer;
   id<MTLLibrary> grid_shader_lib;
   id<MTLRenderPipelineState> pipelineState;
-  DebugOverlay *debugOverlay;
+  DebugOverlay *camera_debug_overlay;
   Camera camera;
   bool dragging;
   NSPoint lastMouse;
@@ -36,7 +36,7 @@ RenderState *RenderState_Create(void) {
   impl->uniformBuffer = nil;
   impl->grid_shader_lib = nil;
   impl->pipelineState = nil;
-  impl->debugOverlay = nil;
+  impl->camera_debug_overlay = nil;
   camera_init(&impl->camera);
 
   return (RenderState *)impl;
@@ -57,7 +57,7 @@ void RenderState_Init(RenderState *state, void *window) {
 
   impl->commandQueue = [impl->metalLayer.device newCommandQueue];
   impl->grid_shader_lib = [impl->metalLayer.device newDefaultLibrary];
-  impl->debugOverlay = NULL;
+  impl->camera_debug_overlay = NULL;
   camera_init(&impl->camera);
   impl->dragging = false;
   impl->lastMouse = NSZeroPoint;
@@ -77,8 +77,8 @@ void RenderState_Destroy(RenderState *state) {
   impl->commandQueue = nil;
   impl->metalLayer = nil;
   impl->window = nil;
-  debug_overlay_destroy(impl->debugOverlay);
-  impl->debugOverlay = nil;
+  debug_overlay_destroy(impl->camera_debug_overlay);
+  impl->camera_debug_overlay = nil;
   free(state);
 }
 
@@ -138,12 +138,12 @@ void *RenderState_GetPipelineState(RenderState *state) {
   return (__bridge void *)((RenderStateImpl *)state)->pipelineState;
 }
 
-DebugOverlay *RenderState_GetDebugOverlay(RenderState *state) {
+DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state) {
   if (!state) {
     return NULL;
   }
 
-  return ((RenderStateImpl *)state)->debugOverlay;
+  return ((RenderStateImpl *)state)->camera_debug_overlay;
 }
 
 Camera *RenderState_GetCamera(RenderState *state) {
@@ -188,12 +188,13 @@ void RenderState_SetPipelineState(RenderState *state, void *pipelineState) {
       (__bridge id<MTLRenderPipelineState>)pipelineState;
 }
 
-void RenderState_SetDebugOverlay(RenderState *state, DebugOverlay *overlay) {
+void RenderState_SetCameraDebugOverlay(RenderState *state,
+                                       DebugOverlay *overlay) {
   if (!state) {
     return;
   }
 
-  ((RenderStateImpl *)state)->debugOverlay = overlay;
+  ((RenderStateImpl *)state)->camera_debug_overlay = overlay;
 }
 
 void RenderState_SetVertexCount(RenderState *state, unsigned long count) {
