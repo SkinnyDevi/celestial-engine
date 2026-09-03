@@ -10,19 +10,21 @@ add_executable(celengine
   main.c
   core/cli/help.c
   core/cli/functions.c
-  core/renderer/camera/camera.h
+  core/data/dyn_array.c
   macos/app.m
-  macos/camera.m
-  macos/render_handler.m
-  macos/grid/spatial_grid.m
-  macos/grid/displaced_mesh.m
+  macos/render/camera.m
+  macos/render/grid/spatial_grid.m
+  macos/render/grid/displaced_mesh.m
+  macos/render/renderer.m
+  macos/render/state/render_handler.m
+  macos/render/shape/solid_sphere.m
+  macos/render/space/star.m
   macos/shaders/shader_loader.m
   macos/event/mouse.m
   macos/debug/overlay.m
   macos/debug/sphere_wireframe.m
   macos/debug/camera_properties.m
   macos/debug/fps_counter.m
-  macos/renderer.m
 )
 
 target_include_directories(celengine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -44,17 +46,19 @@ target_compile_definitions(celengine PRIVATE
 
 set_source_files_properties(
     macos/app.m
-    macos/camera.m
-    macos/render_handler.m
-    macos/grid/spatial_grid.m
-    macos/grid/displaced_mesh.m
+    macos/render/camera.m
+    macos/render/state/render_handler.m
+    macos/render/grid/spatial_grid.m
+    macos/render/grid/displaced_mesh.m
+    macos/render/renderer.m
+    macos/render/space/star.m
+    macos/render/shape/solid_sphere.m
     macos/shaders/shader_loader.m
     macos/event/mouse.m
     macos/debug/overlay.m
     macos/debug/sphere_wireframe.m
     macos/debug/camera_properties.m
     macos/debug/fps_counter.m
-    macos/renderer.m
     PROPERTIES
     COMPILE_OPTIONS "-fobjc-arc"
 )

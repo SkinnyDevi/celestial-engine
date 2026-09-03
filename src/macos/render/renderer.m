@@ -1,4 +1,8 @@
 #import "renderer.h"
+#include "core/data/dyn_array.h"
+#include "core/space/star.h"
+#include "macos/render/space/defined/stars.h"
+#include "macos/render/space/star.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -15,9 +19,9 @@
 
 #import "macos/event/mouse.h"
 
-#import "macos/grid/displaced_mesh.h"
-#import "macos/grid/spatial_grid.h"
-#import "macos/render_handler.h"
+#import "macos/render/grid/displaced_mesh.h"
+#import "macos/render/grid/spatial_grid.h"
+#import "macos/render/state/render_handler.h"
 #import "macos/shaders/shader_loader.h"
 
 static RenderState *app_render_state = NULL;
@@ -163,7 +167,27 @@ void generate_debug_graphics(RenderState *state) {
 #endif
 }
 
+void init_celestial_bodies(RenderState *render_state) {
+  DynamicArray *stars = RenderState_GetStars(render_state);
+
+  MTLStarGraphicsClass *mtl_sun = MTLStarGraphics_Create(&SUN);
+  DynamicArray_push(stars, &mtl_sun);
+
+  size_t count = DynamicArray_length(stars);
+  for (size_t i = 0; i < count; i++) {
+    MTLStarGraphicsClass *star;
+    DynamicArray_get(stars, i, &star);
+    MTLStarGraphicsClass_init(star, render_state);
+    LOG_DEBUG("Registered star (%lu): %s (%s)", i,
+              ((CelestialBody_Star *)star->body)->name,
+              ((CelestialBody_Star *)star->body)->body_id);
+  }
+  LOG_DEBUG("Total celestial bodies registered: %lu",
+            DynamicArray_length(stars));
+}
+
 RendererHandle init_metal_window(int width, int height, const char *title) {
+  LOG_DEBUG("Initializing Metal window.", NULL);
   [NSApplication sharedApplication];
   [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 
@@ -205,6 +229,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
 
   create_render_pipeline(state);
   generate_debug_graphics(state);
+  init_celestial_bodies(state);
 
   Camera *camera = RenderState_GetCamera(state);
   simd_float3 cam_pos = camera_orbit_position(camera);
@@ -216,6 +241,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
 
   update_camera_uniforms(state);
   [NSApp finishLaunching];
+  LOG_DEBUG("Metal window initialized.", NULL);
   return (RendererHandle)state;
 }
 
@@ -270,15 +296,19 @@ void draw_debug_graphics(RenderState *state,
   {
     simd_float4x4 model = simd_mul(make_translation_matrix(cam->center),
                                    make_scale_matrix(cam->zoom));
-    DisplacedMeshUniforms u;
-    u.mvpMatrix = simd_mul(vp, model);
-    u.gridColor = (simd_float4){1.0f, 0.41f, 0.71f, 0.7f}; // Pink
+    DisplacedMeshUniforms mesh_uniforms;
+    mesh_uniforms.mvpMatrix = simd_mul(vp, model);
+    mesh_uniforms.gridColor = (simd_float4){1.0f, 0.41f, 0.71f, 0.7f}; // Pink
 
     [encoder setVertexBuffer:debug_camera_orbit_sphere_buffer
                       offset:0
                      atIndex:0];
-    [encoder setVertexBytes:&u length:sizeof(u) atIndex:1];
-    [encoder setFragmentBytes:&u length:sizeof(u) atIndex:1];
+    [encoder setVertexBytes:&mesh_uniforms
+                     length:sizeof(mesh_uniforms)
+                    atIndex:1];
+    [encoder setFragmentBytes:&mesh_uniforms
+                       length:sizeof(mesh_uniforms)
+                      atIndex:1];
     [encoder drawPrimitives:MTLPrimitiveTypeLine
                 vertexStart:0
                 vertexCount:debug_camera_orbit_sphere_vertices];
@@ -324,6 +354,16 @@ void draw_grid(RenderState *state, id<MTLRenderCommandEncoder> encoder) {
               vertexCount:RenderState_GetVertexCount(state)];
 }
 
+void draw_celestial_bodies(RenderState *state,
+                           id<MTLRenderCommandEncoder> encoder) {
+  DynamicArray *stars = RenderState_GetStars(state);
+  for (size_t i = 0; i < stars->length; i++) {
+    MTLStarGraphicsClass *star;
+    DynamicArray_get(stars, i, &star);
+    MTLStarGraphicsClass_draw(star, state, (__bridge void *)encoder);
+  }
+}
+
 void draw_frame(RendererHandle handle) {
   RenderState *state = (RenderState *)handle;
   if (!state || !RenderState_GetPipelineState(state))
@@ -367,6 +407,7 @@ void draw_frame(RendererHandle handle) {
 
     draw_grid(state, encoder);
     draw_debug_graphics(state, encoder);
+    draw_celestial_bodies(state, encoder);
 
     [encoder endEncoding];
 

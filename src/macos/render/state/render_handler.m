@@ -3,7 +3,9 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 
-#import "debug/overlay.h"
+#import "core/data/dyn_array.h"
+#include "core/space/star.h"
+#import "macos/debug/overlay.h"
 
 typedef struct {
   NSWindow *window;
@@ -19,6 +21,8 @@ typedef struct {
   bool dragging;
   NSPoint lastMouse;
   NSUInteger gridVertexCount;
+  DynamicArray stars;
+  DynamicArray planets;
 } RenderStateImpl;
 
 RenderState *RenderState_Create(void) {
@@ -63,6 +67,9 @@ void RenderState_Init(RenderState *state, void *window) {
   impl->dragging = false;
   impl->lastMouse = NSZeroPoint;
   impl->gridVertexCount = 0;
+  DynamicArray_init(&impl->stars, sizeof(CelestialBody_Star *));
+  // impl->planets = malloc(sizeof(DynamicArray));
+  // DynamicArray_init(impl->planets, sizeof(CelestialBody_Planet));
 }
 
 void RenderState_Destroy(RenderState *state) {
@@ -81,6 +88,8 @@ void RenderState_Destroy(RenderState *state) {
   impl->camera_debug_overlay = nil;
   debug_overlay_destroy(impl->fps_counter_overlay);
   impl->fps_counter_overlay = nil;
+  DynamicArray_free(&impl->stars);
+  // DynamicArray_free(&impl->planets);
   free(state);
 }
 
@@ -131,6 +140,20 @@ void *RenderState_GetPipelineState(RenderState *state) {
     return NULL;
 
   return (__bridge void *)((RenderStateImpl *)state)->pipelineState;
+}
+
+DynamicArray *RenderState_GetStars(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return &((RenderStateImpl *)state)->stars;
+}
+
+DynamicArray *RenderState_GetPlanets(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return &((RenderStateImpl *)state)->planets;
 }
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state) {

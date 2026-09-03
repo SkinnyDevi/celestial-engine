@@ -4,13 +4,14 @@
 #include <stdlib.h>
 
 #include "core/log/log.h"
-#include "renderer.h"
+#include "macos/render/renderer.h"
 
 int run_macos_app(void) {
   NSRect screen_rect = [[NSScreen mainScreen] frame];
   int screen_width = (int)screen_rect.size.width;
   int screen_height = (int)screen_rect.size.height;
 
+  LOG_INFO("Using Metal rendering engine.", NULL);
   RendererHandle handler =
       init_metal_window(screen_width, screen_height, "Celestial Body Engine");
 
@@ -36,7 +37,6 @@ int run_macos_app(void) {
     exit(EXIT_FAILURE);
   }
 
-  LOG_INFO("Using Metal rendering engine.", NULL);
   while (1) {
     pump_os_events();    // Keep the window responsive
     draw_frame(handler); // Issue GPU commands

@@ -2,7 +2,7 @@
 #define MACOS_DEBUG_FPS_COUNTER
 
 #include "macos/debug/overlay.h"
-#include "macos/render_handler.h"
+#include "macos/render/state/render_handler.h"
 
 typedef struct {
   unsigned long long last_frame_time_nanos;

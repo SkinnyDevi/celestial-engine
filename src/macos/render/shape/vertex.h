@@ -1,5 +1,5 @@
-#ifndef MACOS_DISPLACED_MESH_H
-#define MACOS_DISPLACED_MESH_H
+#ifndef MACOS_RENDER_SHAPE_VERTEX_H
+#define MACOS_RENDER_SHAPE_VERTEX_H
 
 #include <simd/simd.h>
 
@@ -19,7 +19,5 @@ typedef struct {
   simd_float4x4 mvpMatrix;
   simd_float4 gridColor;
 } DisplacedMeshUniforms;
-
-Vertex *generate_grid_vertices(int grid_size, float spacing, int num_vertices);
 
 #endif

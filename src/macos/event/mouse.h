@@ -1,7 +1,7 @@
 #ifndef MACOS_WINDOW_EVENT_MOUSE_H
 #define MACOS_WINDOW_EVENT_MOUSE_H
 
-#include "macos/render_handler.h"
+#include "macos/render/state/render_handler.h"
 #include <stdbool.h>
 
 typedef struct {

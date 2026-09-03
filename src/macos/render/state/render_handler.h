@@ -1,6 +1,7 @@
 #ifndef MACOS_RENDER_HANDLER_H
 #define MACOS_RENDER_HANDLER_H
 
+#include "core/data/dyn_array.h"
 #include "core/renderer/camera/camera.h"
 #include <simd/simd.h>
 #include <stdbool.h>
@@ -28,6 +29,7 @@ void *RenderState_GetUniformBuffer(RenderState *state);
 void *RenderState_GetGridShaderLib(RenderState *state);
 void *RenderState_GetPipelineState(RenderState *state);
 Camera *RenderState_GetCamera(RenderState *state);
+DynamicArray *RenderState_GetStars(RenderState *state);
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);
 DebugOverlay *RenderState_GetFPSCounterOverlay(RenderState *state);

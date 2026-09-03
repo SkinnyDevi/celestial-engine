@@ -1,7 +1,7 @@
 #ifndef MACOS_DEBUG_SPHERE_WIREFRAME_H
 #define MACOS_DEBUG_SPHERE_WIREFRAME_H
 
-#include "macos/grid/displaced_mesh.h"
+#include "macos/render/shape/vertex.h"
 
 typedef enum {
   LOW_QUALITY = 8,
