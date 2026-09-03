@@ -1,15 +1,14 @@
 #import "renderer.h"
-#include "core/data/dyn_array.h"
-#include "core/space/star.h"
-#include "macos/render/space/defined/stars.h"
-#include "macos/render/space/star.h"
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 
 #import "core/cli/functions.h"
+#import "core/data/dyn_array.h"
 #import "core/log/log.h"
 #import "core/renderer/camera/camera.h"
+#import "core/space/defined/stars.h"
+#import "core/space/star.h"
 
 #import "macos/debug/camera_properties.h"
 #import "macos/debug/flags.h"
@@ -21,6 +20,7 @@
 
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/grid/spatial_grid.h"
+#import "macos/render/space/star.h"
 #import "macos/render/state/render_handler.h"
 #import "macos/shaders/shader_loader.h"
 
@@ -171,7 +171,10 @@ void init_celestial_bodies(RenderState *render_state) {
   DynamicArray *stars = RenderState_GetStars(render_state);
 
   MTLStarGraphicsClass *mtl_sun = MTLStarGraphics_Create(&SUN);
+  MTLStarGraphicsClass *mtl_test = MTLStarGraphics_Create(&TEST_STAR);
+
   DynamicArray_push(stars, &mtl_sun);
+  DynamicArray_push(stars, &mtl_test);
 
   size_t count = DynamicArray_length(stars);
   for (size_t i = 0; i < count; i++) {
@@ -357,7 +360,8 @@ void draw_grid(RenderState *state, id<MTLRenderCommandEncoder> encoder) {
 void draw_celestial_bodies(RenderState *state,
                            id<MTLRenderCommandEncoder> encoder) {
   DynamicArray *stars = RenderState_GetStars(state);
-  for (size_t i = 0; i < stars->length; i++) {
+  size_t star_count = DynamicArray_length(stars);
+  for (size_t i = 0; i < star_count; i++) {
     MTLStarGraphicsClass *star;
     DynamicArray_get(stars, i, &star);
     MTLStarGraphicsClass_draw(star, state, (__bridge void *)encoder);

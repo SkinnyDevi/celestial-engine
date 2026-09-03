@@ -5,6 +5,7 @@
 
 #import "core/log/log.h"
 #import "core/space/star.h"
+#import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
 
@@ -74,6 +75,18 @@ void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
     memset(&uniforms, 0, sizeof(uniforms));
   }
 
+  float render_scale = (float)(star->body->radius_m * METERS_TO_RENDER_UNITS);
+
+  simd_float4x4 model = {0};
+  model.columns[0] = simd_make_float4(render_scale, 0.0f, 0.0f, 0.0f);
+  model.columns[1] = simd_make_float4(0.0f, render_scale, 0.0f, 0.0f);
+  model.columns[2] = simd_make_float4(0.0f, 0.0f, render_scale, 0.0f);
+  model.columns[3] = simd_make_float4(
+      (float)(star->body->position.x * METERS_TO_RENDER_UNITS),
+      (float)(star->body->position.y * METERS_TO_RENDER_UNITS),
+      (float)(star->body->position.z * METERS_TO_RENDER_UNITS), 1.0f);
+
+  uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
   uniforms.gridColor = color;
 
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
