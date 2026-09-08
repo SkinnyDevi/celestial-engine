@@ -1,4 +1,5 @@
 #import "renderer.h"
+#include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -16,10 +17,10 @@
 #import "macos/debug/overlay.h"
 #import "macos/debug/sphere_wireframe.h"
 
+#import "macos/event/input_registry.h"
 #import "macos/event/mouse.h"
 
 #import "macos/render/grid/displaced_mesh.h"
-#import "macos/render/grid/spatial_grid.h"
 #import "macos/render/space/star.h"
 #import "macos/render/state/render_handler.h"
 #import "macos/shaders/shader_loader.h"
@@ -189,6 +190,16 @@ void init_celestial_bodies(RenderState *render_state) {
             DynamicArray_length(stars));
 }
 
+void test_log(RenderState *state, uint16_t key_code) {
+  LOG_DEBUG("Key pressed: %d", key_code);
+}
+
+void init_inputs(RenderState *render_state) {
+  InputRegistry *registry = RenderState_GetInputRegistry(render_state);
+
+  input_register_bind(registry, 5, KEY_ACTION_DOWN, test_log); // G key
+}
+
 RendererHandle init_metal_window(int width, int height, const char *title) {
   LOG_DEBUG("Initializing Metal window.", NULL);
   [NSApplication sharedApplication];
@@ -233,6 +244,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   create_render_pipeline(state);
   generate_debug_graphics(state);
   init_celestial_bodies(state);
+  init_inputs(state);
 
   Camera *camera = RenderState_GetCamera(state);
   simd_float3 cam_pos = camera_orbit_position(camera);
@@ -434,6 +446,18 @@ void pump_os_events(void) {
         continue;
 
       RenderState *state = app_render_state;
+      input_update_held_keys(RenderState_GetInputRegistry(state), state);
+
+      // Key down and key up events should only be processed if they are not
+      // repeats
+      if ([event type] == NSEventTypeKeyDown && ![event isARepeat]) {
+        input_process_key_down(RenderState_GetInputRegistry(state), state,
+                               [event keyCode]);
+      } else if ([event type] == NSEventTypeKeyUp) {
+        input_process_key_up(RenderState_GetInputRegistry(state), state,
+                             [event keyCode]);
+      }
+
       if ([event type] == NSEventTypeLeftMouseDown) {
         NSPoint mouse = [event locationInWindow];
         MousePoint point = {mouse.x, mouse.y};

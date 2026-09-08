@@ -3,6 +3,7 @@
 
 #include "core/data/dyn_array.h"
 #include "core/renderer/camera/camera.h"
+
 #include <simd/simd.h>
 #include <stdbool.h>
 
@@ -16,6 +17,7 @@ typedef struct {
 
 typedef struct RenderState RenderState;
 typedef struct DebugOverlay DebugOverlay;
+typedef struct InputRegistry InputRegistry;
 
 RenderState *RenderState_Create(void);
 void RenderState_Init(RenderState *state, void *window);
@@ -30,6 +32,7 @@ void *RenderState_GetGridShaderLib(RenderState *state);
 void *RenderState_GetPipelineState(RenderState *state);
 Camera *RenderState_GetCamera(RenderState *state);
 DynamicArray *RenderState_GetStars(RenderState *state);
+InputRegistry *RenderState_GetInputRegistry(RenderState *state);
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);
 DebugOverlay *RenderState_GetFPSCounterOverlay(RenderState *state);

@@ -129,53 +129,413 @@ celengine/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/build
 .PHONY : celengine/fast
 
-cli/functions.o: cli/functions.c.o
-.PHONY : cli/functions.o
+core/cli/functions.o: core/cli/functions.c.o
+.PHONY : core/cli/functions.o
 
 # target to build an object file
-cli/functions.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/cli/functions.c.o
-.PHONY : cli/functions.c.o
+core/cli/functions.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/cli/functions.c.o
+.PHONY : core/cli/functions.c.o
 
-cli/functions.i: cli/functions.c.i
-.PHONY : cli/functions.i
+core/cli/functions.i: core/cli/functions.c.i
+.PHONY : core/cli/functions.i
 
 # target to preprocess a source file
-cli/functions.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/cli/functions.c.i
-.PHONY : cli/functions.c.i
+core/cli/functions.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/cli/functions.c.i
+.PHONY : core/cli/functions.c.i
 
-cli/functions.s: cli/functions.c.s
-.PHONY : cli/functions.s
+core/cli/functions.s: core/cli/functions.c.s
+.PHONY : core/cli/functions.s
 
 # target to generate assembly for a file
-cli/functions.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/cli/functions.c.s
-.PHONY : cli/functions.c.s
+core/cli/functions.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/cli/functions.c.s
+.PHONY : core/cli/functions.c.s
 
-cli/help.o: cli/help.c.o
-.PHONY : cli/help.o
+core/cli/help.o: core/cli/help.c.o
+.PHONY : core/cli/help.o
 
 # target to build an object file
-cli/help.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/cli/help.c.o
-.PHONY : cli/help.c.o
+core/cli/help.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/cli/help.c.o
+.PHONY : core/cli/help.c.o
 
-cli/help.i: cli/help.c.i
-.PHONY : cli/help.i
+core/cli/help.i: core/cli/help.c.i
+.PHONY : core/cli/help.i
 
 # target to preprocess a source file
-cli/help.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/cli/help.c.i
-.PHONY : cli/help.c.i
+core/cli/help.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/cli/help.c.i
+.PHONY : core/cli/help.c.i
 
-cli/help.s: cli/help.c.s
-.PHONY : cli/help.s
+core/cli/help.s: core/cli/help.c.s
+.PHONY : core/cli/help.s
 
 # target to generate assembly for a file
-cli/help.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/cli/help.c.s
-.PHONY : cli/help.c.s
+core/cli/help.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/cli/help.c.s
+.PHONY : core/cli/help.c.s
+
+core/data/dyn_array.o: core/data/dyn_array.c.o
+.PHONY : core/data/dyn_array.o
+
+# target to build an object file
+core/data/dyn_array.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/data/dyn_array.c.o
+.PHONY : core/data/dyn_array.c.o
+
+core/data/dyn_array.i: core/data/dyn_array.c.i
+.PHONY : core/data/dyn_array.i
+
+# target to preprocess a source file
+core/data/dyn_array.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/data/dyn_array.c.i
+.PHONY : core/data/dyn_array.c.i
+
+core/data/dyn_array.s: core/data/dyn_array.c.s
+.PHONY : core/data/dyn_array.s
+
+# target to generate assembly for a file
+core/data/dyn_array.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/data/dyn_array.c.s
+.PHONY : core/data/dyn_array.c.s
+
+macos/app.o: macos/app.m.o
+.PHONY : macos/app.o
+
+# target to build an object file
+macos/app.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/app.m.o
+.PHONY : macos/app.m.o
+
+macos/app.i: macos/app.m.i
+.PHONY : macos/app.i
+
+# target to preprocess a source file
+macos/app.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/app.m.i
+.PHONY : macos/app.m.i
+
+macos/app.s: macos/app.m.s
+.PHONY : macos/app.s
+
+# target to generate assembly for a file
+macos/app.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/app.m.s
+.PHONY : macos/app.m.s
+
+macos/debug/camera_properties.o: macos/debug/camera_properties.m.o
+.PHONY : macos/debug/camera_properties.o
+
+# target to build an object file
+macos/debug/camera_properties.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/camera_properties.m.o
+.PHONY : macos/debug/camera_properties.m.o
+
+macos/debug/camera_properties.i: macos/debug/camera_properties.m.i
+.PHONY : macos/debug/camera_properties.i
+
+# target to preprocess a source file
+macos/debug/camera_properties.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/camera_properties.m.i
+.PHONY : macos/debug/camera_properties.m.i
+
+macos/debug/camera_properties.s: macos/debug/camera_properties.m.s
+.PHONY : macos/debug/camera_properties.s
+
+# target to generate assembly for a file
+macos/debug/camera_properties.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/camera_properties.m.s
+.PHONY : macos/debug/camera_properties.m.s
+
+macos/debug/fps_counter.o: macos/debug/fps_counter.m.o
+.PHONY : macos/debug/fps_counter.o
+
+# target to build an object file
+macos/debug/fps_counter.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/fps_counter.m.o
+.PHONY : macos/debug/fps_counter.m.o
+
+macos/debug/fps_counter.i: macos/debug/fps_counter.m.i
+.PHONY : macos/debug/fps_counter.i
+
+# target to preprocess a source file
+macos/debug/fps_counter.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/fps_counter.m.i
+.PHONY : macos/debug/fps_counter.m.i
+
+macos/debug/fps_counter.s: macos/debug/fps_counter.m.s
+.PHONY : macos/debug/fps_counter.s
+
+# target to generate assembly for a file
+macos/debug/fps_counter.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/fps_counter.m.s
+.PHONY : macos/debug/fps_counter.m.s
+
+macos/debug/overlay.o: macos/debug/overlay.m.o
+.PHONY : macos/debug/overlay.o
+
+# target to build an object file
+macos/debug/overlay.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/overlay.m.o
+.PHONY : macos/debug/overlay.m.o
+
+macos/debug/overlay.i: macos/debug/overlay.m.i
+.PHONY : macos/debug/overlay.i
+
+# target to preprocess a source file
+macos/debug/overlay.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/overlay.m.i
+.PHONY : macos/debug/overlay.m.i
+
+macos/debug/overlay.s: macos/debug/overlay.m.s
+.PHONY : macos/debug/overlay.s
+
+# target to generate assembly for a file
+macos/debug/overlay.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/overlay.m.s
+.PHONY : macos/debug/overlay.m.s
+
+macos/debug/sphere_wireframe.o: macos/debug/sphere_wireframe.m.o
+.PHONY : macos/debug/sphere_wireframe.o
+
+# target to build an object file
+macos/debug/sphere_wireframe.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/sphere_wireframe.m.o
+.PHONY : macos/debug/sphere_wireframe.m.o
+
+macos/debug/sphere_wireframe.i: macos/debug/sphere_wireframe.m.i
+.PHONY : macos/debug/sphere_wireframe.i
+
+# target to preprocess a source file
+macos/debug/sphere_wireframe.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/sphere_wireframe.m.i
+.PHONY : macos/debug/sphere_wireframe.m.i
+
+macos/debug/sphere_wireframe.s: macos/debug/sphere_wireframe.m.s
+.PHONY : macos/debug/sphere_wireframe.s
+
+# target to generate assembly for a file
+macos/debug/sphere_wireframe.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/debug/sphere_wireframe.m.s
+.PHONY : macos/debug/sphere_wireframe.m.s
+
+macos/event/input_registry.o: macos/event/input_registry.m.o
+.PHONY : macos/event/input_registry.o
+
+# target to build an object file
+macos/event/input_registry.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/event/input_registry.m.o
+.PHONY : macos/event/input_registry.m.o
+
+macos/event/input_registry.i: macos/event/input_registry.m.i
+.PHONY : macos/event/input_registry.i
+
+# target to preprocess a source file
+macos/event/input_registry.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/event/input_registry.m.i
+.PHONY : macos/event/input_registry.m.i
+
+macos/event/input_registry.s: macos/event/input_registry.m.s
+.PHONY : macos/event/input_registry.s
+
+# target to generate assembly for a file
+macos/event/input_registry.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/event/input_registry.m.s
+.PHONY : macos/event/input_registry.m.s
+
+macos/event/mouse.o: macos/event/mouse.m.o
+.PHONY : macos/event/mouse.o
+
+# target to build an object file
+macos/event/mouse.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/event/mouse.m.o
+.PHONY : macos/event/mouse.m.o
+
+macos/event/mouse.i: macos/event/mouse.m.i
+.PHONY : macos/event/mouse.i
+
+# target to preprocess a source file
+macos/event/mouse.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/event/mouse.m.i
+.PHONY : macos/event/mouse.m.i
+
+macos/event/mouse.s: macos/event/mouse.m.s
+.PHONY : macos/event/mouse.s
+
+# target to generate assembly for a file
+macos/event/mouse.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/event/mouse.m.s
+.PHONY : macos/event/mouse.m.s
+
+macos/render/camera.o: macos/render/camera.m.o
+.PHONY : macos/render/camera.o
+
+# target to build an object file
+macos/render/camera.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/camera.m.o
+.PHONY : macos/render/camera.m.o
+
+macos/render/camera.i: macos/render/camera.m.i
+.PHONY : macos/render/camera.i
+
+# target to preprocess a source file
+macos/render/camera.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/camera.m.i
+.PHONY : macos/render/camera.m.i
+
+macos/render/camera.s: macos/render/camera.m.s
+.PHONY : macos/render/camera.s
+
+# target to generate assembly for a file
+macos/render/camera.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/camera.m.s
+.PHONY : macos/render/camera.m.s
+
+macos/render/grid/displaced_mesh.o: macos/render/grid/displaced_mesh.m.o
+.PHONY : macos/render/grid/displaced_mesh.o
+
+# target to build an object file
+macos/render/grid/displaced_mesh.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/grid/displaced_mesh.m.o
+.PHONY : macos/render/grid/displaced_mesh.m.o
+
+macos/render/grid/displaced_mesh.i: macos/render/grid/displaced_mesh.m.i
+.PHONY : macos/render/grid/displaced_mesh.i
+
+# target to preprocess a source file
+macos/render/grid/displaced_mesh.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/grid/displaced_mesh.m.i
+.PHONY : macos/render/grid/displaced_mesh.m.i
+
+macos/render/grid/displaced_mesh.s: macos/render/grid/displaced_mesh.m.s
+.PHONY : macos/render/grid/displaced_mesh.s
+
+# target to generate assembly for a file
+macos/render/grid/displaced_mesh.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/grid/displaced_mesh.m.s
+.PHONY : macos/render/grid/displaced_mesh.m.s
+
+macos/render/renderer.o: macos/render/renderer.m.o
+.PHONY : macos/render/renderer.o
+
+# target to build an object file
+macos/render/renderer.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/renderer.m.o
+.PHONY : macos/render/renderer.m.o
+
+macos/render/renderer.i: macos/render/renderer.m.i
+.PHONY : macos/render/renderer.i
+
+# target to preprocess a source file
+macos/render/renderer.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/renderer.m.i
+.PHONY : macos/render/renderer.m.i
+
+macos/render/renderer.s: macos/render/renderer.m.s
+.PHONY : macos/render/renderer.s
+
+# target to generate assembly for a file
+macos/render/renderer.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/renderer.m.s
+.PHONY : macos/render/renderer.m.s
+
+macos/render/shape/solid_sphere.o: macos/render/shape/solid_sphere.m.o
+.PHONY : macos/render/shape/solid_sphere.o
+
+# target to build an object file
+macos/render/shape/solid_sphere.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.o
+.PHONY : macos/render/shape/solid_sphere.m.o
+
+macos/render/shape/solid_sphere.i: macos/render/shape/solid_sphere.m.i
+.PHONY : macos/render/shape/solid_sphere.i
+
+# target to preprocess a source file
+macos/render/shape/solid_sphere.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.i
+.PHONY : macos/render/shape/solid_sphere.m.i
+
+macos/render/shape/solid_sphere.s: macos/render/shape/solid_sphere.m.s
+.PHONY : macos/render/shape/solid_sphere.s
+
+# target to generate assembly for a file
+macos/render/shape/solid_sphere.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.s
+.PHONY : macos/render/shape/solid_sphere.m.s
+
+macos/render/space/star.o: macos/render/space/star.m.o
+.PHONY : macos/render/space/star.o
+
+# target to build an object file
+macos/render/space/star.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/star.m.o
+.PHONY : macos/render/space/star.m.o
+
+macos/render/space/star.i: macos/render/space/star.m.i
+.PHONY : macos/render/space/star.i
+
+# target to preprocess a source file
+macos/render/space/star.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/star.m.i
+.PHONY : macos/render/space/star.m.i
+
+macos/render/space/star.s: macos/render/space/star.m.s
+.PHONY : macos/render/space/star.s
+
+# target to generate assembly for a file
+macos/render/space/star.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/star.m.s
+.PHONY : macos/render/space/star.m.s
+
+macos/render/state/render_handler.o: macos/render/state/render_handler.m.o
+.PHONY : macos/render/state/render_handler.o
+
+# target to build an object file
+macos/render/state/render_handler.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/state/render_handler.m.o
+.PHONY : macos/render/state/render_handler.m.o
+
+macos/render/state/render_handler.i: macos/render/state/render_handler.m.i
+.PHONY : macos/render/state/render_handler.i
+
+# target to preprocess a source file
+macos/render/state/render_handler.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/state/render_handler.m.i
+.PHONY : macos/render/state/render_handler.m.i
+
+macos/render/state/render_handler.s: macos/render/state/render_handler.m.s
+.PHONY : macos/render/state/render_handler.s
+
+# target to generate assembly for a file
+macos/render/state/render_handler.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/state/render_handler.m.s
+.PHONY : macos/render/state/render_handler.m.s
+
+macos/shaders/shader_loader.o: macos/shaders/shader_loader.m.o
+.PHONY : macos/shaders/shader_loader.o
+
+# target to build an object file
+macos/shaders/shader_loader.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/shaders/shader_loader.m.o
+.PHONY : macos/shaders/shader_loader.m.o
+
+macos/shaders/shader_loader.i: macos/shaders/shader_loader.m.i
+.PHONY : macos/shaders/shader_loader.i
+
+# target to preprocess a source file
+macos/shaders/shader_loader.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/shaders/shader_loader.m.i
+.PHONY : macos/shaders/shader_loader.m.i
+
+macos/shaders/shader_loader.s: macos/shaders/shader_loader.m.s
+.PHONY : macos/shaders/shader_loader.s
+
+# target to generate assembly for a file
+macos/shaders/shader_loader.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/shaders/shader_loader.m.s
+.PHONY : macos/shaders/shader_loader.m.s
 
 main.o: main.c.o
 .PHONY : main.o
@@ -201,246 +561,6 @@ main.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/main.c.s
 .PHONY : main.c.s
 
-renderer/app_renderer.o: renderer/app_renderer.c.o
-.PHONY : renderer/app_renderer.o
-
-# target to build an object file
-renderer/app_renderer.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/app_renderer.c.o
-.PHONY : renderer/app_renderer.c.o
-
-renderer/app_renderer.i: renderer/app_renderer.c.i
-.PHONY : renderer/app_renderer.i
-
-# target to preprocess a source file
-renderer/app_renderer.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/app_renderer.c.i
-.PHONY : renderer/app_renderer.c.i
-
-renderer/app_renderer.s: renderer/app_renderer.c.s
-.PHONY : renderer/app_renderer.s
-
-# target to generate assembly for a file
-renderer/app_renderer.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/app_renderer.c.s
-.PHONY : renderer/app_renderer.c.s
-
-renderer/macos/app.o: renderer/macos/app.m.o
-.PHONY : renderer/macos/app.o
-
-# target to build an object file
-renderer/macos/app.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/app.m.o
-.PHONY : renderer/macos/app.m.o
-
-renderer/macos/app.i: renderer/macos/app.m.i
-.PHONY : renderer/macos/app.i
-
-# target to preprocess a source file
-renderer/macos/app.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/app.m.i
-.PHONY : renderer/macos/app.m.i
-
-renderer/macos/app.s: renderer/macos/app.m.s
-.PHONY : renderer/macos/app.s
-
-# target to generate assembly for a file
-renderer/macos/app.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/app.m.s
-.PHONY : renderer/macos/app.m.s
-
-renderer/macos/camera.o: renderer/macos/camera.m.o
-.PHONY : renderer/macos/camera.o
-
-# target to build an object file
-renderer/macos/camera.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/camera.m.o
-.PHONY : renderer/macos/camera.m.o
-
-renderer/macos/camera.i: renderer/macos/camera.m.i
-.PHONY : renderer/macos/camera.i
-
-# target to preprocess a source file
-renderer/macos/camera.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/camera.m.i
-.PHONY : renderer/macos/camera.m.i
-
-renderer/macos/camera.s: renderer/macos/camera.m.s
-.PHONY : renderer/macos/camera.s
-
-# target to generate assembly for a file
-renderer/macos/camera.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/camera.m.s
-.PHONY : renderer/macos/camera.m.s
-
-renderer/macos/debug/debug_gizmos.o: renderer/macos/debug/debug_gizmos.m.o
-.PHONY : renderer/macos/debug/debug_gizmos.o
-
-# target to build an object file
-renderer/macos/debug/debug_gizmos.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_gizmos.m.o
-.PHONY : renderer/macos/debug/debug_gizmos.m.o
-
-renderer/macos/debug/debug_gizmos.i: renderer/macos/debug/debug_gizmos.m.i
-.PHONY : renderer/macos/debug/debug_gizmos.i
-
-# target to preprocess a source file
-renderer/macos/debug/debug_gizmos.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_gizmos.m.i
-.PHONY : renderer/macos/debug/debug_gizmos.m.i
-
-renderer/macos/debug/debug_gizmos.s: renderer/macos/debug/debug_gizmos.m.s
-.PHONY : renderer/macos/debug/debug_gizmos.s
-
-# target to generate assembly for a file
-renderer/macos/debug/debug_gizmos.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_gizmos.m.s
-.PHONY : renderer/macos/debug/debug_gizmos.m.s
-
-renderer/macos/debug/debug_overlay.o: renderer/macos/debug/debug_overlay.m.o
-.PHONY : renderer/macos/debug/debug_overlay.o
-
-# target to build an object file
-renderer/macos/debug/debug_overlay.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_overlay.m.o
-.PHONY : renderer/macos/debug/debug_overlay.m.o
-
-renderer/macos/debug/debug_overlay.i: renderer/macos/debug/debug_overlay.m.i
-.PHONY : renderer/macos/debug/debug_overlay.i
-
-# target to preprocess a source file
-renderer/macos/debug/debug_overlay.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_overlay.m.i
-.PHONY : renderer/macos/debug/debug_overlay.m.i
-
-renderer/macos/debug/debug_overlay.s: renderer/macos/debug/debug_overlay.m.s
-.PHONY : renderer/macos/debug/debug_overlay.s
-
-# target to generate assembly for a file
-renderer/macos/debug/debug_overlay.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/debug/debug_overlay.m.s
-.PHONY : renderer/macos/debug/debug_overlay.m.s
-
-renderer/macos/event/mouse.o: renderer/macos/event/mouse.m.o
-.PHONY : renderer/macos/event/mouse.o
-
-# target to build an object file
-renderer/macos/event/mouse.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/event/mouse.m.o
-.PHONY : renderer/macos/event/mouse.m.o
-
-renderer/macos/event/mouse.i: renderer/macos/event/mouse.m.i
-.PHONY : renderer/macos/event/mouse.i
-
-# target to preprocess a source file
-renderer/macos/event/mouse.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/event/mouse.m.i
-.PHONY : renderer/macos/event/mouse.m.i
-
-renderer/macos/event/mouse.s: renderer/macos/event/mouse.m.s
-.PHONY : renderer/macos/event/mouse.s
-
-# target to generate assembly for a file
-renderer/macos/event/mouse.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/event/mouse.m.s
-.PHONY : renderer/macos/event/mouse.m.s
-
-renderer/macos/grid/displaced_mesh.o: renderer/macos/grid/displaced_mesh.m.o
-.PHONY : renderer/macos/grid/displaced_mesh.o
-
-# target to build an object file
-renderer/macos/grid/displaced_mesh.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/displaced_mesh.m.o
-.PHONY : renderer/macos/grid/displaced_mesh.m.o
-
-renderer/macos/grid/displaced_mesh.i: renderer/macos/grid/displaced_mesh.m.i
-.PHONY : renderer/macos/grid/displaced_mesh.i
-
-# target to preprocess a source file
-renderer/macos/grid/displaced_mesh.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/displaced_mesh.m.i
-.PHONY : renderer/macos/grid/displaced_mesh.m.i
-
-renderer/macos/grid/displaced_mesh.s: renderer/macos/grid/displaced_mesh.m.s
-.PHONY : renderer/macos/grid/displaced_mesh.s
-
-# target to generate assembly for a file
-renderer/macos/grid/displaced_mesh.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/displaced_mesh.m.s
-.PHONY : renderer/macos/grid/displaced_mesh.m.s
-
-renderer/macos/grid/spatial_grid.o: renderer/macos/grid/spatial_grid.m.o
-.PHONY : renderer/macos/grid/spatial_grid.o
-
-# target to build an object file
-renderer/macos/grid/spatial_grid.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/spatial_grid.m.o
-.PHONY : renderer/macos/grid/spatial_grid.m.o
-
-renderer/macos/grid/spatial_grid.i: renderer/macos/grid/spatial_grid.m.i
-.PHONY : renderer/macos/grid/spatial_grid.i
-
-# target to preprocess a source file
-renderer/macos/grid/spatial_grid.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/spatial_grid.m.i
-.PHONY : renderer/macos/grid/spatial_grid.m.i
-
-renderer/macos/grid/spatial_grid.s: renderer/macos/grid/spatial_grid.m.s
-.PHONY : renderer/macos/grid/spatial_grid.s
-
-# target to generate assembly for a file
-renderer/macos/grid/spatial_grid.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/grid/spatial_grid.m.s
-.PHONY : renderer/macos/grid/spatial_grid.m.s
-
-renderer/macos/render_handler.o: renderer/macos/render_handler.m.o
-.PHONY : renderer/macos/render_handler.o
-
-# target to build an object file
-renderer/macos/render_handler.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/render_handler.m.o
-.PHONY : renderer/macos/render_handler.m.o
-
-renderer/macos/render_handler.i: renderer/macos/render_handler.m.i
-.PHONY : renderer/macos/render_handler.i
-
-# target to preprocess a source file
-renderer/macos/render_handler.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/render_handler.m.i
-.PHONY : renderer/macos/render_handler.m.i
-
-renderer/macos/render_handler.s: renderer/macos/render_handler.m.s
-.PHONY : renderer/macos/render_handler.s
-
-# target to generate assembly for a file
-renderer/macos/render_handler.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/render_handler.m.s
-.PHONY : renderer/macos/render_handler.m.s
-
-renderer/macos/renderer.o: renderer/macos/renderer.m.o
-.PHONY : renderer/macos/renderer.o
-
-# target to build an object file
-renderer/macos/renderer.m.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/renderer.m.o
-.PHONY : renderer/macos/renderer.m.o
-
-renderer/macos/renderer.i: renderer/macos/renderer.m.i
-.PHONY : renderer/macos/renderer.i
-
-# target to preprocess a source file
-renderer/macos/renderer.m.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/renderer.m.i
-.PHONY : renderer/macos/renderer.m.i
-
-renderer/macos/renderer.s: renderer/macos/renderer.m.s
-.PHONY : renderer/macos/renderer.s
-
-# target to generate assembly for a file
-renderer/macos/renderer.m.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/renderer/macos/renderer.m.s
-.PHONY : renderer/macos/renderer.m.s
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -450,45 +570,60 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... celengine"
-	@echo "... cli/functions.o"
-	@echo "... cli/functions.i"
-	@echo "... cli/functions.s"
-	@echo "... cli/help.o"
-	@echo "... cli/help.i"
-	@echo "... cli/help.s"
+	@echo "... core/cli/functions.o"
+	@echo "... core/cli/functions.i"
+	@echo "... core/cli/functions.s"
+	@echo "... core/cli/help.o"
+	@echo "... core/cli/help.i"
+	@echo "... core/cli/help.s"
+	@echo "... core/data/dyn_array.o"
+	@echo "... core/data/dyn_array.i"
+	@echo "... core/data/dyn_array.s"
+	@echo "... macos/app.o"
+	@echo "... macos/app.i"
+	@echo "... macos/app.s"
+	@echo "... macos/debug/camera_properties.o"
+	@echo "... macos/debug/camera_properties.i"
+	@echo "... macos/debug/camera_properties.s"
+	@echo "... macos/debug/fps_counter.o"
+	@echo "... macos/debug/fps_counter.i"
+	@echo "... macos/debug/fps_counter.s"
+	@echo "... macos/debug/overlay.o"
+	@echo "... macos/debug/overlay.i"
+	@echo "... macos/debug/overlay.s"
+	@echo "... macos/debug/sphere_wireframe.o"
+	@echo "... macos/debug/sphere_wireframe.i"
+	@echo "... macos/debug/sphere_wireframe.s"
+	@echo "... macos/event/input_registry.o"
+	@echo "... macos/event/input_registry.i"
+	@echo "... macos/event/input_registry.s"
+	@echo "... macos/event/mouse.o"
+	@echo "... macos/event/mouse.i"
+	@echo "... macos/event/mouse.s"
+	@echo "... macos/render/camera.o"
+	@echo "... macos/render/camera.i"
+	@echo "... macos/render/camera.s"
+	@echo "... macos/render/grid/displaced_mesh.o"
+	@echo "... macos/render/grid/displaced_mesh.i"
+	@echo "... macos/render/grid/displaced_mesh.s"
+	@echo "... macos/render/renderer.o"
+	@echo "... macos/render/renderer.i"
+	@echo "... macos/render/renderer.s"
+	@echo "... macos/render/shape/solid_sphere.o"
+	@echo "... macos/render/shape/solid_sphere.i"
+	@echo "... macos/render/shape/solid_sphere.s"
+	@echo "... macos/render/space/star.o"
+	@echo "... macos/render/space/star.i"
+	@echo "... macos/render/space/star.s"
+	@echo "... macos/render/state/render_handler.o"
+	@echo "... macos/render/state/render_handler.i"
+	@echo "... macos/render/state/render_handler.s"
+	@echo "... macos/shaders/shader_loader.o"
+	@echo "... macos/shaders/shader_loader.i"
+	@echo "... macos/shaders/shader_loader.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
-	@echo "... renderer/app_renderer.o"
-	@echo "... renderer/app_renderer.i"
-	@echo "... renderer/app_renderer.s"
-	@echo "... renderer/macos/app.o"
-	@echo "... renderer/macos/app.i"
-	@echo "... renderer/macos/app.s"
-	@echo "... renderer/macos/camera.o"
-	@echo "... renderer/macos/camera.i"
-	@echo "... renderer/macos/camera.s"
-	@echo "... renderer/macos/debug/debug_gizmos.o"
-	@echo "... renderer/macos/debug/debug_gizmos.i"
-	@echo "... renderer/macos/debug/debug_gizmos.s"
-	@echo "... renderer/macos/debug/debug_overlay.o"
-	@echo "... renderer/macos/debug/debug_overlay.i"
-	@echo "... renderer/macos/debug/debug_overlay.s"
-	@echo "... renderer/macos/event/mouse.o"
-	@echo "... renderer/macos/event/mouse.i"
-	@echo "... renderer/macos/event/mouse.s"
-	@echo "... renderer/macos/grid/displaced_mesh.o"
-	@echo "... renderer/macos/grid/displaced_mesh.i"
-	@echo "... renderer/macos/grid/displaced_mesh.s"
-	@echo "... renderer/macos/grid/spatial_grid.o"
-	@echo "... renderer/macos/grid/spatial_grid.i"
-	@echo "... renderer/macos/grid/spatial_grid.s"
-	@echo "... renderer/macos/render_handler.o"
-	@echo "... renderer/macos/render_handler.i"
-	@echo "... renderer/macos/render_handler.s"
-	@echo "... renderer/macos/renderer.o"
-	@echo "... renderer/macos/renderer.i"
-	@echo "... renderer/macos/renderer.s"
 .PHONY : help
 
 

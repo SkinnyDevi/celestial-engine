@@ -1,0 +1,110 @@
+[
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -o CMakeFiles/celengine.dir/main.c.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/main.c",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/main.c",
+  "output": "CMakeFiles/celengine.dir/main.c.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -o CMakeFiles/celengine.dir/core/cli/help.c.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/cli/help.c",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/cli/help.c",
+  "output": "CMakeFiles/celengine.dir/core/cli/help.c.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -o CMakeFiles/celengine.dir/core/cli/functions.c.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/cli/functions.c",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/cli/functions.c",
+  "output": "CMakeFiles/celengine.dir/core/cli/functions.c.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -o CMakeFiles/celengine.dir/core/data/dyn_array.c.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/data/dyn_array.c",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/data/dyn_array.c",
+  "output": "CMakeFiles/celengine.dir/core/data/dyn_array.c.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/app.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/app.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/app.m",
+  "output": "CMakeFiles/celengine.dir/macos/app.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/camera.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/camera.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/camera.m",
+  "output": "CMakeFiles/celengine.dir/macos/render/camera.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/grid/displaced_mesh.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/grid/displaced_mesh.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/grid/displaced_mesh.m",
+  "output": "CMakeFiles/celengine.dir/macos/render/grid/displaced_mesh.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/renderer.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/renderer.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/renderer.m",
+  "output": "CMakeFiles/celengine.dir/macos/render/renderer.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/state/render_handler.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/state/render_handler.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/state/render_handler.m",
+  "output": "CMakeFiles/celengine.dir/macos/render/state/render_handler.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/shape/solid_sphere.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/shape/solid_sphere.m",
+  "output": "CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/space/star.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/space/star.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/space/star.m",
+  "output": "CMakeFiles/celengine.dir/macos/render/space/star.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/shaders/shader_loader.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders/shader_loader.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders/shader_loader.m",
+  "output": "CMakeFiles/celengine.dir/macos/shaders/shader_loader.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/event/input_registry.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/event/input_registry.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/event/input_registry.m",
+  "output": "CMakeFiles/celengine.dir/macos/event/input_registry.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/event/mouse.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/event/mouse.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/event/mouse.m",
+  "output": "CMakeFiles/celengine.dir/macos/event/mouse.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/debug/overlay.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/overlay.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/overlay.m",
+  "output": "CMakeFiles/celengine.dir/macos/debug/overlay.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/debug/sphere_wireframe.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/sphere_wireframe.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/sphere_wireframe.m",
+  "output": "CMakeFiles/celengine.dir/macos/debug/sphere_wireframe.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/debug/camera_properties.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/camera_properties.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/camera_properties.m",
+  "output": "CMakeFiles/celengine.dir/macos/debug/camera_properties.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/debug/fps_counter.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/fps_counter.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/debug/fps_counter.m",
+  "output": "CMakeFiles/celengine.dir/macos/debug/fps_counter.m.o"
+}
+]

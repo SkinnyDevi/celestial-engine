@@ -6,6 +6,7 @@
 #import "core/data/dyn_array.h"
 #include "core/space/star.h"
 #import "macos/debug/overlay.h"
+#import "macos/event/input_registry.h"
 
 typedef struct {
   NSWindow *window;
@@ -23,6 +24,7 @@ typedef struct {
   NSUInteger gridVertexCount;
   DynamicArray stars;
   DynamicArray planets;
+  InputRegistry *input_registry;
 } RenderStateImpl;
 
 RenderState *RenderState_Create(void) {
@@ -42,6 +44,7 @@ RenderState *RenderState_Create(void) {
   impl->pipelineState = nil;
   impl->camera_debug_overlay = nil;
   impl->fps_counter_overlay = nil;
+  impl->input_registry = nil;
   camera_init(&impl->camera);
 
   return (RenderState *)impl;
@@ -70,6 +73,7 @@ void RenderState_Init(RenderState *state, void *window) {
   DynamicArray_init(&impl->stars, sizeof(CelestialBody_Star *));
   // impl->planets = malloc(sizeof(DynamicArray));
   // DynamicArray_init(impl->planets, sizeof(CelestialBody_Planet));
+  impl->input_registry = InputRegistry_Create();
 }
 
 void RenderState_Destroy(RenderState *state) {
@@ -90,6 +94,7 @@ void RenderState_Destroy(RenderState *state) {
   impl->fps_counter_overlay = nil;
   DynamicArray_free(&impl->stars);
   // DynamicArray_free(&impl->planets);
+  InputRegistry_Destroy(impl->input_registry);
   free(state);
 }
 
@@ -154,6 +159,13 @@ DynamicArray *RenderState_GetPlanets(RenderState *state) {
     return NULL;
 
   return &((RenderStateImpl *)state)->planets;
+}
+
+InputRegistry *RenderState_GetInputRegistry(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return ((RenderStateImpl *)state)->input_registry;
 }
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state) {

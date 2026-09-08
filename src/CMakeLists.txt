@@ -13,13 +13,13 @@ add_executable(celengine
   core/data/dyn_array.c
   macos/app.m
   macos/render/camera.m
-  macos/render/grid/spatial_grid.m
   macos/render/grid/displaced_mesh.m
   macos/render/renderer.m
   macos/render/state/render_handler.m
   macos/render/shape/solid_sphere.m
   macos/render/space/star.m
   macos/shaders/shader_loader.m
+  macos/event/input_registry.m
   macos/event/mouse.m
   macos/debug/overlay.m
   macos/debug/sphere_wireframe.m
@@ -48,12 +48,12 @@ set_source_files_properties(
     macos/app.m
     macos/render/camera.m
     macos/render/state/render_handler.m
-    macos/render/grid/spatial_grid.m
     macos/render/grid/displaced_mesh.m
     macos/render/renderer.m
     macos/render/space/star.m
     macos/render/shape/solid_sphere.m
     macos/shaders/shader_loader.m
+    macos/event/input_registry.m
     macos/event/mouse.m
     macos/debug/overlay.m
     macos/debug/sphere_wireframe.m
