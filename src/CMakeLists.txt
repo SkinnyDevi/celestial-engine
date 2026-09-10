@@ -12,6 +12,7 @@ add_executable(celengine
   core/cli/functions.c
   core/data/dyn_array.c
   macos/app.m
+  macos/menu/menu.m
   macos/render/camera.m
   macos/render/grid/displaced_mesh.m
   macos/render/renderer.m
@@ -46,6 +47,7 @@ target_compile_definitions(celengine PRIVATE
 
 set_source_files_properties(
     macos/app.m
+    macos/menu/menu.m
     macos/render/camera.m
     macos/render/state/render_handler.m
     macos/render/grid/displaced_mesh.m

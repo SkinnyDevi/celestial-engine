@@ -25,6 +25,7 @@ typedef struct {
   DynamicArray stars;
   DynamicArray planets;
   InputRegistry *input_registry;
+  bool gridVisible;
 } RenderStateImpl;
 
 RenderState *RenderState_Create(void) {
@@ -35,6 +36,7 @@ RenderState *RenderState_Create(void) {
   impl->dragging = false;
   impl->lastMouse = NSZeroPoint;
   impl->gridVertexCount = 0;
+  impl->gridVisible = true;
   impl->window = nil;
   impl->metalLayer = nil;
   impl->commandQueue = nil;
@@ -276,4 +278,16 @@ void RenderState_GetLastMouse(const RenderState *state, double *x, double *y) {
 
   *x = ((const RenderStateImpl *)state)->lastMouse.x;
   *y = ((const RenderStateImpl *)state)->lastMouse.y;
+}
+
+void RenderState_SetGridVisible(RenderState *state, bool visible) {
+  if (!state)
+    return;
+  ((RenderStateImpl *)state)->gridVisible = visible;
+}
+
+bool RenderState_IsGridVisible(const RenderState *state) {
+  if (!state)
+    return false;
+  return ((const RenderStateImpl *)state)->gridVisible;
 }

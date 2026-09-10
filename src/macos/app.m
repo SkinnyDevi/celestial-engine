@@ -1,10 +1,31 @@
 #import "app.h"
-#include <AppKit/AppKit.h>
-#include <stdio.h>
-#include <stdlib.h>
+#import <AppKit/AppKit.h>
+#import <stdio.h>
+#import <stdlib.h>
 
-#include "core/log/log.h"
-#include "macos/render/renderer.h"
+#import "core/data/constants.h"
+#import "core/log/log.h"
+#import "macos/menu/menu.h"
+#import "macos/render/renderer.h"
+
+@interface AppDelegate : NSObject <NSApplicationDelegate>
+@end
+
+@implementation AppDelegate
+
+- (void)hideGrid:(id)sender {
+  NSMenuItem *item = (NSMenuItem *)sender;
+  if (item.state == NSControlStateValueOn) {
+    item.state = NSControlStateValueOff;
+  } else {
+    item.state = NSControlStateValueOn;
+  }
+  toggle_grid_visibility();
+}
+
+@end
+
+static AppDelegate *app_delegate = nil;
 
 int run_macos_app(void) {
   NSRect screen_rect = [[NSScreen mainScreen] frame];
@@ -15,21 +36,21 @@ int run_macos_app(void) {
   RendererHandle handler =
       init_metal_window(screen_width, screen_height, "Celestial Body Engine");
 
+  app_delegate = [[AppDelegate alloc] init];
+  [NSApp setDelegate:app_delegate];
+
   NSMenu *menuBar = [[NSMenu alloc] init];
-  NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];
-  [menuBar addItem:appMenuItem];
+  NSMenuItem *appMenuItem = add_app_menu(menuBar);
+  NSMenuItem *viewMenuItem = add_view_menu(menuBar);
 
   NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"App"];
-  NSString *appName = [[NSProcessInfo processInfo] processName];
+  app_menu_quit_entry(appMenu);
 
-  NSMenuItem *quitItem = [[NSMenuItem alloc]
-      initWithTitle:[NSString stringWithFormat:@"Quit %@", appName]
-             action:@selector(terminate:)
-      keyEquivalent:@"q"];
-  [quitItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
-  [appMenu addItem:quitItem];
+  NSMenu *viewMenu = [[NSMenu alloc] initWithTitle:@"View"];
+  view_menu_hide_grid_entry(viewMenu);
 
   [appMenuItem setSubmenu:appMenu];
+  [viewMenuItem setSubmenu:viewMenu];
   [NSApp setMainMenu:menuBar];
 
   if (!handler) {

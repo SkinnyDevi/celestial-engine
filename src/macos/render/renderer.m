@@ -356,6 +356,9 @@ void draw_debug_graphics(RenderState *state,
 }
 
 void draw_grid(RenderState *state, id<MTLRenderCommandEncoder> encoder) {
+  if (!RenderState_IsGridVisible(state))
+    return;
+
   id<MTLBuffer> vertex_buffer =
       (__bridge id<MTLBuffer>)RenderState_GetVec3Buffer(state);
   id<MTLBuffer> uniform_buffer =
@@ -378,6 +381,13 @@ void draw_celestial_bodies(RenderState *state,
     DynamicArray_get(stars, i, &star);
     MTLStarGraphicsClass_draw(star, state, (__bridge void *)encoder);
   }
+}
+
+void toggle_grid_visibility(void) {
+  if (!app_render_state)
+    return;
+  bool current = RenderState_IsGridVisible(app_render_state);
+  RenderState_SetGridVisible(app_render_state, !current);
 }
 
 void draw_frame(RendererHandle handle) {

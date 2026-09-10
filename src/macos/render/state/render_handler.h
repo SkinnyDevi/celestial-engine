@@ -47,6 +47,8 @@ void RenderState_SetDragging(RenderState *state, bool dragging);
 bool RenderState_IsDragging(const RenderState *state);
 void RenderState_SetLastMouse(RenderState *state, double x, double y);
 void RenderState_GetLastMouse(const RenderState *state, double *x, double *y);
+void RenderState_SetGridVisible(RenderState *state, bool visible);
+bool RenderState_IsGridVisible(const RenderState *state);
 
 void RenderState_SetCameraDebugOverlay(RenderState *state,
                                        DebugOverlay *overlay);
