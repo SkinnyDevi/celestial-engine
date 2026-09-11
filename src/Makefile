@@ -369,6 +369,30 @@ macos/event/mouse.m.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/event/mouse.m.s
 .PHONY : macos/event/mouse.m.s
 
+macos/menu/menu.o: macos/menu/menu.m.o
+.PHONY : macos/menu/menu.o
+
+# target to build an object file
+macos/menu/menu.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/menu/menu.m.o
+.PHONY : macos/menu/menu.m.o
+
+macos/menu/menu.i: macos/menu/menu.m.i
+.PHONY : macos/menu/menu.i
+
+# target to preprocess a source file
+macos/menu/menu.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/menu/menu.m.i
+.PHONY : macos/menu/menu.m.i
+
+macos/menu/menu.s: macos/menu/menu.m.s
+.PHONY : macos/menu/menu.s
+
+# target to generate assembly for a file
+macos/menu/menu.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/menu/menu.m.s
+.PHONY : macos/menu/menu.m.s
+
 macos/render/camera.o: macos/render/camera.m.o
 .PHONY : macos/render/camera.o
 
@@ -464,6 +488,54 @@ macos/render/shape/solid_sphere.s: macos/render/shape/solid_sphere.m.s
 macos/render/shape/solid_sphere.m.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.s
 .PHONY : macos/render/shape/solid_sphere.m.s
+
+macos/render/space/moon.o: macos/render/space/moon.m.o
+.PHONY : macos/render/space/moon.o
+
+# target to build an object file
+macos/render/space/moon.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/moon.m.o
+.PHONY : macos/render/space/moon.m.o
+
+macos/render/space/moon.i: macos/render/space/moon.m.i
+.PHONY : macos/render/space/moon.i
+
+# target to preprocess a source file
+macos/render/space/moon.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/moon.m.i
+.PHONY : macos/render/space/moon.m.i
+
+macos/render/space/moon.s: macos/render/space/moon.m.s
+.PHONY : macos/render/space/moon.s
+
+# target to generate assembly for a file
+macos/render/space/moon.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/moon.m.s
+.PHONY : macos/render/space/moon.m.s
+
+macos/render/space/planet.o: macos/render/space/planet.m.o
+.PHONY : macos/render/space/planet.o
+
+# target to build an object file
+macos/render/space/planet.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/planet.m.o
+.PHONY : macos/render/space/planet.m.o
+
+macos/render/space/planet.i: macos/render/space/planet.m.i
+.PHONY : macos/render/space/planet.i
+
+# target to preprocess a source file
+macos/render/space/planet.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/planet.m.i
+.PHONY : macos/render/space/planet.m.i
+
+macos/render/space/planet.s: macos/render/space/planet.m.s
+.PHONY : macos/render/space/planet.s
+
+# target to generate assembly for a file
+macos/render/space/planet.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/space/planet.m.s
+.PHONY : macos/render/space/planet.m.s
 
 macos/render/space/star.o: macos/render/space/star.m.o
 .PHONY : macos/render/space/star.o
@@ -600,6 +672,9 @@ help:
 	@echo "... macos/event/mouse.o"
 	@echo "... macos/event/mouse.i"
 	@echo "... macos/event/mouse.s"
+	@echo "... macos/menu/menu.o"
+	@echo "... macos/menu/menu.i"
+	@echo "... macos/menu/menu.s"
 	@echo "... macos/render/camera.o"
 	@echo "... macos/render/camera.i"
 	@echo "... macos/render/camera.s"
@@ -612,6 +687,12 @@ help:
 	@echo "... macos/render/shape/solid_sphere.o"
 	@echo "... macos/render/shape/solid_sphere.i"
 	@echo "... macos/render/shape/solid_sphere.s"
+	@echo "... macos/render/space/moon.o"
+	@echo "... macos/render/space/moon.i"
+	@echo "... macos/render/space/moon.s"
+	@echo "... macos/render/space/planet.o"
+	@echo "... macos/render/space/planet.i"
+	@echo "... macos/render/space/planet.s"
 	@echo "... macos/render/space/star.o"
 	@echo "... macos/render/space/star.i"
 	@echo "... macos/render/space/star.s"

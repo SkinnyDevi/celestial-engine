@@ -26,6 +26,7 @@ typedef struct {
   NSUInteger gridVertexCount;
   DynamicArray stars;
   DynamicArray planets;
+  DynamicArray moons;
   InputRegistry *input_registry;
   bool gridVisible;
 } RenderStateImpl;
@@ -76,9 +77,9 @@ void RenderState_Init(RenderState *state, void *window) {
   impl->dragging = false;
   impl->lastMouse = NSZeroPoint;
   impl->gridVertexCount = 0;
-  DynamicArray_init(&impl->stars, sizeof(CelestialBody_Star *));
-  // impl->planets = malloc(sizeof(DynamicArray));
-  // DynamicArray_init(impl->planets, sizeof(CelestialBody_Planet));
+  DynamicArray_init(&impl->stars, sizeof(void *));
+  DynamicArray_init(&impl->planets, sizeof(void *));
+  DynamicArray_init(&impl->moons, sizeof(void *));
   impl->input_registry = InputRegistry_Create();
 }
 
@@ -101,7 +102,8 @@ void RenderState_Destroy(RenderState *state) {
   debug_overlay_destroy(impl->fps_counter_overlay);
   impl->fps_counter_overlay = nil;
   DynamicArray_free(&impl->stars);
-  // DynamicArray_free(&impl->planets);
+  DynamicArray_free(&impl->planets);
+  DynamicArray_free(&impl->moons);
   InputRegistry_Destroy(impl->input_registry);
   free(state);
 }
@@ -181,6 +183,13 @@ DynamicArray *RenderState_GetPlanets(RenderState *state) {
     return NULL;
 
   return &((RenderStateImpl *)state)->planets;
+}
+
+DynamicArray *RenderState_GetMoons(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return &((RenderStateImpl *)state)->moons;
 }
 
 InputRegistry *RenderState_GetInputRegistry(RenderState *state) {

@@ -34,6 +34,8 @@ void *RenderState_GetDepthTexture(RenderState *state);
 void *RenderState_GetDepthStencilState(RenderState *state);
 Camera *RenderState_GetCamera(RenderState *state);
 DynamicArray *RenderState_GetStars(RenderState *state);
+DynamicArray *RenderState_GetPlanets(RenderState *state);
+DynamicArray *RenderState_GetMoons(RenderState *state);
 InputRegistry *RenderState_GetInputRegistry(RenderState *state);
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);

@@ -19,6 +19,8 @@ add_executable(celengine
   macos/render/state/render_handler.m
   macos/render/shape/solid_sphere.m
   macos/render/space/star.m
+  macos/render/space/planet.m
+  macos/render/space/moon.m
   macos/shaders/shader_loader.m
   macos/event/input_registry.m
   macos/event/mouse.m
@@ -53,6 +55,8 @@ set_source_files_properties(
     macos/render/grid/displaced_mesh.m
     macos/render/renderer.m
     macos/render/space/star.m
+    macos/render/space/planet.m
+    macos/render/space/moon.m
     macos/render/shape/solid_sphere.m
     macos/shaders/shader_loader.m
     macos/event/input_registry.m
