@@ -26,6 +26,7 @@
 #import "macos/shaders/shader_loader.h"
 
 static RenderState *app_render_state = NULL;
+FPSData fps_data;
 
 #if DEBUG_CAMERA_PATH_WIREFRAME_VISIBLE
 static id<MTLBuffer> debug_camera_orbit_sphere_buffer = nil;
@@ -78,25 +79,6 @@ static void update_camera_uniforms(RenderState *state) {
   id<MTLBuffer> uniform_buffer =
       (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
   memcpy([uniform_buffer contents], &uniforms, sizeof(uniforms));
-}
-
-// CPU side
-void init_grid_mesh(RenderState *state, int grid_size, float spacing) {
-  CAMetalLayer *metal_layer =
-      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
-
-  int num_vertices = (grid_size * 2 + 1) * 4;
-  Vertex *vertices = generate_grid_vertices(grid_size, spacing, num_vertices);
-  id<MTLBuffer> vertex_buffer =
-      [metal_layer.device newBufferWithBytes:vertices
-                                      length:(sizeof(Vertex) * num_vertices)
-                                     options:MTLResourceStorageModeShared];
-  RenderState_SetVec3Buffer(state, (__bridge void *)vertex_buffer);
-  RenderState_SetVertexCount(state, num_vertices);
-  free(vertices);
-
-  LOG_DEBUG("Grid mesh: %d vertices, buffer size: %lu bytes", num_vertices,
-            (unsigned long)(sizeof(Vertex) * num_vertices));
 }
 
 void create_render_pipeline(RenderState *state) {
@@ -190,16 +172,6 @@ void init_celestial_bodies(RenderState *render_state) {
             DynamicArray_length(stars));
 }
 
-void test_log(RenderState *state, uint16_t key_code) {
-  LOG_DEBUG("Key pressed: %d", key_code);
-}
-
-void init_inputs(RenderState *render_state) {
-  InputRegistry *registry = RenderState_GetInputRegistry(render_state);
-
-  input_register_bind(registry, 5, KEY_ACTION_DOWN, test_log); // G key
-}
-
 RendererHandle init_metal_window(int width, int height, const char *title) {
   LOG_DEBUG("Initializing Metal window.", NULL);
   [NSApplication sharedApplication];
@@ -217,9 +189,8 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   [NSApp activateIgnoringOtherApps:YES];
 
   RenderState *state = RenderState_Create();
-  if (!state) {
+  if (!state)
     return NULL;
-  }
 
   RenderState_Init(state, (__bridge void *)window);
   app_render_state = state;
@@ -233,7 +204,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   metal_layer.autoresizingMask = kCALayerWidthSizable | kCALayerHeightSizable;
   metal_layer.drawableSize = CGSizeMake(width, height);
 
-  init_grid_mesh(state, 10, 1.0f);
+  init_grid_mesh(state, 10, 0.2f);
   compile_grid_shader_lib(state, "displaced_grid_mesh");
 
   id<MTLBuffer> uniform_buffer =
@@ -244,7 +215,6 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   create_render_pipeline(state);
   generate_debug_graphics(state);
   init_celestial_bodies(state);
-  init_inputs(state);
 
   Camera *camera = RenderState_GetCamera(state);
   simd_float3 cam_pos = camera_orbit_position(camera);
@@ -275,7 +245,7 @@ void draw_debug_fps(RenderState *state, bool use_extended_data,
 
 void draw_debug_graphics(RenderState *state,
                          id<MTLRenderCommandEncoder> encoder) {
-  FPSData fps_data;
+
   draw_debug_fps(state,
                  DEBUG_FPS_COUNTER_ADVANCED_VISIBLE &&
                      cli_should_show_advanced_fps(),
@@ -383,13 +353,6 @@ void draw_celestial_bodies(RenderState *state,
   }
 }
 
-void toggle_grid_visibility(void) {
-  if (!app_render_state)
-    return;
-  bool current = RenderState_IsGridVisible(app_render_state);
-  RenderState_SetGridVisible(app_render_state, !current);
-}
-
 void draw_frame(RendererHandle handle) {
   RenderState *state = (RenderState *)handle;
   if (!state || !RenderState_GetPipelineState(state))
@@ -431,6 +394,7 @@ void draw_frame(RendererHandle handle) {
         [command_buffer renderCommandEncoderWithDescriptor:pass_descriptor];
     [encoder setRenderPipelineState:pipeline_state];
 
+    update_grid_scale(state);
     draw_grid(state, encoder);
     draw_debug_graphics(state, encoder);
     draw_celestial_bodies(state, encoder);

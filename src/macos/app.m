@@ -6,10 +6,13 @@
 #import "core/data/constants.h"
 #import "core/log/log.h"
 #import "macos/menu/menu.h"
+#import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/renderer.h"
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 @end
+
+static RendererHandle handler;
 
 @implementation AppDelegate
 
@@ -20,7 +23,7 @@
   } else {
     item.state = NSControlStateValueOn;
   }
-  toggle_grid_visibility();
+  toggle_grid_visibility(handler);
 }
 
 @end
@@ -33,7 +36,7 @@ int run_macos_app(void) {
   int screen_height = (int)screen_rect.size.height;
 
   LOG_INFO("Using Metal rendering engine.", NULL);
-  RendererHandle handler =
+  handler =
       init_metal_window(screen_width, screen_height, "Celestial Body Engine");
 
   app_delegate = [[AppDelegate alloc] init];
