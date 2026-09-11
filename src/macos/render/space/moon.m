@@ -8,6 +8,8 @@
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
+#import "macos/render/space/planet.h"
+#import "macos/render/space/star.h"
 
 simd_float4 get_moon_color(MoonClass moon_class) {
   switch (moon_class) {
@@ -71,10 +73,27 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
 
   Camera *camera = RenderState_GetCamera(render_state);
   simd_float3 cam_pos = camera_orbit_position(camera);
+
+  double abs_x = moon->body->position.x;
+  double abs_y = moon->body->position.y;
+  double abs_z = moon->body->position.z;
+
+  if (moon->host_planet) {
+    abs_x += moon->host_planet->body->position.x;
+    abs_y += moon->host_planet->body->position.y;
+    abs_z += moon->host_planet->body->position.z;
+
+    if (moon->host_planet->host_star) {
+      abs_x += moon->host_planet->host_star->body->position.x;
+      abs_y += moon->host_planet->host_star->body->position.y;
+      abs_z += moon->host_planet->host_star->body->position.z;
+    }
+  }
+
   simd_float3 body_pos = simd_make_float3(
-      (float)(moon->body->position.x * METERS_TO_RENDER_UNITS),
-      (float)(moon->body->position.y * METERS_TO_RENDER_UNITS),
-      (float)(moon->body->position.z * METERS_TO_RENDER_UNITS));
+      (float)(abs_x * METERS_TO_RENDER_UNITS),
+      (float)(abs_y * METERS_TO_RENDER_UNITS),
+      (float)(abs_z * METERS_TO_RENDER_UNITS));
 
   float dist = simd_distance(cam_pos, body_pos);
   float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility

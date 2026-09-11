@@ -4,8 +4,11 @@
 #include "core/space/planet.h"
 #include "macos/render/state/render_handler.h"
 
-typedef struct {
+typedef struct MTLStarGraphicsClass MTLStarGraphicsClass;
+
+typedef struct MTLPlanetGraphicsClass {
   CelestialBody_Planet *body;
+  MTLStarGraphicsClass *host_star;
 
   void *vertex_buffer;
   void *index_buffer;

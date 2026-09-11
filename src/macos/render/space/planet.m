@@ -8,6 +8,7 @@
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
+#import "macos/render/space/star.h"
 
 simd_float4 get_planet_color(PlanetClass planet_class) {
   switch (planet_class) {
@@ -73,10 +74,21 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
 
   Camera *camera = RenderState_GetCamera(render_state);
   simd_float3 cam_pos = camera_orbit_position(camera);
+
+  double abs_x = planet->body->position.x;
+  double abs_y = planet->body->position.y;
+  double abs_z = planet->body->position.z;
+
+  if (planet->host_star) {
+    abs_x += planet->host_star->body->position.x;
+    abs_y += planet->host_star->body->position.y;
+    abs_z += planet->host_star->body->position.z;
+  }
+
   simd_float3 body_pos = simd_make_float3(
-      (float)(planet->body->position.x * METERS_TO_RENDER_UNITS),
-      (float)(planet->body->position.y * METERS_TO_RENDER_UNITS),
-      (float)(planet->body->position.z * METERS_TO_RENDER_UNITS));
+      (float)(abs_x * METERS_TO_RENDER_UNITS),
+      (float)(abs_y * METERS_TO_RENDER_UNITS),
+      (float)(abs_z * METERS_TO_RENDER_UNITS));
 
   float dist = simd_distance(cam_pos, body_pos);
   float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility
@@ -151,12 +163,23 @@ void MTLPlanetGraphics_Destroy(MTLPlanetGraphicsClass *planet_graphics) {
 void init_celestial_body_planets(RenderState *render_state) {
   DynamicArray *planets = RenderState_GetPlanets(render_state);
 
+  MTLPlanetGraphicsClass *mtl_mercury = MTLPlanetGraphics_Create(&MERCURY);
+  MTLPlanetGraphicsClass *mtl_venus = MTLPlanetGraphics_Create(&VENUS);
   MTLPlanetGraphicsClass *mtl_earth = MTLPlanetGraphics_Create(&EARTH);
   MTLPlanetGraphicsClass *mtl_mars = MTLPlanetGraphics_Create(&MARS);
   MTLPlanetGraphicsClass *mtl_jupiter = MTLPlanetGraphics_Create(&JUPITER);
+  MTLPlanetGraphicsClass *mtl_saturn = MTLPlanetGraphics_Create(&SATURN);
+  MTLPlanetGraphicsClass *mtl_uranus = MTLPlanetGraphics_Create(&URANUS);
+  MTLPlanetGraphicsClass *mtl_neptune = MTLPlanetGraphics_Create(&NEPTUNE);
+  
+  DynamicArray_push(planets, &mtl_mercury);
+  DynamicArray_push(planets, &mtl_venus);
   DynamicArray_push(planets, &mtl_earth);
   DynamicArray_push(planets, &mtl_mars);
   DynamicArray_push(planets, &mtl_jupiter);
+  DynamicArray_push(planets, &mtl_saturn);
+  DynamicArray_push(planets, &mtl_uranus);
+  DynamicArray_push(planets, &mtl_neptune);
 
   size_t planet_count = DynamicArray_length(planets);
   for (size_t i = 0; i < planet_count; i++) {

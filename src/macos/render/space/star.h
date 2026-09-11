@@ -4,7 +4,7 @@
 #include "core/space/star.h"
 #include "macos/render/state/render_handler.h"
 
-typedef struct {
+typedef struct MTLStarGraphicsClass {
   CelestialBody_Star *body;
 
   void *vertex_buffer;
