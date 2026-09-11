@@ -16,6 +16,8 @@ typedef struct {
   id<MTLBuffer> uniformBuffer;
   id<MTLLibrary> grid_shader_lib;
   id<MTLRenderPipelineState> pipelineState;
+  id<MTLTexture> depthTexture;
+  id<MTLDepthStencilState> depthStencilState;
   DebugOverlay *camera_debug_overlay;
   DebugOverlay *fps_counter_overlay;
   Camera camera;
@@ -44,6 +46,8 @@ RenderState *RenderState_Create(void) {
   impl->uniformBuffer = nil;
   impl->grid_shader_lib = nil;
   impl->pipelineState = nil;
+  impl->depthTexture = nil;
+  impl->depthStencilState = nil;
   impl->camera_debug_overlay = nil;
   impl->fps_counter_overlay = nil;
   impl->input_registry = nil;
@@ -87,6 +91,8 @@ void RenderState_Destroy(RenderState *state) {
   impl->uniformBuffer = nil;
   impl->grid_shader_lib = nil;
   impl->pipelineState = nil;
+  impl->depthTexture = nil;
+  impl->depthStencilState = nil;
   impl->commandQueue = nil;
   impl->metalLayer = nil;
   impl->window = nil;
@@ -147,6 +153,20 @@ void *RenderState_GetPipelineState(RenderState *state) {
     return NULL;
 
   return (__bridge void *)((RenderStateImpl *)state)->pipelineState;
+}
+
+void *RenderState_GetDepthTexture(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->depthTexture;
+}
+
+void *RenderState_GetDepthStencilState(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->depthStencilState;
 }
 
 DynamicArray *RenderState_GetStars(RenderState *state) {
@@ -219,6 +239,22 @@ void RenderState_SetPipelineState(RenderState *state, void *pipelineState) {
 
   ((RenderStateImpl *)state)->pipelineState =
       (__bridge id<MTLRenderPipelineState>)pipelineState;
+}
+
+void RenderState_SetDepthTexture(RenderState *state, void *texture) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->depthTexture =
+      (__bridge id<MTLTexture>)texture;
+}
+
+void RenderState_SetDepthStencilState(RenderState *state, void *depthStencilState) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->depthStencilState =
+      (__bridge id<MTLDepthStencilState>)depthStencilState;
 }
 
 void RenderState_SetCameraDebugOverlay(RenderState *state,

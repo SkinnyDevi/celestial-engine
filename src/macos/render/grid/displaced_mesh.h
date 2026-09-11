@@ -4,6 +4,8 @@
 #include "macos/debug/fps_counter.h"
 #include "macos/render/shape/vertex.h"
 
+#define DISPLACED_MESH_GRID_OPACITY 0.20f
+
 typedef struct RenderState RenderState;
 
 Vertex *generate_grid_vertices(int grid_size, float spacing, int num_vertices);

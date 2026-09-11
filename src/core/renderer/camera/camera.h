@@ -3,6 +3,8 @@
 
 #include <simd/simd.h>
 
+#define CAMERA_CLIPPING_PLANE 100000.0f
+
 typedef struct {
   float azimuth, elevation, zoom;
   simd_float3 center;

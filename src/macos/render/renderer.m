@@ -69,12 +69,13 @@ static void update_camera_uniforms(RenderState *state) {
                  MAX(metal_layer.drawableSize.height, 1.0f);
 
   simd_float4x4 view = camera_view_matrix(camera);
-  simd_float4x4 projection =
-      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 100.0f);
+  simd_float4x4 projection = camera_perspective(
+      70.0f * (float)M_PI / 180.0f, aspect, 0.1f, CAMERA_CLIPPING_PLANE);
 
   DisplacedMeshUniforms uniforms;
   uniforms.mvpMatrix = simd_mul(projection, view);
-  uniforms.gridColor = (simd_float4){1.0f, 1.0f, 1.0f, 0.85f};
+  uniforms.gridColor =
+      (simd_float4){1.0f, 1.0f, 1.0f, DISPLACED_MESH_GRID_OPACITY};
 
   id<MTLBuffer> uniform_buffer =
       (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
@@ -95,6 +96,23 @@ void create_render_pipeline(RenderState *state) {
       [shader_library newFunctionWithName:@"grid_fragment"];
   pipeline_descriptor.colorAttachments[0].pixelFormat = metal_layer.pixelFormat;
 
+  // Enable alpha blending
+  pipeline_descriptor.colorAttachments[0].blendingEnabled = YES;
+  pipeline_descriptor.colorAttachments[0].rgbBlendOperation =
+      MTLBlendOperationAdd;
+  pipeline_descriptor.colorAttachments[0].alphaBlendOperation =
+      MTLBlendOperationAdd;
+  pipeline_descriptor.colorAttachments[0].sourceRGBBlendFactor =
+      MTLBlendFactorSourceAlpha;
+  pipeline_descriptor.colorAttachments[0].sourceAlphaBlendFactor =
+      MTLBlendFactorSourceAlpha;
+  pipeline_descriptor.colorAttachments[0].destinationRGBBlendFactor =
+      MTLBlendFactorOneMinusSourceAlpha;
+  pipeline_descriptor.colorAttachments[0].destinationAlphaBlendFactor =
+      MTLBlendFactorOneMinusSourceAlpha;
+
+  pipeline_descriptor.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+
   NSError *error = nil;
   id<MTLRenderPipelineState> pipeline_state = [metal_layer.device
       newRenderPipelineStateWithDescriptor:pipeline_descriptor
@@ -105,6 +123,14 @@ void create_render_pipeline(RenderState *state) {
     exit(EXIT_FAILURE);
   }
   RenderState_SetPipelineState(state, (__bridge void *)pipeline_state);
+
+  MTLDepthStencilDescriptor *depth_descriptor =
+      [[MTLDepthStencilDescriptor alloc] init];
+  depth_descriptor.depthCompareFunction = MTLCompareFunctionLess;
+  depth_descriptor.depthWriteEnabled = YES;
+  id<MTLDepthStencilState> depth_state =
+      [metal_layer.device newDepthStencilStateWithDescriptor:depth_descriptor];
+  RenderState_SetDepthStencilState(state, (__bridge void *)depth_state);
 }
 
 void generate_debug_graphics(RenderState *state) {
@@ -262,7 +288,7 @@ void draw_debug_graphics(RenderState *state,
                  MAX(metal_layer.drawableSize.height, 1.0f);
   simd_float4x4 view = camera_view_matrix(cam);
   simd_float4x4 proj =
-      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 100.0f);
+      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 10000.0f);
   simd_float4x4 vp = simd_mul(proj, view);
 
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
@@ -383,6 +409,27 @@ void draw_frame(RendererHandle handle) {
       return;
 
     id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
+
+    CGSize drawableSize = metal_layer.drawableSize;
+    id<MTLTexture> currentDepth =
+        (__bridge id<MTLTexture>)RenderState_GetDepthTexture(state);
+    if (!currentDepth || currentDepth.width != (NSUInteger)drawableSize.width ||
+        currentDepth.height != (NSUInteger)drawableSize.height) {
+      if (drawableSize.width > 0 && drawableSize.height > 0) {
+        MTLTextureDescriptor *depthDescriptor = [MTLTextureDescriptor
+            texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+                                         width:drawableSize.width
+                                        height:drawableSize.height
+                                     mipmapped:NO];
+        depthDescriptor.storageMode = MTLStorageModePrivate;
+        depthDescriptor.usage = MTLTextureUsageRenderTarget;
+        id<MTLTexture> newDepth =
+            [metal_layer.device newTextureWithDescriptor:depthDescriptor];
+        RenderState_SetDepthTexture(state, (__bridge void *)newDepth);
+        currentDepth = newDepth;
+      }
+    }
+
     MTLRenderPassDescriptor *pass_descriptor =
         [MTLRenderPassDescriptor renderPassDescriptor];
     pass_descriptor.colorAttachments[0].texture = drawable.texture;
@@ -390,9 +437,22 @@ void draw_frame(RendererHandle handle) {
     pass_descriptor.colorAttachments[0].clearColor =
         MTLClearColorMake(0.0, 0.0, 0.0, 1.0); // BG Color
 
+    if (currentDepth) {
+      pass_descriptor.depthAttachment.texture = currentDepth;
+      pass_descriptor.depthAttachment.loadAction = MTLLoadActionClear;
+      pass_descriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
+      pass_descriptor.depthAttachment.clearDepth = 1.0;
+    }
+
     id<MTLRenderCommandEncoder> encoder =
         [command_buffer renderCommandEncoderWithDescriptor:pass_descriptor];
     [encoder setRenderPipelineState:pipeline_state];
+
+    id<MTLDepthStencilState> depthState =
+        (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(
+            state);
+    if (depthState)
+      [encoder setDepthStencilState:depthState];
 
     update_grid_scale(state);
     draw_grid(state, encoder);

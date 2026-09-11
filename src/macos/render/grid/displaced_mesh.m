@@ -77,6 +77,30 @@ float dynamic_grid_spacing(float zoom) {
   return powf(2.0f, floorf(log10f(zoom * 2.0f))) * spacing_factor;
 }
 
+int dynamic_grid_subdivisions(float zoom) {
+  float spacing = dynamic_grid_spacing(zoom);
+  float grid_factor;
+
+  if (zoom < 5.0f)
+    grid_factor = 20.0f;
+  else if (zoom < 20.0f)
+    grid_factor = 10.0f;
+  else if (zoom < 50.0f)
+    grid_factor = 5.0f;
+  else if (zoom < 100.0f)
+    grid_factor = 3.0f;
+  else if (zoom < 200.0f)
+    grid_factor = 2.0f;
+  else if (zoom < 500.0f)
+    grid_factor = 1.5f;
+  else if (zoom < 1000.0f)
+    grid_factor = 1.0f;
+  else
+    grid_factor = 0.5f;
+
+  return 20 + (int)((zoom / spacing) * grid_factor);
+}
+
 void toggle_grid_visibility(RenderState *state) {
   if (!state)
     return;
@@ -88,7 +112,7 @@ void update_grid_scale(RenderState *state) {
   Camera *camera = RenderState_GetCamera(state);
 
   float spacing = dynamic_grid_spacing(camera->zoom);
-  int subdivisions = 20 + (int)((camera->zoom / spacing) * 3.0f);
+  int subdivisions = dynamic_grid_subdivisions(camera->zoom);
   int num_vertices = (subdivisions * 2 + 1) * 4;
   init_grid_mesh(state, subdivisions, spacing);
 }

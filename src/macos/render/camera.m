@@ -6,7 +6,7 @@ static const float kOrbitSensitivity = 0.007f;
 static const float kMaxElevation = M_PI / 2.0f; // 90 degree clamp
 static const float kZoomFactor = 1.05f;
 static const float kMinzoom = 0.5f;
-static const float kMaxzoom = 1000.0f;
+static const float kMaxzoom = 10000.0f;
 
 void camera_init(Camera *camera) {
   if (!camera) {
