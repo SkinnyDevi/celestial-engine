@@ -4,7 +4,7 @@
 #import <stdlib.h>
 
 #import "core/log/log.h"
-#import "core/space/star.h"
+#import "core/space/defined/stars.h"
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
@@ -75,16 +75,25 @@ void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
     memset(&uniforms, 0, sizeof(uniforms));
   }
 
-  float render_scale = (float)(star->body->radius_m * METERS_TO_RENDER_UNITS);
+  float base_scale = (float)(star->body->radius_m * METERS_TO_RENDER_UNITS);
+
+  Camera *camera = RenderState_GetCamera(render_state);
+  simd_float3 cam_pos = camera_orbit_position(camera);
+  simd_float3 body_pos = simd_make_float3(
+      (float)(star->body->position.x * METERS_TO_RENDER_UNITS),
+      (float)(star->body->position.y * METERS_TO_RENDER_UNITS),
+      (float)(star->body->position.z * METERS_TO_RENDER_UNITS));
+
+  float dist = simd_distance(cam_pos, body_pos);
+  float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility
+  float render_scale =
+      base_scale > min_visual_size ? base_scale : min_visual_size;
 
   simd_float4x4 model = {0};
   model.columns[0] = simd_make_float4(render_scale, 0.0f, 0.0f, 0.0f);
   model.columns[1] = simd_make_float4(0.0f, render_scale, 0.0f, 0.0f);
   model.columns[2] = simd_make_float4(0.0f, 0.0f, render_scale, 0.0f);
-  model.columns[3] = simd_make_float4(
-      (float)(star->body->position.x * METERS_TO_RENDER_UNITS),
-      (float)(star->body->position.y * METERS_TO_RENDER_UNITS),
-      (float)(star->body->position.z * METERS_TO_RENDER_UNITS), 1.0f);
+  model.columns[3] = simd_make_float4(body_pos.x, body_pos.y, body_pos.z, 1.0f);
 
   uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
   uniforms.gridColor = color;
@@ -138,4 +147,23 @@ void MTLStarGraphics_Destroy(MTLStarGraphicsClass *star_graphics) {
     CFRelease(star_graphics->pipeline_state);
 
   free(star_graphics);
+}
+
+void init_celestial_body_stars(RenderState *render_state) {
+  DynamicArray *stars = RenderState_GetStars(render_state);
+
+  MTLStarGraphicsClass *mtl_sun = MTLStarGraphics_Create(&SUN);
+  MTLStarGraphicsClass *mtl_test = MTLStarGraphics_Create(&TEST_STAR);
+  DynamicArray_push(stars, &mtl_sun);
+  // DynamicArray_push(stars, &mtl_test);
+
+  size_t count = DynamicArray_length(stars);
+  for (size_t i = 0; i < count; i++) {
+    MTLStarGraphicsClass *star;
+    DynamicArray_get(stars, i, &star);
+    MTLStarGraphicsClass_init(star, render_state);
+    LOG_DEBUG("Registered star (%lu): %s (%s)", i,
+              ((CelestialBody_Star *)star->body)->name,
+              ((CelestialBody_Star *)star->body)->body_id);
+  }
 }

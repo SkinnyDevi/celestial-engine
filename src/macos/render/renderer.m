@@ -8,10 +8,6 @@
 #import "core/data/dyn_array.h"
 #import "core/log/log.h"
 #import "core/renderer/camera/camera.h"
-#import "core/space/defined/moons.h"
-#import "core/space/defined/planets.h"
-#import "core/space/defined/stars.h"
-#import "core/space/star.h"
 
 #import "macos/debug/camera_properties.h"
 #import "macos/debug/flags.h"
@@ -181,58 +177,9 @@ void generate_debug_graphics(RenderState *state) {
 }
 
 void init_celestial_bodies(RenderState *render_state) {
-  DynamicArray *stars = RenderState_GetStars(render_state);
-  DynamicArray *planets = RenderState_GetPlanets(render_state);
-  DynamicArray *moons = RenderState_GetMoons(render_state);
-
-  MTLStarGraphicsClass *mtl_sun = MTLStarGraphics_Create(&SUN);
-  MTLStarGraphicsClass *mtl_test = MTLStarGraphics_Create(&TEST_STAR);
-  DynamicArray_push(stars, &mtl_sun);
-  // DynamicArray_push(stars, &mtl_test);
-
-  MTLPlanetGraphicsClass *mtl_earth = MTLPlanetGraphics_Create(&EARTH);
-  MTLPlanetGraphicsClass *mtl_mars = MTLPlanetGraphics_Create(&MARS);
-  MTLPlanetGraphicsClass *mtl_jupiter = MTLPlanetGraphics_Create(&JUPITER);
-  DynamicArray_push(planets, &mtl_earth);
-  DynamicArray_push(planets, &mtl_mars);
-  DynamicArray_push(planets, &mtl_jupiter);
-
-  MTLMoonGraphicsClass *mtl_luna = MTLMoonGraphics_Create(&LUNA);
-  DynamicArray_push(moons, &mtl_luna);
-
-  size_t count = DynamicArray_length(stars);
-  for (size_t i = 0; i < count; i++) {
-    MTLStarGraphicsClass *star;
-    DynamicArray_get(stars, i, &star);
-    MTLStarGraphicsClass_init(star, render_state);
-    LOG_DEBUG("Registered star (%lu): %s (%s)", i,
-              ((CelestialBody_Star *)star->body)->name,
-              ((CelestialBody_Star *)star->body)->body_id);
-  }
-
-  size_t planet_count = DynamicArray_length(planets);
-  for (size_t i = 0; i < planet_count; i++) {
-    MTLPlanetGraphicsClass *planet;
-    DynamicArray_get(planets, i, &planet);
-    MTLPlanetGraphicsClass_init(planet, render_state);
-    LOG_DEBUG("Registered planet (%lu): %s (%s)", i,
-              ((CelestialBody_Planet *)planet->body)->name,
-              ((CelestialBody_Planet *)planet->body)->body_id);
-  }
-
-  size_t moon_count = DynamicArray_length(moons);
-  for (size_t i = 0; i < moon_count; i++) {
-    MTLMoonGraphicsClass *moon;
-    DynamicArray_get(moons, i, &moon);
-    MTLMoonGraphicsClass_init(moon, render_state);
-    LOG_DEBUG("Registered moon (%lu): %s (%s)", i,
-              ((CelestialBody_Moon *)moon->body)->name,
-              ((CelestialBody_Moon *)moon->body)->body_id);
-  }
-
-  LOG_DEBUG(
-      "Total celestial bodies registered: %lu stars, %lu planets, %lu moons",
-      count, planet_count, moon_count);
+  init_celestial_body_stars(render_state);
+  init_celestial_body_planets(render_state);
+  init_celestial_body_moons(render_state);
 }
 
 RendererHandle init_metal_window(int width, int height, const char *title) {

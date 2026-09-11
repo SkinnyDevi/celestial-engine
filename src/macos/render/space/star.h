@@ -21,4 +21,6 @@ void MTLStarGraphicsClass_init(MTLStarGraphicsClass *star,
                                RenderState *render_state);
 void MTLStarGraphics_Destroy(MTLStarGraphicsClass *star_graphics);
 
+void init_celestial_body_stars(RenderState *render_state);
+
 #endif

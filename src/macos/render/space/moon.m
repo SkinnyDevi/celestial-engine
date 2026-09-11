@@ -4,7 +4,7 @@
 #import <stdlib.h>
 
 #import "core/log/log.h"
-#import "core/space/moon.h"
+#import "core/space/defined/moons.h"
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
@@ -67,16 +67,25 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
     memset(&uniforms, 0, sizeof(uniforms));
   }
 
-  float render_scale = (float)(moon->body->radius_m * METERS_TO_RENDER_UNITS);
+  float base_scale = (float)(moon->body->radius_m * METERS_TO_RENDER_UNITS);
+
+  Camera *camera = RenderState_GetCamera(render_state);
+  simd_float3 cam_pos = camera_orbit_position(camera);
+  simd_float3 body_pos = simd_make_float3(
+      (float)(moon->body->position.x * METERS_TO_RENDER_UNITS),
+      (float)(moon->body->position.y * METERS_TO_RENDER_UNITS),
+      (float)(moon->body->position.z * METERS_TO_RENDER_UNITS));
+
+  float dist = simd_distance(cam_pos, body_pos);
+  float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility
+  float render_scale =
+      base_scale > min_visual_size ? base_scale : min_visual_size;
 
   simd_float4x4 model = {0};
   model.columns[0] = simd_make_float4(render_scale, 0.0f, 0.0f, 0.0f);
   model.columns[1] = simd_make_float4(0.0f, render_scale, 0.0f, 0.0f);
   model.columns[2] = simd_make_float4(0.0f, 0.0f, render_scale, 0.0f);
-  model.columns[3] = simd_make_float4(
-      (float)(moon->body->position.x * METERS_TO_RENDER_UNITS),
-      (float)(moon->body->position.y * METERS_TO_RENDER_UNITS),
-      (float)(moon->body->position.z * METERS_TO_RENDER_UNITS), 1.0f);
+  model.columns[3] = simd_make_float4(body_pos.x, body_pos.y, body_pos.z, 1.0f);
 
   uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
   uniforms.gridColor = color;
@@ -134,4 +143,34 @@ void MTLMoonGraphics_Destroy(MTLMoonGraphicsClass *moon_graphics) {
     CFRelease(moon_graphics->pipeline_state);
 
   free(moon_graphics);
+}
+
+void init_celestial_body_moons(RenderState *render_state) {
+  DynamicArray *moons = RenderState_GetMoons(render_state);
+
+  MTLMoonGraphicsClass *mtl_luna = MTLMoonGraphics_Create(&LUNA);
+  MTLMoonGraphicsClass *mtl_phobos = MTLMoonGraphics_Create(&PHOBOS);
+  MTLMoonGraphicsClass *mtl_deimos = MTLMoonGraphics_Create(&DEIMOS);
+  MTLMoonGraphicsClass *mtl_europa = MTLMoonGraphics_Create(&EUROPA);
+  MTLMoonGraphicsClass *mtl_io = MTLMoonGraphics_Create(&IO);
+  MTLMoonGraphicsClass *mtl_titan = MTLMoonGraphics_Create(&TITAN);
+  MTLMoonGraphicsClass *mtl_triton = MTLMoonGraphics_Create(&TRITON);
+
+  DynamicArray_push(moons, &mtl_luna);
+  DynamicArray_push(moons, &mtl_phobos);
+  DynamicArray_push(moons, &mtl_deimos);
+  DynamicArray_push(moons, &mtl_europa);
+  DynamicArray_push(moons, &mtl_io);
+  DynamicArray_push(moons, &mtl_titan);
+  DynamicArray_push(moons, &mtl_triton);
+
+  size_t moon_count = DynamicArray_length(moons);
+  for (size_t i = 0; i < moon_count; i++) {
+    MTLMoonGraphicsClass *moon;
+    DynamicArray_get(moons, i, &moon);
+    MTLMoonGraphicsClass_init(moon, render_state);
+    LOG_DEBUG("Registered moon (%lu): %s (%s)", i,
+              ((CelestialBody_Moon *)moon->body)->name,
+              ((CelestialBody_Moon *)moon->body)->body_id);
+  }
 }

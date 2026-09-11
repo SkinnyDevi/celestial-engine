@@ -21,4 +21,6 @@ void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
                                  RenderState *render_state);
 void MTLPlanetGraphics_Destroy(MTLPlanetGraphicsClass *planet_graphics);
 
+void init_celestial_body_planets(RenderState *render_state);
+
 #endif

@@ -4,7 +4,7 @@
 #import <stdlib.h>
 
 #import "core/log/log.h"
-#import "core/space/planet.h"
+#import "core/space/defined/planets.h"
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
@@ -69,16 +69,25 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
     memset(&uniforms, 0, sizeof(uniforms));
   }
 
-  float render_scale = (float)(planet->body->radius_m * METERS_TO_RENDER_UNITS);
+  float base_scale = (float)(planet->body->radius_m * METERS_TO_RENDER_UNITS);
+
+  Camera *camera = RenderState_GetCamera(render_state);
+  simd_float3 cam_pos = camera_orbit_position(camera);
+  simd_float3 body_pos = simd_make_float3(
+      (float)(planet->body->position.x * METERS_TO_RENDER_UNITS),
+      (float)(planet->body->position.y * METERS_TO_RENDER_UNITS),
+      (float)(planet->body->position.z * METERS_TO_RENDER_UNITS));
+
+  float dist = simd_distance(cam_pos, body_pos);
+  float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility
+  float render_scale =
+      base_scale > min_visual_size ? base_scale : min_visual_size;
 
   simd_float4x4 model = {0};
   model.columns[0] = simd_make_float4(render_scale, 0.0f, 0.0f, 0.0f);
   model.columns[1] = simd_make_float4(0.0f, render_scale, 0.0f, 0.0f);
   model.columns[2] = simd_make_float4(0.0f, 0.0f, render_scale, 0.0f);
-  model.columns[3] = simd_make_float4(
-      (float)(planet->body->position.x * METERS_TO_RENDER_UNITS),
-      (float)(planet->body->position.y * METERS_TO_RENDER_UNITS),
-      (float)(planet->body->position.z * METERS_TO_RENDER_UNITS), 1.0f);
+  model.columns[3] = simd_make_float4(body_pos.x, body_pos.y, body_pos.z, 1.0f);
 
   uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
   uniforms.gridColor = color;
@@ -110,8 +119,9 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
 MTLPlanetGraphicsClass *MTLPlanetGraphics_Create(CelestialBody_Planet *body) {
   MTLPlanetGraphicsClass *planet = malloc(sizeof(MTLPlanetGraphicsClass));
   if (!planet) {
-    LOG_ERROR("Failed to allocate memory for planet graphics for planet: %s (%s)",
-              body->name, body->body_id);
+    LOG_ERROR(
+        "Failed to allocate memory for planet graphics for planet: %s (%s)",
+        body->name, body->body_id);
     return NULL;
   }
 
@@ -136,4 +146,25 @@ void MTLPlanetGraphics_Destroy(MTLPlanetGraphicsClass *planet_graphics) {
     CFRelease(planet_graphics->pipeline_state);
 
   free(planet_graphics);
+}
+
+void init_celestial_body_planets(RenderState *render_state) {
+  DynamicArray *planets = RenderState_GetPlanets(render_state);
+
+  MTLPlanetGraphicsClass *mtl_earth = MTLPlanetGraphics_Create(&EARTH);
+  MTLPlanetGraphicsClass *mtl_mars = MTLPlanetGraphics_Create(&MARS);
+  MTLPlanetGraphicsClass *mtl_jupiter = MTLPlanetGraphics_Create(&JUPITER);
+  DynamicArray_push(planets, &mtl_earth);
+  DynamicArray_push(planets, &mtl_mars);
+  DynamicArray_push(planets, &mtl_jupiter);
+
+  size_t planet_count = DynamicArray_length(planets);
+  for (size_t i = 0; i < planet_count; i++) {
+    MTLPlanetGraphicsClass *planet;
+    DynamicArray_get(planets, i, &planet);
+    MTLPlanetGraphicsClass_init(planet, render_state);
+    LOG_DEBUG("Registered planet (%lu): %s (%s)", i,
+              ((CelestialBody_Planet *)planet->body)->name,
+              ((CelestialBody_Planet *)planet->body)->body_id);
+  }
 }

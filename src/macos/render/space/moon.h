@@ -21,4 +21,6 @@ void MTLMoonGraphicsClass_init(MTLMoonGraphicsClass *moon,
                                RenderState *render_state);
 void MTLMoonGraphics_Destroy(MTLMoonGraphicsClass *moon_graphics);
 
+void init_celestial_body_moons(RenderState *render_state);
+
 #endif
