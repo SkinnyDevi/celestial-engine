@@ -11,6 +11,7 @@ add_executable(celengine
   core/cli/help.c
   core/cli/functions.c
   core/data/dyn_array.c
+  core/data/raycast.c
   macos/app.m
   macos/menu/menu.m
   macos/render/camera.m

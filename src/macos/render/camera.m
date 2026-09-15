@@ -5,7 +5,7 @@
 static const float kOrbitSensitivity = 0.007f;
 static const float kMaxElevation = M_PI / 2.0f; // 90 degree clamp
 static const float kZoomFactor = 1.05f;
-static const float kMinzoom = 0.1f;
+static const float kMinzoom = 0.01f;
 static const float kMaxzoom = 10000.0f;
 
 void camera_init(Camera *camera) {
@@ -17,6 +17,8 @@ void camera_init(Camera *camera) {
   camera->elevation = 0.4363f; // 25°
   camera->zoom = 12.0f;
   camera->center = simd_make_float3(0.0f, 0.0f, 0.0f);
+  camera->is_transitioning = false;
+  camera->transition_progress = 0.0f;
 }
 
 simd_float3 camera_orbit_position(const Camera *camera) {
@@ -159,4 +161,39 @@ void camera_set_position(Camera *camera, simd_float3 position) {
   camera->elevation =
       fminf(kMaxElevation, fmaxf(-kMaxElevation, camera->elevation));
   camera->azimuth = atan2f(offset.x, offset.z);
+}
+
+void camera_start_transition_to(Camera *camera, simd_float3 target,
+                                float zoom) {
+  if (!camera)
+    return;
+  camera->start_center = camera->center;
+  camera->target_center = target;
+  camera->start_zoom = camera->zoom;
+  camera->target_zoom = fmaxf(kMinzoom, zoom);
+  camera->is_transitioning = true;
+  camera->transition_progress = 0.0f;
+}
+
+static inline float ease_in_out_cubic(float t) {
+  return t < 0.5f ? 4.0f * t * t * t
+                  : 1.0f - powf(-2.0f * t + 2.0f, 3.0f) / 2.0f;
+}
+
+void camera_update_transition(Camera *camera, float dt) {
+  if (!camera || !camera->is_transitioning)
+    return;
+
+  float speed = 2.0f; // 0.5 seconds for a full transition
+  camera->transition_progress += dt * speed;
+
+  if (camera->transition_progress >= 1.0f) {
+    camera->transition_progress = 1.0f;
+    camera->is_transitioning = false;
+  }
+
+  float t = ease_in_out_cubic(camera->transition_progress);
+  camera->center = simd_mix(camera->start_center, camera->target_center, t);
+  camera->zoom =
+      camera->start_zoom + (camera->target_zoom - camera->start_zoom) * t;
 }

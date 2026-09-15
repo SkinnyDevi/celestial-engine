@@ -3,11 +3,14 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
+#import <mach/mach_time.h>
 
 #import "core/cli/functions.h"
 #import "core/data/dyn_array.h"
+#import "core/data/raycast.h"
 #import "core/log/log.h"
 #import "core/renderer/camera/camera.h"
+#import "core/space/units.h"
 
 #import "macos/debug/camera_properties.h"
 #import "macos/debug/flags.h"
@@ -36,6 +39,11 @@ static int debug_camera_orbit_sphere_vertices = 0;
 #if DEBUG_CAMERA_FIXATION_POINT_VISIBLE
 static id<MTLBuffer> debug_camera_fixation_sphere_buffer = nil;
 static int debug_camera_fixation_sphere_vertices = 0;
+#endif
+
+#if DEBUG_HITBOX_WIREFRAME_VISIBLE
+static id<MTLBuffer> debug_hitbox_sphere_buffer = nil;
+static int debug_hitbox_sphere_vertices = 0;
 #endif
 
 static simd_float4x4 make_scale_matrix(float s) {
@@ -69,8 +77,9 @@ static void update_camera_uniforms(RenderState *state) {
                  MAX(metal_layer.drawableSize.height, 1.0f);
 
   simd_float4x4 view = camera_view_matrix(camera);
-  simd_float4x4 projection = camera_perspective(
-      70.0f * (float)M_PI / 180.0f, aspect, 0.1f, CAMERA_CLIPPING_PLANE);
+  simd_float4x4 projection =
+      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect,
+                         CAMERA_NEAR_CLIPPING_PLANE, CAMERA_FAR_CLIPPING_PLANE);
 
   DisplacedMeshUniforms uniforms;
   uniforms.mvpMatrix = simd_mul(projection, view);
@@ -173,6 +182,19 @@ void generate_debug_graphics(RenderState *state) {
   free(fixation_vertices);
   LOG_DEBUG("Fixation sphere buffer: %d vertices, buffer=%p", fixation_count,
             (__bridge void *)debug_camera_fixation_sphere_buffer);
+#endif
+
+#if DEBUG_HITBOX_WIREFRAME_VISIBLE
+  int hitbox_count = 0;
+  Vertex *hitbox_vertices =
+      debug_generate_quality_sphere_wireframe(4, MEDIUM_QUALITY, &hitbox_count);
+  debug_hitbox_sphere_buffer =
+      [metal_layer.device newBufferWithBytes:hitbox_vertices
+                                      length:(sizeof(Vertex) * hitbox_count)
+                                     options:MTLResourceStorageModeShared];
+  debug_hitbox_sphere_vertices = hitbox_count;
+  free(hitbox_vertices);
+  LOG_DEBUG("Hitbox sphere buffer: %d vertices", hitbox_count);
 #endif
 }
 
@@ -377,6 +399,92 @@ void draw_debug_graphics(RenderState *state,
                 vertexCount:debug_camera_fixation_sphere_vertices];
   }
 #endif
+
+#if DEBUG_HITBOX_WIREFRAME_VISIBLE
+  {
+    simd_float3 ray_origin = camera_orbit_position(cam);
+    [encoder setVertexBuffer:debug_hitbox_sphere_buffer offset:0 atIndex:0];
+
+    void (^draw_hitbox)(simd_float3, float, simd_float4) =
+        ^(simd_float3 pos, float radius, simd_float4 color) {
+          simd_float4x4 model =
+              simd_mul(make_translation_matrix(pos), make_scale_matrix(radius));
+          DisplacedMeshUniforms mesh_uniforms;
+          mesh_uniforms.mvpMatrix = simd_mul(vp, model);
+          mesh_uniforms.gridColor = color;
+          [encoder setVertexBytes:&mesh_uniforms
+                           length:sizeof(mesh_uniforms)
+                          atIndex:1];
+          [encoder setFragmentBytes:&mesh_uniforms
+                             length:sizeof(mesh_uniforms)
+                            atIndex:1];
+          [encoder drawPrimitives:MTLPrimitiveTypeLine
+                      vertexStart:0
+                      vertexCount:debug_hitbox_sphere_vertices];
+        };
+
+    DynamicArray *stars = RenderState_GetStars(state);
+    for (size_t i = 0; i < DynamicArray_length(stars); i++) {
+      MTLStarGraphicsClass *star;
+      DynamicArray_get(stars, i, &star);
+      simd_float3 pos =
+          simd_make_float3(star->body->position.x * METERS_TO_RENDER_UNITS,
+                           star->body->position.y * METERS_TO_RENDER_UNITS,
+                           star->body->position.z * METERS_TO_RENDER_UNITS);
+      float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
+      draw_hitbox(pos,
+                  fmaxf(base_radius, simd_distance(ray_origin, pos) * 0.02f),
+                  (simd_float4){0.0f, 1.0f, 0.0f, 1.0f});
+    }
+
+    DynamicArray *planets = RenderState_GetPlanets(state);
+    for (size_t i = 0; i < DynamicArray_length(planets); i++) {
+      MTLPlanetGraphicsClass *planet;
+      DynamicArray_get(planets, i, &planet);
+      double ax = planet->body->position.x;
+      double ay = planet->body->position.y;
+      double az = planet->body->position.z;
+      if (planet->host_star) {
+        ax += planet->host_star->body->position.x;
+        ay += planet->host_star->body->position.y;
+        az += planet->host_star->body->position.z;
+      }
+      simd_float3 pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
+                                         ay * METERS_TO_RENDER_UNITS,
+                                         az * METERS_TO_RENDER_UNITS);
+      float base_radius = planet->body->radius_m * METERS_TO_RENDER_UNITS;
+      draw_hitbox(pos,
+                  fmaxf(base_radius, simd_distance(ray_origin, pos) * 0.02f),
+                  (simd_float4){0.0f, 1.0f, 0.0f, 1.0f});
+    }
+
+    DynamicArray *moons = RenderState_GetMoons(state);
+    for (size_t i = 0; i < DynamicArray_length(moons); i++) {
+      MTLMoonGraphicsClass *moon;
+      DynamicArray_get(moons, i, &moon);
+      double ax = moon->body->position.x;
+      double ay = moon->body->position.y;
+      double az = moon->body->position.z;
+      if (moon->host_planet) {
+        ax += moon->host_planet->body->position.x;
+        ay += moon->host_planet->body->position.y;
+        az += moon->host_planet->body->position.z;
+        if (moon->host_planet->host_star) {
+          ax += moon->host_planet->host_star->body->position.x;
+          ay += moon->host_planet->host_star->body->position.y;
+          az += moon->host_planet->host_star->body->position.z;
+        }
+      }
+      simd_float3 pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
+                                         ay * METERS_TO_RENDER_UNITS,
+                                         az * METERS_TO_RENDER_UNITS);
+      float base_radius = moon->body->radius_m * METERS_TO_RENDER_UNITS;
+      draw_hitbox(pos,
+                  fmaxf(base_radius, simd_distance(ray_origin, pos) * 0.02f),
+                  (simd_float4){0.0f, 1.0f, 0.0f, 1.0f});
+    }
+  }
+#endif
 }
 
 void draw_grid(RenderState *state, id<MTLRenderCommandEncoder> encoder) {
@@ -388,9 +496,20 @@ void draw_grid(RenderState *state, id<MTLRenderCommandEncoder> encoder) {
   id<MTLBuffer> uniform_buffer =
       (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
 
+  Camera *camera = RenderState_GetCamera(state);
+  float spacing = dynamic_grid_spacing(camera->zoom);
+
+  simd_float3 translation = camera->center;
+
+  DisplacedMeshUniforms uniforms;
+  memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
+
+  simd_float4x4 model = make_translation_matrix(translation);
+  uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
+
   [encoder setVertexBuffer:vertex_buffer offset:0 atIndex:0];
-  [encoder setVertexBuffer:uniform_buffer offset:0 atIndex:1];
-  [encoder setFragmentBuffer:uniform_buffer offset:0 atIndex:1];
+  [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
+  [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder drawPrimitives:MTLPrimitiveTypeLine
               vertexStart:0
               vertexCount:RenderState_GetVertexCount(state)];
@@ -427,6 +546,19 @@ void draw_frame(RendererHandle handle) {
   RenderState *state = (RenderState *)handle;
   if (!state || !RenderState_GetPipelineState(state))
     return;
+
+  static uint64_t last_time = 0;
+  uint64_t current_time = mach_absolute_time();
+  if (last_time != 0) {
+    mach_timebase_info_data_t timebase;
+    mach_timebase_info(&timebase);
+    float dt = (float)(current_time - last_time) * (float)timebase.numer /
+               (float)timebase.denom / 1e9f;
+    Camera *cam = RenderState_GetCamera(state);
+    if (cam->is_transitioning)
+      camera_update_transition(cam, dt);
+  }
+  last_time = current_time;
 
   update_camera_uniforms(state);
 
@@ -539,7 +671,11 @@ void pump_os_events(void) {
       if ([event type] == NSEventTypeLeftMouseDown) {
         NSPoint mouse = [event locationInWindow];
         MousePoint point = {mouse.x, mouse.y};
-        event_left_mouse_down(state, point);
+        if ([event clickCount] == 2)
+          event_mouse_double_click(state, point);
+        else
+          event_left_mouse_down(state, point);
+
       } else if ([event type] == NSEventTypeLeftMouseDragged) {
         NSPoint current = [event locationInWindow];
         MousePoint point = {current.x, current.y};

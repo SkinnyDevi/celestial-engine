@@ -12,5 +12,6 @@ typedef struct {
 void event_left_mouse_down(RenderState *state, MousePoint mouse);
 void event_left_mouse_drag(RenderState *state, MousePoint mouse,
                            bool shiftHeld);
+void event_mouse_double_click(RenderState *state, MousePoint mouse);
 
 #endif
