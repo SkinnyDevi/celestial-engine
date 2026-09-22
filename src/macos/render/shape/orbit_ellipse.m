@@ -11,14 +11,14 @@ void init_orbit_graphics(RenderState *state, CelestialBody_Orbit *orbit,
   if (!state || !orbit || !out_buffer || !out_vertex_count)
     return;
 
-  Vector3 *positions = orbit_get_all_positions(orbit);
+  int num_points = 65536;
+  Vector3 *positions = orbit_get_all_positions(orbit, num_points);
   if (!positions) {
     LOG_ERROR("Failed to get orbit positions.", NULL);
     return;
   }
 
-  int days = (int)orbit->orbital_period_days;
-  int vertex_count = days + 1; // +1 to close the loop
+  int vertex_count = num_points + 1; // +1 to close the loop
 
   Vertex *vertices = malloc(sizeof(Vertex) * vertex_count);
   if (!vertices) {
@@ -26,7 +26,7 @@ void init_orbit_graphics(RenderState *state, CelestialBody_Orbit *orbit,
     return;
   }
 
-  for (int i = 0; i < days; i++) {
+  for (int i = 0; i < num_points; i++) {
     // We subtract the orbit->center_position because we want the orbit points
     // relative to the host
     float x = (float)((positions[i].x - orbit->center_position.x) *
@@ -42,7 +42,7 @@ void init_orbit_graphics(RenderState *state, CelestialBody_Orbit *orbit,
   }
 
   // Close the loop
-  vertices[days] = vertices[0];
+  vertices[num_points] = vertices[0];
 
   CAMetalLayer *metal_layer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
@@ -79,14 +79,12 @@ void draw_orbit_ellipse(RenderState *state, id<MTLRenderCommandEncoder> encoder,
   model.columns[3] = simd_make_float4(host_pos.x, host_pos.y, host_pos.z, 1.0f);
 
   uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
-  uniforms.gridColor =
-      (simd_float4){1.0f, 1.0f, 1.0f, 0.5f}; // Bright red opaque line
+  uniforms.gridColor = (simd_float4){1.0f, 1.0f, 1.0f, 0.5f};
 
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setVertexBuffer:buffer offset:0 atIndex:0];
 
-  // Assuming the line rendering pipeline is currently bound
   [encoder drawPrimitives:MTLPrimitiveTypeLineStrip
               vertexStart:0
               vertexCount:vertex_count];

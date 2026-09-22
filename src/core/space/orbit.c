@@ -16,9 +16,8 @@ Vector3 orbit_calculate_position(CelestialBody_Orbit *orbit,
 
     // Normalize mean anomaly to [0, 2*PI]
     orbit->mean_anomaly = fmod(orbit->mean_anomaly, 2.0 * M_PI);
-    if (orbit->mean_anomaly < 0.0) {
+    if (orbit->mean_anomaly < 0.0)
       orbit->mean_anomaly += 2.0 * M_PI;
-    }
   }
 
   double M = orbit->mean_anomaly;
@@ -26,9 +25,8 @@ Vector3 orbit_calculate_position(CelestialBody_Orbit *orbit,
 
   // Solve Kepler's Equation: M = E - e * sin(E)
   double E = M;
-  if (e > 0.8) {
+  if (e > 0.8)
     E = M + e * sin(M); // Better initial guess for high eccentricity
-  }
 
   // Newton-Raphson iteration to find Eccentric Anomaly
   for (int i = 0; i < 15; i++) {
@@ -36,9 +34,8 @@ Vector3 orbit_calculate_position(CelestialBody_Orbit *orbit,
     double f_prime = 1.0 - e * cos(E);
     double dE = f / f_prime;
     E -= dE;
-    if (fabs(dE) < 1e-7) {
+    if (fabs(dE) < 1e-7)
       break;
-    }
   }
 
   // Calculate True Anomaly
@@ -125,17 +122,17 @@ Vector3 orbit_get_ellipse_vector(CelestialBody_Orbit *orbit) {
   return pos;
 }
 
-Vector3 *orbit_get_all_positions(CelestialBody_Orbit *orbit) {
-  if (!orbit)
+Vector3 *orbit_get_all_positions(CelestialBody_Orbit *orbit, int num_points) {
+  if (!orbit || num_points <= 0)
     return NULL;
 
-  int days = orbit->orbital_period_days;
-  Vector3 *positions = malloc(sizeof(Vector3) * days);
+  Vector3 *positions = malloc(sizeof(Vector3) * num_points);
   if (!positions)
     return NULL;
 
-  for (int i = 0; i < days; i++)
-    positions[i] = orbit_calculate_position(orbit, (double)i);
+  double step = orbit->orbital_period_days / (double)num_points;
+  for (int i = 0; i < num_points; i++)
+    positions[i] = orbit_calculate_position(orbit, step * (double)i);
 
   return positions;
 }

@@ -14,8 +14,8 @@ CelestialBody_Moon PHOBOS = {
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
     .radius_m = 11262, // Average radius
     .mass_kg = 1.0659e16,
-    .surface_temperature_k = 233, // Average surface temperature
     .atmosphere_type = ATMOSPHERE_NONE,
+    .orbit = &ORBIT_PHOBOS_AROUND_MARS,
 };
 
 CelestialBody_Moon DEIMOS = {
@@ -28,8 +28,8 @@ CelestialBody_Moon DEIMOS = {
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
     .radius_m = 6255, // Average radius
     .mass_kg = 1.4762e15,
-    .surface_temperature_k = 233, // Average surface temperature
     .atmosphere_type = ATMOSPHERE_NONE,
+    .orbit = &ORBIT_DEIMOS_AROUND_MARS,
 };
 
 CelestialBody_Moon LUNA = {
@@ -57,8 +57,8 @@ CelestialBody_Moon IO = {
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
     .radius_m = 1821600,
     .mass_kg = 8.933e22,
-    .surface_temperature_k = 130,
     .atmosphere_type = ATMOSPHERE_THIN,
+    .orbit = &ORBIT_IO_AROUND_JUPITER,
 };
 
 CelestialBody_Moon EUROPA = {
@@ -71,8 +71,8 @@ CelestialBody_Moon EUROPA = {
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
     .radius_m = 1560800,
     .mass_kg = 4.7999e22,
-    .surface_temperature_k = 102,
     .atmosphere_type = ATMOSPHERE_THIN,
+    .orbit = &ORBIT_EUROPA_AROUND_JUPITER,
 };
 
 CelestialBody_Moon TITAN = {
@@ -85,8 +85,8 @@ CelestialBody_Moon TITAN = {
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
     .radius_m = 2574700,
     .mass_kg = 1.3455e23,
-    .surface_temperature_k = 94,
     .atmosphere_type = ATMOSPHERE_DENSE,
+    .orbit = &ORBIT_TITAN_AROUND_SATURN,
 };
 
 CelestialBody_Moon TRITON = {
@@ -99,8 +99,8 @@ CelestialBody_Moon TRITON = {
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
     .radius_m = 1353600,
     .mass_kg = 2.1404e22,
-    .surface_temperature_k = 38, // Very cold, nitrogen ice
     .atmosphere_type = ATMOSPHERE_THIN,
+    .orbit = &ORBIT_TRITON_AROUND_NEPTUNE,
 };
 
 #endif

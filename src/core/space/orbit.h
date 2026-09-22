@@ -21,5 +21,5 @@ typedef struct {
 Vector3 orbit_calculate_position(CelestialBody_Orbit *orbit,
                                  double time_in_days);
 Vector3 orbit_get_ellipse_vector(CelestialBody_Orbit *orbit);
-Vector3 *orbit_get_all_positions(CelestialBody_Orbit *orbit);
+Vector3 *orbit_get_all_positions(CelestialBody_Orbit *orbit, int num_points);
 #endif

@@ -16,6 +16,7 @@ CelestialBody_Planet VENUS = {
     .surface_temperature_k = 737,
     .atmosphere_type = ATMOSPHERE_DENSE,
     .has_rings = 0,
+    .orbit = &ORBIT_VENUS_AROUND_SUN,
 };
 
 CelestialBody_Planet MERCURY = {
@@ -30,6 +31,7 @@ CelestialBody_Planet MERCURY = {
     .surface_temperature_k = 440,
     .atmosphere_type = ATMOSPHERE_THIN,
     .has_rings = 0,
+    .orbit = &ORBIT_MERCURY_AROUND_SUN,
 };
 
 CelestialBody_Planet EARTH = {
@@ -59,6 +61,7 @@ CelestialBody_Planet MARS = {
     .surface_temperature_k = 210,
     .atmosphere_type = ATMOSPHERE_THIN,
     .has_rings = 0,
+    .orbit = &ORBIT_MARS_AROUND_SUN,
 };
 
 CelestialBody_Planet JUPITER = {
@@ -71,6 +74,7 @@ CelestialBody_Planet JUPITER = {
     .radius_m = 69911000,
     .atmosphere_type = ATMOSPHERE_THICK_ENVELOPE,
     .has_rings = 1,
+    .orbit = &ORBIT_JUPITER_AROUND_SUN,
 };
 
 CelestialBody_Planet SATURN = {
@@ -83,6 +87,7 @@ CelestialBody_Planet SATURN = {
     .radius_m = 58232000,
     .atmosphere_type = ATMOSPHERE_THICK_ENVELOPE,
     .has_rings = 1,
+    .orbit = &ORBIT_SATURN_AROUND_SUN,
 };
 
 CelestialBody_Planet URANUS = {
@@ -95,6 +100,7 @@ CelestialBody_Planet URANUS = {
     .radius_m = 25362000,
     .atmosphere_type = ATMOSPHERE_THICK_ENVELOPE,
     .has_rings = 1,
+    .orbit = &ORBIT_URANUS_AROUND_SUN,
 };
 
 CelestialBody_Planet NEPTUNE = {
@@ -107,6 +113,7 @@ CelestialBody_Planet NEPTUNE = {
     .radius_m = 24622000,
     .atmosphere_type = ATMOSPHERE_THICK_ENVELOPE,
     .has_rings = 1,
+    .orbit = &ORBIT_NEPTUNE_AROUND_SUN,
 };
 
 #endif
