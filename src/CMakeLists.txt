@@ -32,6 +32,7 @@ add_executable(celengine
   macos/debug/sphere_wireframe.m
   macos/debug/camera_properties.m
   macos/debug/fps_counter.m
+  macos/debug/time_overlay.m
 )
 
 target_include_directories(celengine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -70,6 +71,7 @@ set_source_files_properties(
     macos/debug/sphere_wireframe.m
     macos/debug/camera_properties.m
     macos/debug/fps_counter.m
+    macos/debug/time_overlay.m
     PROPERTIES
     COMPILE_OPTIONS "-fobjc-arc"
 )

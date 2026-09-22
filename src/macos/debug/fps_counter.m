@@ -1,11 +1,11 @@
 #import "fps_counter.h"
-#include "core/log/log.h"
 #import <Foundation/NSObjCRuntime.h>
 #import <stdio.h>
 #import <stdlib.h>
 #import <string.h>
 #import <time.h>
 
+#import "core/log/log.h"
 #import "macos/debug/overlay.h"
 #import "macos/render/state/render_handler.h"
 

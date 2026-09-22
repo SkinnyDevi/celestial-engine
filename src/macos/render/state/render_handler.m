@@ -21,6 +21,7 @@ typedef struct {
   id<MTLDepthStencilState> depthStencilState;
   DebugOverlay *camera_debug_overlay;
   DebugOverlay *fps_counter_overlay;
+  DebugOverlay *time_overlay;
   Camera camera;
   bool dragging;
   NSPoint lastMouse;
@@ -55,6 +56,7 @@ RenderState *RenderState_Create(void) {
   impl->depthStencilState = nil;
   impl->camera_debug_overlay = nil;
   impl->fps_counter_overlay = nil;
+  impl->time_overlay = nil;
   impl->input_registry = nil;
   impl->sim_time = (AstronomicalTime){0, 0, 0};
   impl->followed_type = FOLLOW_NONE;
@@ -80,6 +82,7 @@ void RenderState_Init(RenderState *state, void *window) {
   impl->grid_shader_lib = [impl->metalLayer.device newDefaultLibrary];
   impl->camera_debug_overlay = NULL;
   impl->fps_counter_overlay = NULL;
+  impl->time_overlay = NULL;
   camera_init(&impl->camera);
   impl->dragging = false;
   impl->lastMouse = NSZeroPoint;
@@ -108,6 +111,8 @@ void RenderState_Destroy(RenderState *state) {
   impl->camera_debug_overlay = nil;
   debug_overlay_destroy(impl->fps_counter_overlay);
   impl->fps_counter_overlay = nil;
+  debug_overlay_destroy(impl->time_overlay);
+  impl->time_overlay = nil;
   DynamicArray_free(&impl->stars);
   DynamicArray_free(&impl->planets);
   DynamicArray_free(&impl->moons);
@@ -227,6 +232,13 @@ DebugOverlay *RenderState_GetFPSCounterOverlay(RenderState *state) {
   return ((RenderStateImpl *)state)->fps_counter_overlay;
 }
 
+DebugOverlay *RenderState_GetTimeOverlay(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return ((RenderStateImpl *)state)->time_overlay;
+}
+
 Camera *RenderState_GetCamera(RenderState *state) {
   if (!state)
     return NULL;
@@ -294,6 +306,14 @@ void RenderState_SetFPSCounterOverlay(RenderState *state,
     return;
 
   ((RenderStateImpl *)state)->fps_counter_overlay = overlay;
+}
+
+void RenderState_SetTimeOverlay(RenderState *state,
+                                DebugOverlay *overlay) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->time_overlay = overlay;
 }
 
 void RenderState_SetVertexCount(RenderState *state, unsigned long count) {

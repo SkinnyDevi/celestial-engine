@@ -49,6 +49,7 @@ AstronomicalTime *RenderState_GetSimTime(RenderState *state);
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);
 DebugOverlay *RenderState_GetFPSCounterOverlay(RenderState *state);
+DebugOverlay *RenderState_GetTimeOverlay(RenderState *state);
 
 void RenderState_SetVec3Buffer(RenderState *state, void *buffer);
 void RenderState_SetUniformBuffer(RenderState *state, void *buffer);
@@ -76,4 +77,6 @@ void RenderState_SetCameraDebugOverlay(RenderState *state,
                                        DebugOverlay *overlay);
 void RenderState_SetFPSCounterOverlay(RenderState *state,
                                       DebugOverlay *overlay);
+void RenderState_SetTimeOverlay(RenderState *state, DebugOverlay *overlay);
+
 #endif

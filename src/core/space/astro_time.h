@@ -13,4 +13,13 @@ void astro_time_update(AstronomicalTime *time, double delta_seconds);
 double astro_time_get_jd_since_epoch(const AstronomicalTime *time);
 double astro_time_get_days_since_epoch(const AstronomicalTime *time);
 
+void jd_to_gregorian(double jd, int *out_year, int *out_month, int *out_day,
+                     int *out_hour, int *out_minute, int *out_second);
+
+double gregorian_to_jd(int year, int month, int day, int hour, int minute,
+                       int second);
+
+unsigned long astro_time_jd_to_timestamp(AstronomicalTime *time);
+const char *astro_time_jd_to_datestring(AstronomicalTime *time);
+
 #endif

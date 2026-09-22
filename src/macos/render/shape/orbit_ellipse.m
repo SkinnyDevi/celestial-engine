@@ -1,17 +1,18 @@
 #import "orbit_ellipse.h"
-#import "core/log/log.h"
-#import "core/space/units.h"
-#import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/vertex.h"
 #import <QuartzCore/QuartzCore.h>
 #import <stdlib.h>
+
+#import "core/log/log.h"
+#import "core/space/units.h"
+#import "macos/render/grid/displaced_mesh.h"
 
 void init_orbit_graphics(RenderState *state, CelestialBody_Orbit *orbit,
                          id<MTLBuffer> *out_buffer, int *out_vertex_count) {
   if (!state || !orbit || !out_buffer || !out_vertex_count)
     return;
 
-  int num_points = 65536;
+  int num_points = 65536; // Quality of orbit path line
   Vector3 *positions = orbit_get_all_positions(orbit, num_points);
   if (!positions) {
     LOG_ERROR("Failed to get orbit positions.", NULL);

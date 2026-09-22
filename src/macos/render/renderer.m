@@ -17,8 +17,8 @@
 #import "macos/debug/camera_properties.h"
 #import "macos/debug/flags.h"
 #import "macos/debug/fps_counter.h"
-#import "macos/debug/overlay.h"
 #import "macos/debug/sphere_wireframe.h"
+#import "macos/debug/time_overlay.h"
 
 #import "macos/event/input_registry.h"
 #import "macos/event/mouse.h"
@@ -154,6 +154,8 @@ void generate_debug_graphics(RenderState *state) {
 #if DEBUG_CAMERA_PROPERTIES_VISIBLE
   debug_create_camera_properties_overlay(state);
 #endif
+
+  debug_create_time_overlay(state);
 
   CAMetalLayer *metal_layer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
@@ -295,7 +297,8 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   init_celestial_bodies(state);
 
   AstronomicalTime *sim_time = RenderState_GetSimTime(state);
-  astro_time_init(sim_time, 2451545.0, 10.0); // 10 days per real second
+  astro_time_init(sim_time, 2452183.770833,
+                  0.000001); // 10 days per real second
 
   Camera *camera = RenderState_GetCamera(state);
   simd_float3 cam_pos = camera_orbit_position(camera);
@@ -357,6 +360,12 @@ void draw_debug_graphics(RenderState *state,
         cam->center.y, cam->center.z, cam_pos.x, cam_pos.y, cam_pos.z);
   }
 #endif
+
+  DebugOverlay *time_overlay = RenderState_GetTimeOverlay(state);
+  if (time_overlay) {
+    debug_overlay_clear(time_overlay);
+    debug_overlay_update_time(time_overlay, RenderState_GetSimTime(state));
+  }
 
 #if DEBUG_CAMERA_PATH_WIREFRAME_VISIBLE
   {
@@ -594,10 +603,10 @@ void draw_frame(RendererHandle handle) {
 
       if (ftype == FOLLOW_STAR) {
         MTLStarGraphicsClass *star = fobj;
-        body_pos = simd_make_float3(
-            star->body->position.x * METERS_TO_RENDER_UNITS,
-            star->body->position.y * METERS_TO_RENDER_UNITS,
-            star->body->position.z * METERS_TO_RENDER_UNITS);
+        body_pos =
+            simd_make_float3(star->body->position.x * METERS_TO_RENDER_UNITS,
+                             star->body->position.y * METERS_TO_RENDER_UNITS,
+                             star->body->position.z * METERS_TO_RENDER_UNITS);
       } else if (ftype == FOLLOW_PLANET) {
         MTLPlanetGraphicsClass *planet = fobj;
         double ax = planet->body->position.x;
