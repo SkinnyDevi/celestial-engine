@@ -25,6 +25,7 @@ void event_left_mouse_drag(RenderState *state, MousePoint current,
 
   Camera *camera = RenderState_GetCamera(state);
   if (shiftHeld) {
+    RenderState_ClearFollowedBody(state);
     camera_pan_from_input(camera, (float)dx, (float)dy);
   } else {
     camera_orbit_from_input(camera, (float)dx, (float)dy);
@@ -33,7 +34,7 @@ void event_left_mouse_drag(RenderState *state, MousePoint current,
 
 void check_intersect_stars(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
-                           void (^check_intersect)(simd_float3, float)) {
+                           void (^check_intersect)(simd_float3, float, void *, FollowType)) {
   DynamicArray *stars = RenderState_GetStars(state);
   for (size_t i = 0; i < DynamicArray_length(stars); i++) {
     MTLStarGraphicsClass *star;
@@ -45,13 +46,13 @@ void check_intersect_stars(RenderState *state, MousePoint mouse,
     float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = simd_distance(ray_origin, pos);
     float click_radius = dist * 0.02f; // Enlarge hitbox for easier clicking
-    check_intersect(pos, fmaxf(base_radius, click_radius));
+    check_intersect(pos, fmaxf(base_radius, click_radius), star, FOLLOW_STAR);
   }
 }
 
 void check_intersect_planets(RenderState *state, MousePoint mouse,
                              simd_float3 ray_origin,
-                             void (^check_intersect)(simd_float3, float)) {
+                             void (^check_intersect)(simd_float3, float, void *, FollowType)) {
   DynamicArray *planets = RenderState_GetPlanets(state);
   for (size_t i = 0; i < DynamicArray_length(planets); i++) {
     MTLPlanetGraphicsClass *planet;
@@ -70,13 +71,13 @@ void check_intersect_planets(RenderState *state, MousePoint mouse,
     float base_radius = planet->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = simd_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
-    check_intersect(pos, fmaxf(base_radius, click_radius));
+    check_intersect(pos, fmaxf(base_radius, click_radius), planet, FOLLOW_PLANET);
   }
 }
 
 void check_intersect_moons(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
-                           void (^check_intersect)(simd_float3, float)) {
+                           void (^check_intersect)(simd_float3, float, void *, FollowType)) {
   DynamicArray *moons = RenderState_GetMoons(state);
   for (size_t i = 0; i < DynamicArray_length(moons); i++) {
     MTLMoonGraphicsClass *moon;
@@ -100,7 +101,7 @@ void check_intersect_moons(RenderState *state, MousePoint mouse,
     float base_radius = moon->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = simd_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
-    check_intersect(pos, fmaxf(base_radius, click_radius));
+    check_intersect(pos, fmaxf(base_radius, click_radius), moon, FOLLOW_MOON);
   }
 }
 
@@ -125,14 +126,18 @@ void event_mouse_double_click(RenderState *state, MousePoint mouse) {
   __block float best_t = -1.0f;
   __block simd_float3 best_center = {0};
   __block float best_radius = 0;
-  void (^check_intersect)(simd_float3, float) =
-      ^(simd_float3 pos, float radius) {
+  __block void *best_obj = NULL;
+  __block FollowType best_type = FOLLOW_NONE;
+  void (^check_intersect)(simd_float3, float, void *, FollowType) =
+      ^(simd_float3 pos, float radius, void *obj, FollowType type) {
         float t;
         if (raycast_intersects_sphere(ray_origin, ray_dir, pos, radius, &t)) {
           if (best_t < 0.0f || t < best_t) {
             best_t = t;
             best_center = pos;
             best_radius = radius;
+            best_obj = obj;
+            best_type = type;
           }
         }
       };
@@ -143,6 +148,7 @@ void event_mouse_double_click(RenderState *state, MousePoint mouse) {
 
   if (best_t >= 0.0f) {
     float zoom = fmaxf(best_radius * 5.0f, 1.0f);
+    RenderState_SetFollowedBody(state, best_type, best_obj);
     camera_start_transition_to(camera, best_center, zoom);
   }
 }

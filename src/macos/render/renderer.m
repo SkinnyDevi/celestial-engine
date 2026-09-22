@@ -572,16 +572,9 @@ void draw_frame(RendererHandle handle) {
     for (size_t i = 0; i < DynamicArray_length(planets); i++) {
       MTLPlanetGraphicsClass *planet;
       DynamicArray_get(planets, i, &planet);
-      if (planet->body->orbit) {
-        Vector3 host_position = planet->body->position;
+      if (planet->body->orbit)
         planet->body->position =
             orbit_calculate_position(planet->body->orbit, days);
-        LOG_DEBUG(
-            "New position for planet %s: old(%f, %f, %f) -> new(%f, %f, %f)",
-            planet->body->name, host_position.x, host_position.y,
-            host_position.z, planet->body->position.x, planet->body->position.y,
-            planet->body->position.z);
-      }
     }
 
     DynamicArray *moons = RenderState_GetMoons(state);
@@ -591,6 +584,58 @@ void draw_frame(RendererHandle handle) {
       if (moon->body->orbit) {
         moon->body->position =
             orbit_calculate_position(moon->body->orbit, days);
+      }
+    }
+
+    if (RenderState_IsFollowing(state)) {
+      FollowType ftype = RenderState_GetFollowedType(state);
+      void *fobj = RenderState_GetFollowedBody(state);
+      simd_float3 body_pos = {0};
+
+      if (ftype == FOLLOW_STAR) {
+        MTLStarGraphicsClass *star = fobj;
+        body_pos = simd_make_float3(
+            star->body->position.x * METERS_TO_RENDER_UNITS,
+            star->body->position.y * METERS_TO_RENDER_UNITS,
+            star->body->position.z * METERS_TO_RENDER_UNITS);
+      } else if (ftype == FOLLOW_PLANET) {
+        MTLPlanetGraphicsClass *planet = fobj;
+        double ax = planet->body->position.x;
+        double ay = planet->body->position.y;
+        double az = planet->body->position.z;
+        if (planet->host_star) {
+          ax += planet->host_star->body->position.x;
+          ay += planet->host_star->body->position.y;
+          az += planet->host_star->body->position.z;
+        }
+        body_pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
+                                    ay * METERS_TO_RENDER_UNITS,
+                                    az * METERS_TO_RENDER_UNITS);
+      } else if (ftype == FOLLOW_MOON) {
+        MTLMoonGraphicsClass *moon = fobj;
+        double ax = moon->body->position.x;
+        double ay = moon->body->position.y;
+        double az = moon->body->position.z;
+        if (moon->host_planet) {
+          ax += moon->host_planet->body->position.x;
+          ay += moon->host_planet->body->position.y;
+          az += moon->host_planet->body->position.z;
+          if (moon->host_planet->host_star) {
+            ax += moon->host_planet->host_star->body->position.x;
+            ay += moon->host_planet->host_star->body->position.y;
+            az += moon->host_planet->host_star->body->position.z;
+          }
+        }
+        body_pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
+                                    ay * METERS_TO_RENDER_UNITS,
+                                    az * METERS_TO_RENDER_UNITS);
+      }
+
+      Camera *cam = RenderState_GetCamera(state);
+      if (cam->is_transitioning) {
+        cam->target_center = body_pos;
+      } else {
+        cam->center = body_pos;
       }
     }
   }

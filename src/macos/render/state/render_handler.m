@@ -31,6 +31,8 @@ typedef struct {
   InputRegistry *input_registry;
   bool gridVisible;
   AstronomicalTime sim_time;
+  FollowType followed_type;
+  void *followed_body;
 } RenderStateImpl;
 
 RenderState *RenderState_Create(void) {
@@ -55,6 +57,8 @@ RenderState *RenderState_Create(void) {
   impl->fps_counter_overlay = nil;
   impl->input_registry = nil;
   impl->sim_time = (AstronomicalTime){0, 0, 0};
+  impl->followed_type = FOLLOW_NONE;
+  impl->followed_body = NULL;
   camera_init(&impl->camera);
 
   return (RenderState *)impl;
@@ -345,4 +349,38 @@ bool RenderState_IsGridVisible(const RenderState *state) {
   if (!state)
     return false;
   return ((const RenderStateImpl *)state)->gridVisible;
+}
+
+void RenderState_SetFollowedBody(RenderState *state, FollowType type, void *body) {
+  if (!state)
+    return;
+  RenderStateImpl *impl = (RenderStateImpl *)state;
+  impl->followed_type = type;
+  impl->followed_body = body;
+}
+
+void RenderState_ClearFollowedBody(RenderState *state) {
+  if (!state)
+    return;
+  RenderStateImpl *impl = (RenderStateImpl *)state;
+  impl->followed_type = FOLLOW_NONE;
+  impl->followed_body = NULL;
+}
+
+bool RenderState_IsFollowing(const RenderState *state) {
+  if (!state)
+    return false;
+  return ((const RenderStateImpl *)state)->followed_type != FOLLOW_NONE && ((const RenderStateImpl *)state)->followed_body != NULL;
+}
+
+FollowType RenderState_GetFollowedType(const RenderState *state) {
+  if (!state)
+    return FOLLOW_NONE;
+  return ((const RenderStateImpl *)state)->followed_type;
+}
+
+void *RenderState_GetFollowedBody(const RenderState *state) {
+  if (!state)
+    return NULL;
+  return ((const RenderStateImpl *)state)->followed_body;
 }

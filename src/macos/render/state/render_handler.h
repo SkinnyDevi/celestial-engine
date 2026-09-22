@@ -12,6 +12,13 @@
 typedef void *NSWindow;
 #endif
 
+typedef enum {
+  FOLLOW_NONE,
+  FOLLOW_STAR,
+  FOLLOW_PLANET,
+  FOLLOW_MOON
+} FollowType;
+
 typedef struct {
   simd_float4x4 viewProjection;
 } GridUniforms;
@@ -58,6 +65,12 @@ void RenderState_SetLastMouse(RenderState *state, double x, double y);
 void RenderState_GetLastMouse(const RenderState *state, double *x, double *y);
 void RenderState_SetGridVisible(RenderState *state, bool visible);
 bool RenderState_IsGridVisible(const RenderState *state);
+
+void RenderState_SetFollowedBody(RenderState *state, FollowType type, void *body);
+void RenderState_ClearFollowedBody(RenderState *state);
+bool RenderState_IsFollowing(const RenderState *state);
+FollowType RenderState_GetFollowedType(const RenderState *state);
+void *RenderState_GetFollowedBody(const RenderState *state);
 
 void RenderState_SetCameraDebugOverlay(RenderState *state,
                                        DebugOverlay *overlay);
