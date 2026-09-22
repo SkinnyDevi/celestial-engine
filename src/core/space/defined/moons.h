@@ -1,7 +1,8 @@
-#ifndef MACOS_RENDER_DEFINED_MOONS_H
-#define MACOS_RENDER_DEFINED_MOONS_H
+#ifndef CORE_SPACE_DEFINED_MOONS_H
+#define CORE_SPACE_DEFINED_MOONS_H
 
 #include "core/space/moon.h"
+#include "orbits.h"
 
 CelestialBody_Moon PHOBOS = {
     .name = "Phobos",
@@ -43,6 +44,7 @@ CelestialBody_Moon LUNA = {
     .mass_kg = 7.342e22,
     .surface_temperature_k = 250,
     .atmosphere_type = ATMOSPHERE_NONE,
+    .orbit = &ORBIT_LUNA_AROUND_EARTH,
 };
 
 CelestialBody_Moon IO = {

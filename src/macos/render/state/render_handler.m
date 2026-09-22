@@ -4,6 +4,7 @@
 #import <QuartzCore/QuartzCore.h>
 
 #import "core/data/dyn_array.h"
+#include "core/space/astro_time.h"
 #include "core/space/star.h"
 #import "macos/debug/overlay.h"
 #import "macos/event/input_registry.h"
@@ -29,6 +30,7 @@ typedef struct {
   DynamicArray moons;
   InputRegistry *input_registry;
   bool gridVisible;
+  AstronomicalTime sim_time;
 } RenderStateImpl;
 
 RenderState *RenderState_Create(void) {
@@ -52,6 +54,7 @@ RenderState *RenderState_Create(void) {
   impl->camera_debug_overlay = nil;
   impl->fps_counter_overlay = nil;
   impl->input_registry = nil;
+  impl->sim_time = (AstronomicalTime){0, 0, 0};
   camera_init(&impl->camera);
 
   return (RenderState *)impl;
@@ -199,6 +202,13 @@ InputRegistry *RenderState_GetInputRegistry(RenderState *state) {
   return ((RenderStateImpl *)state)->input_registry;
 }
 
+AstronomicalTime *RenderState_GetSimTime(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return &((RenderStateImpl *)state)->sim_time;
+}
+
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state) {
   if (!state)
     return NULL;
@@ -254,11 +264,11 @@ void RenderState_SetDepthTexture(RenderState *state, void *texture) {
   if (!state)
     return;
 
-  ((RenderStateImpl *)state)->depthTexture =
-      (__bridge id<MTLTexture>)texture;
+  ((RenderStateImpl *)state)->depthTexture = (__bridge id<MTLTexture>)texture;
 }
 
-void RenderState_SetDepthStencilState(RenderState *state, void *depthStencilState) {
+void RenderState_SetDepthStencilState(RenderState *state,
+                                      void *depthStencilState) {
   if (!state)
     return;
 

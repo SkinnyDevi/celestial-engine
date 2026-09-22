@@ -41,6 +41,8 @@ typedef struct {
 
   AtmosphereType atmosphere_type;
   double surface_pressure_pa;
+  
+  CelestialBody_Orbit *orbit;
 } CelestialBody_Moon;
 
 #endif

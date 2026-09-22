@@ -12,6 +12,8 @@ add_executable(celengine
   core/cli/functions.c
   core/data/dyn_array.c
   core/data/raycast.c
+  core/space/orbit.c
+  core/space/astro_time.c
   macos/app.m
   macos/menu/menu.m
   macos/render/camera.m
@@ -19,6 +21,7 @@ add_executable(celengine
   macos/render/renderer.m
   macos/render/state/render_handler.m
   macos/render/shape/solid_sphere.m
+  macos/render/shape/orbit_ellipse.m
   macos/render/space/star.m
   macos/render/space/planet.m
   macos/render/space/moon.m
@@ -59,6 +62,7 @@ set_source_files_properties(
     macos/render/space/planet.m
     macos/render/space/moon.m
     macos/render/shape/solid_sphere.m
+    macos/render/shape/orbit_ellipse.m
     macos/shaders/shader_loader.m
     macos/event/input_registry.m
     macos/event/mouse.m

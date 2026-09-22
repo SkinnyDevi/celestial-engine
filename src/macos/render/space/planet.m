@@ -8,6 +8,7 @@
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
+#import "macos/render/shape/orbit_ellipse.h"
 #import "macos/render/space/star.h"
 
 simd_float4 get_planet_color(PlanetClass planet_class) {
@@ -49,6 +50,16 @@ void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
   planet->vertex_buffer = (void *)CFBridgingRetain(vertex_buffer);
   planet->index_buffer = (void *)CFBridgingRetain(index_buffer);
   planet->index_count = mesh.index_count;
+  
+  planet->orbit_buffer = NULL;
+  planet->orbit_vertex_count = 0;
+  if (planet->body->orbit) {
+    id<MTLBuffer> buf = nil;
+    int count = 0;
+    init_orbit_graphics(render_state, planet->body->orbit, &buf, &count);
+    planet->orbit_buffer = (void *)CFBridgingRetain(buf);
+    planet->orbit_vertex_count = count;
+  }
 
   free(mesh.vertices);
   free(mesh.indices);
@@ -58,6 +69,18 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
                                  RenderState *render_state, void *encoder_ptr) {
   id<MTLRenderCommandEncoder> encoder =
       (__bridge id<MTLRenderCommandEncoder>)encoder_ptr;
+
+  if (planet->orbit_buffer) {
+    id<MTLBuffer> buf = (__bridge id<MTLBuffer>)planet->orbit_buffer;
+    simd_float3 host_pos = simd_make_float3(0.0f, 0.0f, 0.0f);
+    if (planet->host_star) {
+      host_pos = simd_make_float3(
+          planet->host_star->body->position.x * METERS_TO_RENDER_UNITS,
+          planet->host_star->body->position.y * METERS_TO_RENDER_UNITS,
+          planet->host_star->body->position.z * METERS_TO_RENDER_UNITS);
+    }
+    draw_orbit_ellipse(render_state, encoder, buf, planet->orbit_vertex_count, host_pos);
+  }
 
   simd_float4 color = get_planet_color(planet->body->planet_class);
 
@@ -142,6 +165,8 @@ MTLPlanetGraphicsClass *MTLPlanetGraphics_Create(CelestialBody_Planet *body) {
   planet->index_buffer = NULL;
   planet->index_count = 0;
   planet->pipeline_state = NULL;
+  planet->orbit_buffer = NULL;
+  planet->orbit_vertex_count = 0;
 
   return planet;
 }
@@ -156,6 +181,8 @@ void MTLPlanetGraphics_Destroy(MTLPlanetGraphicsClass *planet_graphics) {
     CFRelease(planet_graphics->index_buffer);
   if (planet_graphics->pipeline_state)
     CFRelease(planet_graphics->pipeline_state);
+  if (planet_graphics->orbit_buffer)
+    CFRelease(planet_graphics->orbit_buffer);
 
   free(planet_graphics);
 }

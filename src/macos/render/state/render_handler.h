@@ -3,6 +3,7 @@
 
 #include "core/data/dyn_array.h"
 #include "core/renderer/camera/camera.h"
+#include "core/space/astro_time.h"
 
 #include <simd/simd.h>
 #include <stdbool.h>
@@ -37,6 +38,7 @@ DynamicArray *RenderState_GetStars(RenderState *state);
 DynamicArray *RenderState_GetPlanets(RenderState *state);
 DynamicArray *RenderState_GetMoons(RenderState *state);
 InputRegistry *RenderState_GetInputRegistry(RenderState *state);
+AstronomicalTime *RenderState_GetSimTime(RenderState *state);
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);
 DebugOverlay *RenderState_GetFPSCounterOverlay(RenderState *state);
@@ -46,7 +48,8 @@ void RenderState_SetUniformBuffer(RenderState *state, void *buffer);
 void RenderState_SetGridShaderLib(RenderState *state, void *library);
 void RenderState_SetPipelineState(RenderState *state, void *pipelineState);
 void RenderState_SetDepthTexture(RenderState *state, void *texture);
-void RenderState_SetDepthStencilState(RenderState *state, void *depthStencilState);
+void RenderState_SetDepthStencilState(RenderState *state,
+                                      void *depthStencilState);
 void RenderState_SetVertexCount(RenderState *state, unsigned long count);
 unsigned long RenderState_GetVertexCount(const RenderState *state);
 void RenderState_SetDragging(RenderState *state, bool dragging);

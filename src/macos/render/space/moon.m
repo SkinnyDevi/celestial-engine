@@ -8,6 +8,7 @@
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/shape/solid_sphere.h"
+#import "macos/render/shape/orbit_ellipse.h"
 #import "macos/render/space/planet.h"
 #import "macos/render/space/star.h"
 
@@ -48,6 +49,16 @@ void MTLMoonGraphicsClass_init(MTLMoonGraphicsClass *moon,
   moon->vertex_buffer = (void *)CFBridgingRetain(vertex_buffer);
   moon->index_buffer = (void *)CFBridgingRetain(index_buffer);
   moon->index_count = mesh.index_count;
+  
+  moon->orbit_buffer = NULL;
+  moon->orbit_vertex_count = 0;
+  if (moon->body->orbit) {
+    id<MTLBuffer> buf = nil;
+    int count = 0;
+    init_orbit_graphics(render_state, moon->body->orbit, &buf, &count);
+    moon->orbit_buffer = (void *)CFBridgingRetain(buf);
+    moon->orbit_vertex_count = count;
+  }
 
   free(mesh.vertices);
   free(mesh.indices);
@@ -57,6 +68,26 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
                                RenderState *render_state, void *encoder_ptr) {
   id<MTLRenderCommandEncoder> encoder =
       (__bridge id<MTLRenderCommandEncoder>)encoder_ptr;
+
+  if (moon->orbit_buffer) {
+    id<MTLBuffer> buf = (__bridge id<MTLBuffer>)moon->orbit_buffer;
+    simd_float3 host_pos = simd_make_float3(0.0f, 0.0f, 0.0f);
+    if (moon->host_planet) {
+      double hx = moon->host_planet->body->position.x;
+      double hy = moon->host_planet->body->position.y;
+      double hz = moon->host_planet->body->position.z;
+      if (moon->host_planet->host_star) {
+        hx += moon->host_planet->host_star->body->position.x;
+        hy += moon->host_planet->host_star->body->position.y;
+        hz += moon->host_planet->host_star->body->position.z;
+      }
+      host_pos = simd_make_float3(
+          hx * METERS_TO_RENDER_UNITS,
+          hy * METERS_TO_RENDER_UNITS,
+          hz * METERS_TO_RENDER_UNITS);
+    }
+    draw_orbit_ellipse(render_state, encoder, buf, moon->orbit_vertex_count, host_pos);
+  }
 
   simd_float4 color = get_moon_color(moon->body->moon_class);
 
@@ -146,6 +177,8 @@ MTLMoonGraphicsClass *MTLMoonGraphics_Create(CelestialBody_Moon *body) {
   moon->index_buffer = NULL;
   moon->index_count = 0;
   moon->pipeline_state = NULL;
+  moon->orbit_buffer = NULL;
+  moon->orbit_vertex_count = 0;
 
   return moon;
 }
@@ -160,6 +193,8 @@ void MTLMoonGraphics_Destroy(MTLMoonGraphicsClass *moon_graphics) {
     CFRelease(moon_graphics->index_buffer);
   if (moon_graphics->pipeline_state)
     CFRelease(moon_graphics->pipeline_state);
+  if (moon_graphics->orbit_buffer)
+    CFRelease(moon_graphics->orbit_buffer);
 
   free(moon_graphics);
 }

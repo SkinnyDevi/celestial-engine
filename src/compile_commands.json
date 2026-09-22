@@ -25,6 +25,24 @@
 },
 {
   "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -o CMakeFiles/celengine.dir/core/data/raycast.c.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/data/raycast.c",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/data/raycast.c",
+  "output": "CMakeFiles/celengine.dir/core/data/raycast.c.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -o CMakeFiles/celengine.dir/core/space/orbit.c.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/space/orbit.c",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/space/orbit.c",
+  "output": "CMakeFiles/celengine.dir/core/space/orbit.c.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -o CMakeFiles/celengine.dir/core/space/astro_time.c.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/space/astro_time.c",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/core/space/astro_time.c",
+  "output": "CMakeFiles/celengine.dir/core/space/astro_time.c.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
   "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/app.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/app.m",
   "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/app.m",
   "output": "CMakeFiles/celengine.dir/macos/app.m.o"
@@ -64,6 +82,12 @@
   "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/shape/solid_sphere.m",
   "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/shape/solid_sphere.m",
   "output": "CMakeFiles/celengine.dir/macos/render/shape/solid_sphere.m.o"
+},
+{
+  "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",
+  "command": "/usr/bin/cc -DSHADER_SOURCE_DIR=\\\"/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/shaders\\\" -I/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src  -arch arm64 -fobjc-arc -o CMakeFiles/celengine.dir/macos/render/shape/orbit_ellipse.m.o -c /Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/shape/orbit_ellipse.m",
+  "file": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src/macos/render/shape/orbit_ellipse.m",
+  "output": "CMakeFiles/celengine.dir/macos/render/shape/orbit_ellipse.m.o"
 },
 {
   "directory": "/Users/felixmv/Desktop/TEMP/Coding/celestial-body-engine/src",

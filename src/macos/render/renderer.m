@@ -10,6 +10,8 @@
 #import "core/data/raycast.h"
 #import "core/log/log.h"
 #import "core/renderer/camera/camera.h"
+#import "core/space/astro_time.h"
+#import "core/space/orbit.h"
 #import "core/space/units.h"
 
 #import "macos/debug/camera_properties.h"
@@ -292,6 +294,9 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   generate_debug_graphics(state);
   init_celestial_bodies(state);
 
+  AstronomicalTime *sim_time = RenderState_GetSimTime(state);
+  astro_time_init(sim_time, 2451545.0, 10.0); // 10 days per real second
+
   Camera *camera = RenderState_GetCamera(state);
   simd_float3 cam_pos = camera_orbit_position(camera);
   LOG_DEBUG("Camera initialized: az=%.3f el=%.3f zoom=%.3f center=(%.2f, "
@@ -557,6 +562,37 @@ void draw_frame(RendererHandle handle) {
     Camera *cam = RenderState_GetCamera(state);
     if (cam->is_transitioning)
       camera_update_transition(cam, dt);
+
+    AstronomicalTime *sim_time = RenderState_GetSimTime(state);
+    astro_time_update(sim_time, dt);
+
+    double days = astro_time_get_days_since_epoch(sim_time);
+
+    DynamicArray *planets = RenderState_GetPlanets(state);
+    for (size_t i = 0; i < DynamicArray_length(planets); i++) {
+      MTLPlanetGraphicsClass *planet;
+      DynamicArray_get(planets, i, &planet);
+      if (planet->body->orbit) {
+        Vector3 host_position = planet->body->position;
+        planet->body->position =
+            orbit_calculate_position(planet->body->orbit, days);
+        LOG_DEBUG(
+            "New position for planet %s: old(%f, %f, %f) -> new(%f, %f, %f)",
+            planet->body->name, host_position.x, host_position.y,
+            host_position.z, planet->body->position.x, planet->body->position.y,
+            planet->body->position.z);
+      }
+    }
+
+    DynamicArray *moons = RenderState_GetMoons(state);
+    for (size_t i = 0; i < DynamicArray_length(moons); i++) {
+      MTLMoonGraphicsClass *moon;
+      DynamicArray_get(moons, i, &moon);
+      if (moon->body->orbit) {
+        moon->body->position =
+            orbit_calculate_position(moon->body->orbit, days);
+      }
+    }
   }
   last_time = current_time;
 

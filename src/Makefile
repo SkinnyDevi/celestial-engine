@@ -201,6 +201,78 @@ core/data/dyn_array.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/data/dyn_array.c.s
 .PHONY : core/data/dyn_array.c.s
 
+core/data/raycast.o: core/data/raycast.c.o
+.PHONY : core/data/raycast.o
+
+# target to build an object file
+core/data/raycast.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/data/raycast.c.o
+.PHONY : core/data/raycast.c.o
+
+core/data/raycast.i: core/data/raycast.c.i
+.PHONY : core/data/raycast.i
+
+# target to preprocess a source file
+core/data/raycast.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/data/raycast.c.i
+.PHONY : core/data/raycast.c.i
+
+core/data/raycast.s: core/data/raycast.c.s
+.PHONY : core/data/raycast.s
+
+# target to generate assembly for a file
+core/data/raycast.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/data/raycast.c.s
+.PHONY : core/data/raycast.c.s
+
+core/space/astro_time.o: core/space/astro_time.c.o
+.PHONY : core/space/astro_time.o
+
+# target to build an object file
+core/space/astro_time.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/space/astro_time.c.o
+.PHONY : core/space/astro_time.c.o
+
+core/space/astro_time.i: core/space/astro_time.c.i
+.PHONY : core/space/astro_time.i
+
+# target to preprocess a source file
+core/space/astro_time.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/space/astro_time.c.i
+.PHONY : core/space/astro_time.c.i
+
+core/space/astro_time.s: core/space/astro_time.c.s
+.PHONY : core/space/astro_time.s
+
+# target to generate assembly for a file
+core/space/astro_time.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/space/astro_time.c.s
+.PHONY : core/space/astro_time.c.s
+
+core/space/orbit.o: core/space/orbit.c.o
+.PHONY : core/space/orbit.o
+
+# target to build an object file
+core/space/orbit.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/space/orbit.c.o
+.PHONY : core/space/orbit.c.o
+
+core/space/orbit.i: core/space/orbit.c.i
+.PHONY : core/space/orbit.i
+
+# target to preprocess a source file
+core/space/orbit.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/space/orbit.c.i
+.PHONY : core/space/orbit.c.i
+
+core/space/orbit.s: core/space/orbit.c.s
+.PHONY : core/space/orbit.s
+
+# target to generate assembly for a file
+core/space/orbit.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/core/space/orbit.c.s
+.PHONY : core/space/orbit.c.s
+
 macos/app.o: macos/app.m.o
 .PHONY : macos/app.o
 
@@ -465,6 +537,30 @@ macos/render/renderer.m.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/renderer.m.s
 .PHONY : macos/render/renderer.m.s
 
+macos/render/shape/orbit_ellipse.o: macos/render/shape/orbit_ellipse.m.o
+.PHONY : macos/render/shape/orbit_ellipse.o
+
+# target to build an object file
+macos/render/shape/orbit_ellipse.m.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/shape/orbit_ellipse.m.o
+.PHONY : macos/render/shape/orbit_ellipse.m.o
+
+macos/render/shape/orbit_ellipse.i: macos/render/shape/orbit_ellipse.m.i
+.PHONY : macos/render/shape/orbit_ellipse.i
+
+# target to preprocess a source file
+macos/render/shape/orbit_ellipse.m.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/shape/orbit_ellipse.m.i
+.PHONY : macos/render/shape/orbit_ellipse.m.i
+
+macos/render/shape/orbit_ellipse.s: macos/render/shape/orbit_ellipse.m.s
+.PHONY : macos/render/shape/orbit_ellipse.s
+
+# target to generate assembly for a file
+macos/render/shape/orbit_ellipse.m.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/celengine.dir/build.make CMakeFiles/celengine.dir/macos/render/shape/orbit_ellipse.m.s
+.PHONY : macos/render/shape/orbit_ellipse.m.s
+
 macos/render/shape/solid_sphere.o: macos/render/shape/solid_sphere.m.o
 .PHONY : macos/render/shape/solid_sphere.o
 
@@ -651,6 +747,15 @@ help:
 	@echo "... core/data/dyn_array.o"
 	@echo "... core/data/dyn_array.i"
 	@echo "... core/data/dyn_array.s"
+	@echo "... core/data/raycast.o"
+	@echo "... core/data/raycast.i"
+	@echo "... core/data/raycast.s"
+	@echo "... core/space/astro_time.o"
+	@echo "... core/space/astro_time.i"
+	@echo "... core/space/astro_time.s"
+	@echo "... core/space/orbit.o"
+	@echo "... core/space/orbit.i"
+	@echo "... core/space/orbit.s"
 	@echo "... macos/app.o"
 	@echo "... macos/app.i"
 	@echo "... macos/app.s"
@@ -684,6 +789,9 @@ help:
 	@echo "... macos/render/renderer.o"
 	@echo "... macos/render/renderer.i"
 	@echo "... macos/render/renderer.s"
+	@echo "... macos/render/shape/orbit_ellipse.o"
+	@echo "... macos/render/shape/orbit_ellipse.i"
+	@echo "... macos/render/shape/orbit_ellipse.s"
 	@echo "... macos/render/shape/solid_sphere.o"
 	@echo "... macos/render/shape/solid_sphere.i"
 	@echo "... macos/render/shape/solid_sphere.s"

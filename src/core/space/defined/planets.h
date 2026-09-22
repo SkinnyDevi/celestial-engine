@@ -1,7 +1,8 @@
-#ifndef MACOS_RENDER_DEFINED_PLANETS_H
-#define MACOS_RENDER_DEFINED_PLANETS_H
+#ifndef CORE_SPACE_DEFINED_PLANETS_H
+#define CORE_SPACE_DEFINED_PLANETS_H
 
 #include "core/space/planet.h"
+#include "orbits.h"
 
 CelestialBody_Planet VENUS = {
     .name = "Venus",
@@ -43,6 +44,7 @@ CelestialBody_Planet EARTH = {
     .surface_temperature_k = 288,
     .atmosphere_type = ATMOSPHERE_STANDARD,
     .has_rings = 0,
+    .orbit = &ORBIT_EARTH_AROUND_SUN,
 };
 
 CelestialBody_Planet MARS = {

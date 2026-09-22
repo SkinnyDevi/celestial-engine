@@ -15,6 +15,9 @@ typedef struct MTLPlanetGraphicsClass {
   int index_count;
 
   void *pipeline_state;
+
+  void *orbit_buffer;
+  int orbit_vertex_count;
 } MTLPlanetGraphicsClass;
 
 MTLPlanetGraphicsClass *MTLPlanetGraphics_Create(CelestialBody_Planet *body);

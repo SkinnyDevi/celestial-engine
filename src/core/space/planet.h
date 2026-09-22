@@ -2,6 +2,7 @@
 #define SPACE_PLANET_H
 
 #include "location.h"
+#include "orbit.h"
 #include <stdint.h>
 
 typedef enum {
@@ -59,6 +60,8 @@ typedef struct {
   uint8_t has_rings;
   double ring_inner_radius_m;
   double ring_outer_radius_m;
+
+  CelestialBody_Orbit *orbit;
 } CelestialBody_Planet;
 
 #endif

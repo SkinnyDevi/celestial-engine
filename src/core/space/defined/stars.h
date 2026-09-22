@@ -1,8 +1,7 @@
-#ifndef MACOS_RENDER_DEFINED_STARS_H
-#define MACOS_RENDER_DEFINED_STARS_H
+#ifndef CORE_SPACE_DEFINED_STARS_H
+#define CORE_SPACE_DEFINED_STARS_H
 
 #include "core/space/star.h"
-#include "macos/render/space/star.h"
 
 CelestialBody_Star SUN = {
     .name = "Sun",

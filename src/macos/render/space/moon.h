@@ -15,6 +15,9 @@ typedef struct MTLMoonGraphicsClass {
   int index_count;
 
   void *pipeline_state;
+
+  void *orbit_buffer;
+  int orbit_vertex_count;
 } MTLMoonGraphicsClass;
 
 MTLMoonGraphicsClass *MTLMoonGraphics_Create(CelestialBody_Moon *body);
