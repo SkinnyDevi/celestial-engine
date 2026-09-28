@@ -3,11 +3,9 @@
 
 #include <stdbool.h>
 
-void cli_parse_args(int argc, char **args);
 bool cli_find_arg(const char *arg, int argc, char **args);
-
-bool cli_is_debug_mode(void);
-bool cli_should_show_fps(void);
-bool cli_should_show_advanced_fps(void);
+int cli_index_of_arg(const char *arg, int argc, char **args);
+void cli_register_flags(void);
+void cli_parse_args(int argc, char **args);
 
 #endif

@@ -41,11 +41,15 @@ void *RenderState_GetPipelineState(RenderState *state);
 void *RenderState_GetDepthTexture(RenderState *state);
 void *RenderState_GetDepthStencilState(RenderState *state);
 Camera *RenderState_GetCamera(RenderState *state);
+
 DynamicArray *RenderState_GetStars(RenderState *state);
 DynamicArray *RenderState_GetPlanets(RenderState *state);
 DynamicArray *RenderState_GetMoons(RenderState *state);
+
 InputRegistry *RenderState_GetInputRegistry(RenderState *state);
+
 AstronomicalTime *RenderState_GetSimTime(RenderState *state);
+void RenderState_SetSimTime(RenderState *state, AstronomicalTime *time);
 
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);
 DebugOverlay *RenderState_GetFPSCounterOverlay(RenderState *state);
@@ -67,7 +71,8 @@ void RenderState_GetLastMouse(const RenderState *state, double *x, double *y);
 void RenderState_SetGridVisible(RenderState *state, bool visible);
 bool RenderState_IsGridVisible(const RenderState *state);
 
-void RenderState_SetFollowedBody(RenderState *state, FollowType type, void *body);
+void RenderState_SetFollowedBody(RenderState *state, FollowType type,
+                                 void *body);
 void RenderState_ClearFollowedBody(RenderState *state);
 bool RenderState_IsFollowing(const RenderState *state);
 FollowType RenderState_GetFollowedType(const RenderState *state);

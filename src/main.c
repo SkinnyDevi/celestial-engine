@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  cli_register_flags();
   cli_parse_args(argc, argv);
 
   if (cli_find_arg("--macos", argc, argv)) {

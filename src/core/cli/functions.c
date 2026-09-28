@@ -3,41 +3,42 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "core/log/log.h"
-#include "help.h"
+#include "core/cli/args/cli_flag.h"
+#include "core/data/dyn_array.h"
 
-static bool IS_DEBUG_MODE = false;
-static bool SHOW_FPS = false;
-static bool SHOW_ADVANCED_FPS = false;
+static DynamicArray REGISTERED_CLI_FLAGS;
 
-bool cli_find_arg(const char *arg, int argc, char **args) {
+int cli_index_of_arg(const char *arg, int argc, char **args) {
   for (int i = 1; i < argc; i++) {
     if (!strcmp(arg, args[i]))
-      return true;
+      return i;
   }
 
-  return false;
+  return -1;
 }
 
-bool cli_is_debug_mode(void) { return IS_DEBUG_MODE; }
-bool cli_should_show_fps(void) { return SHOW_FPS; }
-bool cli_should_show_advanced_fps(void) { return SHOW_ADVANCED_FPS; }
+bool cli_find_arg(const char *arg, int argc, char **args) {
+  return cli_index_of_arg(arg, argc, args) != -1;
+}
 
 void cli_parse_args(int argc, char **args) {
-  if (cli_find_arg("--help", argc, args)) {
-    print_command_help();
-    exit(EXIT_SUCCESS);
+  int registered_flags = DynamicArray_length(&REGISTERED_CLI_FLAGS);
+  for (int i = 1; i < argc; i++) {
+    for (int j = 0; j < registered_flags; j++) {
+      CLIArg arg;
+      DynamicArray_get(&REGISTERED_CLI_FLAGS, j, &arg);
+      if (!strcmp(arg.arg, args[i]))
+        arg.func(argc, args);
+    }
   }
+}
 
-  if (cli_find_arg("--fps", argc, args)) {
-    SHOW_FPS = true;
-    SHOW_ADVANCED_FPS = false;
-    LOG_INFO("FPS counter enabled.", NULL);
-  }
+void cli_register_flags(void) {
+  DynamicArray_init(&REGISTERED_CLI_FLAGS, sizeof(CLIArg));
 
-  if (cli_find_arg("--debug", argc, args)) {
-    IS_DEBUG_MODE = true;
-    SHOW_ADVANCED_FPS = true;
-    LOG_DEBUG("Debug mode enabled.", NULL);
-  }
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_HELP_FLAG);
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_SIM_DATE_FLAG);
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_TIME_SCALE_FLAG);
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_SHOW_FPS_FLAG);
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_ENABLE_DEBUG_FLAG);
 }

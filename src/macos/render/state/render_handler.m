@@ -292,6 +292,13 @@ void RenderState_SetDepthStencilState(RenderState *state,
       (__bridge id<MTLDepthStencilState>)depthStencilState;
 }
 
+void RenderState_SetSimTime(RenderState *state, AstronomicalTime *time) {
+  if (!state || !time)
+    return;
+
+  ((RenderStateImpl *)state)->sim_time = *time;
+}
+
 void RenderState_SetCameraDebugOverlay(RenderState *state,
                                        DebugOverlay *overlay) {
   if (!state)
@@ -308,8 +315,7 @@ void RenderState_SetFPSCounterOverlay(RenderState *state,
   ((RenderStateImpl *)state)->fps_counter_overlay = overlay;
 }
 
-void RenderState_SetTimeOverlay(RenderState *state,
-                                DebugOverlay *overlay) {
+void RenderState_SetTimeOverlay(RenderState *state, DebugOverlay *overlay) {
   if (!state)
     return;
 
@@ -371,7 +377,8 @@ bool RenderState_IsGridVisible(const RenderState *state) {
   return ((const RenderStateImpl *)state)->gridVisible;
 }
 
-void RenderState_SetFollowedBody(RenderState *state, FollowType type, void *body) {
+void RenderState_SetFollowedBody(RenderState *state, FollowType type,
+                                 void *body) {
   if (!state)
     return;
   RenderStateImpl *impl = (RenderStateImpl *)state;
@@ -390,7 +397,8 @@ void RenderState_ClearFollowedBody(RenderState *state) {
 bool RenderState_IsFollowing(const RenderState *state) {
   if (!state)
     return false;
-  return ((const RenderStateImpl *)state)->followed_type != FOLLOW_NONE && ((const RenderStateImpl *)state)->followed_body != NULL;
+  return ((const RenderStateImpl *)state)->followed_type != FOLLOW_NONE &&
+         ((const RenderStateImpl *)state)->followed_body != NULL;
 }
 
 FollowType RenderState_GetFollowedType(const RenderState *state) {

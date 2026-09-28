@@ -1,8 +1,6 @@
 #include "astro_time.h"
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 
 void astro_time_init(AstronomicalTime *time, double start_jd,
                      double time_scale) {
@@ -17,6 +15,21 @@ void astro_time_update(AstronomicalTime *time, double delta_seconds) {
   if (!time)
     return;
   time->current_jd += delta_seconds * time->time_scale;
+}
+
+void astro_time_set_time_scale(AstronomicalTime *time, double time_scale) {
+  if (!time)
+    return;
+  time->time_scale = time_scale;
+}
+
+void astro_time_set_date_gregorian(AstronomicalTime *time, struct tm *date) {
+  if (!time)
+    return;
+  time->current_jd =
+      gregorian_to_jd(date->tm_year + 1900, date->tm_mon + 1, date->tm_mday,
+                      date->tm_hour, date->tm_min, date->tm_sec);
+  time->epoch_jd = time->current_jd;
 }
 
 double astro_time_get_jd_since_epoch(const AstronomicalTime *time) {
@@ -102,4 +115,13 @@ const char *astro_time_jd_to_datestring(AstronomicalTime *time) {
   char buffer[100];
   snprintf(buffer, sizeof(buffer), "%s", asctime(t));
   return strdup(buffer);
+}
+
+void astro_time_from_cli_args(AstronomicalTime *time,
+                              CLIArgSimDate *cli_sim_date) {
+  if (!time || !cli_sim_date)
+    return;
+
+  astro_time_init(time, 130, cli_sim_date->time_scale);
+  astro_time_set_date_gregorian(time, &cli_sim_date->time);
 }

@@ -8,10 +8,16 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "26.5" CACHE STRING "Minimum macOS version")
 
 add_executable(celengine
   main.c
-  core/cli/help.c
-  core/cli/functions.c
   core/data/dyn_array.c
   core/data/raycast.c
+  core/cli/functions.c
+  core/cli/instance_data.c
+  core/cli/args/debug.c
+  core/cli/args/fps.c
+  core/cli/args/help.c
+  core/cli/args/registry.c
+  core/cli/args/sim_date.c
+  core/cli/args/time_scale.c
   core/space/orbit.c
   core/space/astro_time.c
   macos/app.m

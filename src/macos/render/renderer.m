@@ -297,8 +297,8 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   init_celestial_bodies(state);
 
   AstronomicalTime *sim_time = RenderState_GetSimTime(state);
-  astro_time_init(sim_time, 2452183.770833,
-                  0.000001); // 10 days per real second
+  astro_time_from_cli_args(sim_time, cli_get_sim_date());
+  RenderState_SetSimTime(state, sim_time);
 
   Camera *camera = RenderState_GetCamera(state);
   simd_float3 cam_pos = camera_orbit_position(camera);

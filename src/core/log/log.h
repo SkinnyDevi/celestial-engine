@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include "core/cli/functions.h"
+#include "core/cli/instance_data.h"
 
 #define LOG_DEBUG(format, ...)                                                 \
   do {                                                                         \
