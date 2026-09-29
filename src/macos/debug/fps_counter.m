@@ -7,7 +7,7 @@
 
 #import "core/log/log.h"
 #import "macos/debug/overlay.h"
-#import "macos/render/state/render_handler.h"
+#import "macos/render/state/render_state.h"
 
 #define FPS_AVG_ENTRIES 64
 

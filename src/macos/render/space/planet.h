@@ -2,7 +2,7 @@
 #define MACOS_RENDER_SPACE_PLANET_H
 
 #include "core/space/planet.h"
-#include "macos/render/state/render_handler.h"
+#include "macos/render/state/render_state.h"
 
 typedef struct MTLStarGraphicsClass MTLStarGraphicsClass;
 

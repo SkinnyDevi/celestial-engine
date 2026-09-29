@@ -1,5 +1,5 @@
 #import "renderer.h"
-#include <AppKit/AppKit.h>
+#import <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -7,9 +7,9 @@
 
 #import "core/cli/functions.h"
 #import "core/data/dyn_array.h"
+#import "core/data/math.h"
 #import "core/data/raycast.h"
 #import "core/log/log.h"
-#import "core/renderer/camera/camera.h"
 #import "core/space/astro_time.h"
 #import "core/space/orbit.h"
 #import "core/space/units.h"
@@ -17,81 +17,23 @@
 #import "macos/debug/camera_properties.h"
 #import "macos/debug/flags.h"
 #import "macos/debug/fps_counter.h"
+#import "macos/debug/graphics.h"
 #import "macos/debug/sphere_wireframe.h"
 #import "macos/debug/time_overlay.h"
 
 #import "macos/event/input_registry.h"
 #import "macos/event/mouse.h"
 
+#import "macos/render/camera/camera.h"
 #import "macos/render/grid/displaced_mesh.h"
+#import "macos/render/space/graphics.h"
 #import "macos/render/space/moon.h"
 #import "macos/render/space/planet.h"
 #import "macos/render/space/star.h"
-#import "macos/render/state/render_handler.h"
+#import "macos/render/state/render_state.h"
 #import "macos/shaders/shader_loader.h"
 
 static RenderState *app_render_state = NULL;
-FPSData fps_data;
-
-#if DEBUG_CAMERA_PATH_WIREFRAME_VISIBLE
-static id<MTLBuffer> debug_camera_orbit_sphere_buffer = nil;
-static int debug_camera_orbit_sphere_vertices = 0;
-#endif
-
-#if DEBUG_CAMERA_FIXATION_POINT_VISIBLE
-static id<MTLBuffer> debug_camera_fixation_sphere_buffer = nil;
-static int debug_camera_fixation_sphere_vertices = 0;
-#endif
-
-#if DEBUG_HITBOX_WIREFRAME_VISIBLE
-static id<MTLBuffer> debug_hitbox_sphere_buffer = nil;
-static int debug_hitbox_sphere_vertices = 0;
-#endif
-
-static simd_float4x4 make_scale_matrix(float s) {
-  simd_float4x4 m = {0};
-  m.columns[0] = simd_make_float4(s, 0, 0, 0);
-  m.columns[1] = simd_make_float4(0, s, 0, 0);
-  m.columns[2] = simd_make_float4(0, 0, s, 0);
-  m.columns[3] = simd_make_float4(0, 0, 0, 1);
-  return m;
-}
-
-static simd_float4x4 make_translation_matrix(simd_float3 t) {
-  simd_float4x4 m = {0};
-  m.columns[0] = simd_make_float4(1, 0, 0, 0);
-  m.columns[1] = simd_make_float4(0, 1, 0, 0);
-  m.columns[2] = simd_make_float4(0, 0, 1, 0);
-  m.columns[3] = simd_make_float4(t.x, t.y, t.z, 1);
-  return m;
-}
-
-static void update_camera_uniforms(RenderState *state) {
-  if (!state || !RenderState_GetUniformBuffer(state)) {
-    return;
-  }
-
-  Camera *camera = RenderState_GetCamera(state);
-
-  CAMetalLayer *metal_layer =
-      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
-  float aspect = metal_layer.drawableSize.width /
-                 MAX(metal_layer.drawableSize.height, 1.0f);
-
-  simd_float4x4 view = camera_view_matrix(camera);
-  simd_float4x4 projection =
-      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect,
-                         CAMERA_NEAR_CLIPPING_PLANE, CAMERA_FAR_CLIPPING_PLANE);
-
-  DisplacedMeshUniforms uniforms;
-  uniforms.mvpMatrix = simd_mul(projection, view);
-  uniforms.gridColor =
-      (simd_float4){1.0f, 1.0f, 1.0f, DISPLACED_MESH_GRID_OPACITY};
-
-  id<MTLBuffer> uniform_buffer =
-      (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
-  memcpy([uniform_buffer contents], &uniforms, sizeof(uniforms));
-}
 
 void create_render_pipeline(RenderState *state) {
   CAMetalLayer *metal_layer =
@@ -144,112 +86,76 @@ void create_render_pipeline(RenderState *state) {
   RenderState_SetDepthStencilState(state, (__bridge void *)depth_state);
 }
 
-void generate_debug_graphics(RenderState *state) {
-  if (cli_should_show_fps() || cli_is_debug_mode())
-    debug_create_fps_counter_overlay(state);
+/*
+ * Depth texture is used to keep track of the depth of different pixels
+ * to draw them in the correct order
+ */
+void handle_depth_texture(RenderState *state, CAMetalLayer *metal_layer) {
+  CGSize drawableSize = metal_layer.drawableSize;
+  id<MTLTexture> currentDepth =
+      (__bridge id<MTLTexture>)RenderState_GetDepthTexture(state);
 
-  if (!cli_is_debug_mode())
-    return;
-
-#if DEBUG_CAMERA_PROPERTIES_VISIBLE
-  debug_create_camera_properties_overlay(state);
-#endif
-
-  debug_create_time_overlay(state);
-
-  CAMetalLayer *metal_layer =
-      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
-
-#if DEBUG_CAMERA_PATH_WIREFRAME_VISIBLE
-  int orbit_count = 0;
-  Vertex *orbit_vertices =
-      debug_generate_quality_sphere_wireframe(4, MEDIUM_QUALITY, &orbit_count);
-  debug_camera_orbit_sphere_buffer =
-      [metal_layer.device newBufferWithBytes:orbit_vertices
-                                      length:(sizeof(Vertex) * orbit_count)
-                                     options:MTLResourceStorageModeShared];
-  debug_camera_orbit_sphere_vertices = orbit_count;
-  free(orbit_vertices);
-  LOG_DEBUG("Orbit sphere buffer: %d vertices, buffer=%p", orbit_count,
-            (__bridge void *)debug_camera_orbit_sphere_buffer);
-#endif
-
-#if DEBUG_CAMERA_FIXATION_POINT_VISIBLE
-  int fixation_count = 0;
-  Vertex *fixation_vertices = debug_generate_quality_sphere_wireframe(
-      4, MEDIUM_QUALITY, &fixation_count);
-  debug_camera_fixation_sphere_buffer =
-      [metal_layer.device newBufferWithBytes:fixation_vertices
-                                      length:(sizeof(Vertex) * fixation_count)
-                                     options:MTLResourceStorageModeShared];
-  debug_camera_fixation_sphere_vertices = fixation_count;
-  free(fixation_vertices);
-  LOG_DEBUG("Fixation sphere buffer: %d vertices, buffer=%p", fixation_count,
-            (__bridge void *)debug_camera_fixation_sphere_buffer);
-#endif
-
-#if DEBUG_HITBOX_WIREFRAME_VISIBLE
-  int hitbox_count = 0;
-  Vertex *hitbox_vertices =
-      debug_generate_quality_sphere_wireframe(4, MEDIUM_QUALITY, &hitbox_count);
-  debug_hitbox_sphere_buffer =
-      [metal_layer.device newBufferWithBytes:hitbox_vertices
-                                      length:(sizeof(Vertex) * hitbox_count)
-                                     options:MTLResourceStorageModeShared];
-  debug_hitbox_sphere_vertices = hitbox_count;
-  free(hitbox_vertices);
-  LOG_DEBUG("Hitbox sphere buffer: %d vertices", hitbox_count);
-#endif
+  if (!currentDepth || currentDepth.width != (NSUInteger)drawableSize.width ||
+      currentDepth.height != (NSUInteger)drawableSize.height) {
+    if (drawableSize.width > 0 && drawableSize.height > 0) {
+      MTLTextureDescriptor *depthDescriptor = [MTLTextureDescriptor
+          texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+                                       width:drawableSize.width
+                                      height:drawableSize.height
+                                   mipmapped:NO];
+      depthDescriptor.storageMode = MTLStorageModePrivate;
+      depthDescriptor.usage = MTLTextureUsageRenderTarget;
+      id<MTLTexture> newDepth =
+          [metal_layer.device newTextureWithDescriptor:depthDescriptor];
+      RenderState_SetDepthTexture(state, (__bridge void *)newDepth);
+      currentDepth = newDepth;
+    }
+  }
 }
 
-void resolve_celestial_body_hierarchy(RenderState *render_state) {
-  DynamicArray *stars = RenderState_GetStars(render_state);
-  DynamicArray *planets = RenderState_GetPlanets(render_state);
-  DynamicArray *moons = RenderState_GetMoons(render_state);
+MTLRenderPassDescriptor *
+create_render_pass_descriptor(RenderState *state,
+                              id<CAMetalDrawable> drawable) {
+  if (!drawable)
+    return nil;
 
-  size_t star_count = DynamicArray_length(stars);
-  size_t planet_count = DynamicArray_length(planets);
-  size_t moon_count = DynamicArray_length(moons);
+  MTLRenderPassDescriptor *pass_descriptor =
+      [MTLRenderPassDescriptor renderPassDescriptor];
+  pass_descriptor.colorAttachments[0].texture = drawable.texture;
+  pass_descriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+  pass_descriptor.colorAttachments[0].clearColor =
+      MTLClearColorMake(0.0, 0.0, 0.0, 1.0); // BG Color
 
-  // Link planets to host stars
-  for (size_t i = 0; i < planet_count; i++) {
+  id<MTLTexture> currentDepth =
+      (__bridge id<MTLTexture>)RenderState_GetDepthTexture(state);
+  if (currentDepth) {
+    pass_descriptor.depthAttachment.texture = currentDepth;
+    pass_descriptor.depthAttachment.loadAction = MTLLoadActionClear;
+    pass_descriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
+    pass_descriptor.depthAttachment.clearDepth = 1.0;
+  }
+
+  return pass_descriptor;
+}
+
+void update_celestial_bodies_position(RenderState *state, double days) {
+  DynamicArray *planets = RenderState_GetPlanets(state);
+  for (size_t i = 0; i < DynamicArray_length(planets); i++) {
     MTLPlanetGraphicsClass *planet;
     DynamicArray_get(planets, i, &planet);
-    planet->host_star = NULL;
-
-    for (size_t j = 0; j < star_count; j++) {
-      MTLStarGraphicsClass *star;
-      DynamicArray_get(stars, j, &star);
-      if (strcmp(planet->body->host_star_id, star->body->body_id) == 0) {
-        planet->host_star = star;
-        break;
-      }
-    }
+    if (planet->body->orbit)
+      planet->body->position =
+          orbit_calculate_position(planet->body->orbit, days);
   }
 
-  // Link moons to host planets
-  for (size_t i = 0; i < moon_count; i++) {
+  DynamicArray *moons = RenderState_GetMoons(state);
+  for (size_t i = 0; i < DynamicArray_length(moons); i++) {
     MTLMoonGraphicsClass *moon;
     DynamicArray_get(moons, i, &moon);
-    moon->host_planet = NULL;
-
-    for (size_t j = 0; j < planet_count; j++) {
-      MTLPlanetGraphicsClass *planet;
-      DynamicArray_get(planets, j, &planet);
-      if (strcmp(moon->body->host_planet_id, planet->body->body_id) == 0) {
-        moon->host_planet = planet;
-        break;
-      }
+    if (moon->body->orbit) {
+      moon->body->position = orbit_calculate_position(moon->body->orbit, days);
     }
   }
-}
-
-void init_celestial_bodies(RenderState *render_state) {
-  init_celestial_body_stars(render_state);
-  init_celestial_body_planets(render_state);
-  init_celestial_body_moons(render_state);
-
-  resolve_celestial_body_hierarchy(render_state);
 }
 
 RendererHandle init_metal_window(int width, int height, const char *title) {
@@ -314,221 +220,6 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   return (RendererHandle)state;
 }
 
-void draw_debug_fps(RenderState *state, bool use_extended_data,
-                    FPSData *out_data) {
-  if (!cli_is_debug_mode() && !cli_should_show_fps())
-    return;
-
-  DebugOverlay *overlay = RenderState_GetFPSCounterOverlay(state);
-  if (!overlay)
-    return;
-
-  debug_overlay_clear(overlay);
-  debug_overlay_update_fps(overlay, use_extended_data, out_data);
-}
-
-void draw_debug_graphics(RenderState *state,
-                         id<MTLRenderCommandEncoder> encoder) {
-
-  draw_debug_fps(state,
-                 DEBUG_FPS_COUNTER_ADVANCED_VISIBLE &&
-                     cli_should_show_advanced_fps(),
-                 &fps_data);
-
-  if (!cli_is_debug_mode())
-    return;
-
-  CAMetalLayer *metal_layer =
-      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
-
-  Camera *cam = RenderState_GetCamera(state);
-  float aspect = metal_layer.drawableSize.width /
-                 MAX(metal_layer.drawableSize.height, 1.0f);
-  simd_float4x4 view = camera_view_matrix(cam);
-  simd_float4x4 proj =
-      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 10000.0f);
-  simd_float4x4 vp = simd_mul(proj, view);
-
-#if DEBUG_CAMERA_PROPERTIES_VISIBLE
-  unsigned long long debug_frame_counter = fps_data.frame_count;
-  if (debug_frame_counter % 120 == 0) {
-    simd_float3 cam_pos = camera_orbit_position(cam);
-    LOG_DEBUG(
-        "[Frame %llu | FPS %.2f] Camera: zoom=%.3f center=(%.2f, %.2f, %.2f) "
-        "pos=(%.2f, %.2f, %.2f)",
-        debug_frame_counter, fps_data.fps_avg, cam->zoom, cam->center.x,
-        cam->center.y, cam->center.z, cam_pos.x, cam_pos.y, cam_pos.z);
-  }
-#endif
-
-  DebugOverlay *time_overlay = RenderState_GetTimeOverlay(state);
-  if (time_overlay) {
-    debug_overlay_clear(time_overlay);
-    debug_overlay_update_time(time_overlay, RenderState_GetSimTime(state));
-  }
-
-#if DEBUG_CAMERA_PATH_WIREFRAME_VISIBLE
-  {
-    simd_float4x4 model = simd_mul(make_translation_matrix(cam->center),
-                                   make_scale_matrix(cam->zoom));
-    DisplacedMeshUniforms mesh_uniforms;
-    mesh_uniforms.mvpMatrix = simd_mul(vp, model);
-    mesh_uniforms.gridColor = (simd_float4){1.0f, 0.41f, 0.71f, 0.7f}; // Pink
-
-    [encoder setVertexBuffer:debug_camera_orbit_sphere_buffer
-                      offset:0
-                     atIndex:0];
-    [encoder setVertexBytes:&mesh_uniforms
-                     length:sizeof(mesh_uniforms)
-                    atIndex:1];
-    [encoder setFragmentBytes:&mesh_uniforms
-                       length:sizeof(mesh_uniforms)
-                      atIndex:1];
-    [encoder drawPrimitives:MTLPrimitiveTypeLine
-                vertexStart:0
-                vertexCount:debug_camera_orbit_sphere_vertices];
-  }
-#endif
-
-#if DEBUG_CAMERA_FIXATION_POINT_VISIBLE
-  {
-    float fixation_radius = 0.15f;
-    simd_float4x4 model = simd_mul(make_translation_matrix(cam->center),
-                                   make_scale_matrix(fixation_radius));
-    DisplacedMeshUniforms mesh_uniforms;
-    mesh_uniforms.mvpMatrix = simd_mul(vp, model);
-    mesh_uniforms.gridColor = (simd_float4){1.0f, 0.15f, 0.15f, 1.0f}; // Red
-
-    [encoder setVertexBuffer:debug_camera_fixation_sphere_buffer
-                      offset:0
-                     atIndex:0];
-    [encoder setVertexBytes:&mesh_uniforms
-                     length:sizeof(mesh_uniforms)
-                    atIndex:1];
-    [encoder setFragmentBytes:&mesh_uniforms
-                       length:sizeof(mesh_uniforms)
-                      atIndex:1];
-    [encoder drawPrimitives:MTLPrimitiveTypeLine
-                vertexStart:0
-                vertexCount:debug_camera_fixation_sphere_vertices];
-  }
-#endif
-
-#if DEBUG_HITBOX_WIREFRAME_VISIBLE
-  {
-    simd_float3 ray_origin = camera_orbit_position(cam);
-    [encoder setVertexBuffer:debug_hitbox_sphere_buffer offset:0 atIndex:0];
-
-    void (^draw_hitbox)(simd_float3, float, simd_float4) =
-        ^(simd_float3 pos, float radius, simd_float4 color) {
-          simd_float4x4 model =
-              simd_mul(make_translation_matrix(pos), make_scale_matrix(radius));
-          DisplacedMeshUniforms mesh_uniforms;
-          mesh_uniforms.mvpMatrix = simd_mul(vp, model);
-          mesh_uniforms.gridColor = color;
-          [encoder setVertexBytes:&mesh_uniforms
-                           length:sizeof(mesh_uniforms)
-                          atIndex:1];
-          [encoder setFragmentBytes:&mesh_uniforms
-                             length:sizeof(mesh_uniforms)
-                            atIndex:1];
-          [encoder drawPrimitives:MTLPrimitiveTypeLine
-                      vertexStart:0
-                      vertexCount:debug_hitbox_sphere_vertices];
-        };
-
-    DynamicArray *stars = RenderState_GetStars(state);
-    for (size_t i = 0; i < DynamicArray_length(stars); i++) {
-      MTLStarGraphicsClass *star;
-      DynamicArray_get(stars, i, &star);
-      simd_float3 pos =
-          simd_make_float3(star->body->position.x * METERS_TO_RENDER_UNITS,
-                           star->body->position.y * METERS_TO_RENDER_UNITS,
-                           star->body->position.z * METERS_TO_RENDER_UNITS);
-      float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
-      draw_hitbox(pos,
-                  fmaxf(base_radius, simd_distance(ray_origin, pos) * 0.02f),
-                  (simd_float4){0.0f, 1.0f, 0.0f, 1.0f});
-    }
-
-    DynamicArray *planets = RenderState_GetPlanets(state);
-    for (size_t i = 0; i < DynamicArray_length(planets); i++) {
-      MTLPlanetGraphicsClass *planet;
-      DynamicArray_get(planets, i, &planet);
-      double ax = planet->body->position.x;
-      double ay = planet->body->position.y;
-      double az = planet->body->position.z;
-      if (planet->host_star) {
-        ax += planet->host_star->body->position.x;
-        ay += planet->host_star->body->position.y;
-        az += planet->host_star->body->position.z;
-      }
-      simd_float3 pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
-                                         ay * METERS_TO_RENDER_UNITS,
-                                         az * METERS_TO_RENDER_UNITS);
-      float base_radius = planet->body->radius_m * METERS_TO_RENDER_UNITS;
-      draw_hitbox(pos,
-                  fmaxf(base_radius, simd_distance(ray_origin, pos) * 0.02f),
-                  (simd_float4){0.0f, 1.0f, 0.0f, 1.0f});
-    }
-
-    DynamicArray *moons = RenderState_GetMoons(state);
-    for (size_t i = 0; i < DynamicArray_length(moons); i++) {
-      MTLMoonGraphicsClass *moon;
-      DynamicArray_get(moons, i, &moon);
-      double ax = moon->body->position.x;
-      double ay = moon->body->position.y;
-      double az = moon->body->position.z;
-      if (moon->host_planet) {
-        ax += moon->host_planet->body->position.x;
-        ay += moon->host_planet->body->position.y;
-        az += moon->host_planet->body->position.z;
-        if (moon->host_planet->host_star) {
-          ax += moon->host_planet->host_star->body->position.x;
-          ay += moon->host_planet->host_star->body->position.y;
-          az += moon->host_planet->host_star->body->position.z;
-        }
-      }
-      simd_float3 pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
-                                         ay * METERS_TO_RENDER_UNITS,
-                                         az * METERS_TO_RENDER_UNITS);
-      float base_radius = moon->body->radius_m * METERS_TO_RENDER_UNITS;
-      draw_hitbox(pos,
-                  fmaxf(base_radius, simd_distance(ray_origin, pos) * 0.02f),
-                  (simd_float4){0.0f, 1.0f, 0.0f, 1.0f});
-    }
-  }
-#endif
-}
-
-void draw_grid(RenderState *state, id<MTLRenderCommandEncoder> encoder) {
-  if (!RenderState_IsGridVisible(state))
-    return;
-
-  id<MTLBuffer> vertex_buffer =
-      (__bridge id<MTLBuffer>)RenderState_GetVec3Buffer(state);
-  id<MTLBuffer> uniform_buffer =
-      (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
-
-  Camera *camera = RenderState_GetCamera(state);
-  float spacing = dynamic_grid_spacing(camera->zoom);
-
-  simd_float3 translation = camera->center;
-
-  DisplacedMeshUniforms uniforms;
-  memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
-
-  simd_float4x4 model = make_translation_matrix(translation);
-  uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
-
-  [encoder setVertexBuffer:vertex_buffer offset:0 atIndex:0];
-  [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
-  [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
-  [encoder drawPrimitives:MTLPrimitiveTypeLine
-              vertexStart:0
-              vertexCount:RenderState_GetVertexCount(state)];
-}
-
 void draw_celestial_bodies(RenderState *state,
                            id<MTLRenderCommandEncoder> encoder) {
   DynamicArray *stars = RenderState_GetStars(state);
@@ -568,6 +259,7 @@ void draw_frame(RendererHandle handle) {
     mach_timebase_info(&timebase);
     float dt = (float)(current_time - last_time) * (float)timebase.numer /
                (float)timebase.denom / 1e9f;
+
     Camera *cam = RenderState_GetCamera(state);
     if (cam->is_transitioning)
       camera_update_transition(cam, dt);
@@ -577,76 +269,10 @@ void draw_frame(RendererHandle handle) {
 
     double days = astro_time_get_days_since_epoch(sim_time);
 
-    DynamicArray *planets = RenderState_GetPlanets(state);
-    for (size_t i = 0; i < DynamicArray_length(planets); i++) {
-      MTLPlanetGraphicsClass *planet;
-      DynamicArray_get(planets, i, &planet);
-      if (planet->body->orbit)
-        planet->body->position =
-            orbit_calculate_position(planet->body->orbit, days);
-    }
+    update_celestial_bodies_position(state, days);
 
-    DynamicArray *moons = RenderState_GetMoons(state);
-    for (size_t i = 0; i < DynamicArray_length(moons); i++) {
-      MTLMoonGraphicsClass *moon;
-      DynamicArray_get(moons, i, &moon);
-      if (moon->body->orbit) {
-        moon->body->position =
-            orbit_calculate_position(moon->body->orbit, days);
-      }
-    }
-
-    if (RenderState_IsFollowing(state)) {
-      FollowType ftype = RenderState_GetFollowedType(state);
-      void *fobj = RenderState_GetFollowedBody(state);
-      simd_float3 body_pos = {0};
-
-      if (ftype == FOLLOW_STAR) {
-        MTLStarGraphicsClass *star = fobj;
-        body_pos =
-            simd_make_float3(star->body->position.x * METERS_TO_RENDER_UNITS,
-                             star->body->position.y * METERS_TO_RENDER_UNITS,
-                             star->body->position.z * METERS_TO_RENDER_UNITS);
-      } else if (ftype == FOLLOW_PLANET) {
-        MTLPlanetGraphicsClass *planet = fobj;
-        double ax = planet->body->position.x;
-        double ay = planet->body->position.y;
-        double az = planet->body->position.z;
-        if (planet->host_star) {
-          ax += planet->host_star->body->position.x;
-          ay += planet->host_star->body->position.y;
-          az += planet->host_star->body->position.z;
-        }
-        body_pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
-                                    ay * METERS_TO_RENDER_UNITS,
-                                    az * METERS_TO_RENDER_UNITS);
-      } else if (ftype == FOLLOW_MOON) {
-        MTLMoonGraphicsClass *moon = fobj;
-        double ax = moon->body->position.x;
-        double ay = moon->body->position.y;
-        double az = moon->body->position.z;
-        if (moon->host_planet) {
-          ax += moon->host_planet->body->position.x;
-          ay += moon->host_planet->body->position.y;
-          az += moon->host_planet->body->position.z;
-          if (moon->host_planet->host_star) {
-            ax += moon->host_planet->host_star->body->position.x;
-            ay += moon->host_planet->host_star->body->position.y;
-            az += moon->host_planet->host_star->body->position.z;
-          }
-        }
-        body_pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
-                                    ay * METERS_TO_RENDER_UNITS,
-                                    az * METERS_TO_RENDER_UNITS);
-      }
-
-      Camera *cam = RenderState_GetCamera(state);
-      if (cam->is_transitioning) {
-        cam->target_center = body_pos;
-      } else {
-        cam->center = body_pos;
-      }
-    }
+    if (RenderState_IsFollowing(state))
+      camera_follow_body(state);
   }
   last_time = current_time;
 
@@ -676,39 +302,9 @@ void draw_frame(RendererHandle handle) {
 
     id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
 
-    CGSize drawableSize = metal_layer.drawableSize;
-    id<MTLTexture> currentDepth =
-        (__bridge id<MTLTexture>)RenderState_GetDepthTexture(state);
-    if (!currentDepth || currentDepth.width != (NSUInteger)drawableSize.width ||
-        currentDepth.height != (NSUInteger)drawableSize.height) {
-      if (drawableSize.width > 0 && drawableSize.height > 0) {
-        MTLTextureDescriptor *depthDescriptor = [MTLTextureDescriptor
-            texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
-                                         width:drawableSize.width
-                                        height:drawableSize.height
-                                     mipmapped:NO];
-        depthDescriptor.storageMode = MTLStorageModePrivate;
-        depthDescriptor.usage = MTLTextureUsageRenderTarget;
-        id<MTLTexture> newDepth =
-            [metal_layer.device newTextureWithDescriptor:depthDescriptor];
-        RenderState_SetDepthTexture(state, (__bridge void *)newDepth);
-        currentDepth = newDepth;
-      }
-    }
-
+    handle_depth_texture(state, metal_layer);
     MTLRenderPassDescriptor *pass_descriptor =
-        [MTLRenderPassDescriptor renderPassDescriptor];
-    pass_descriptor.colorAttachments[0].texture = drawable.texture;
-    pass_descriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-    pass_descriptor.colorAttachments[0].clearColor =
-        MTLClearColorMake(0.0, 0.0, 0.0, 1.0); // BG Color
-
-    if (currentDepth) {
-      pass_descriptor.depthAttachment.texture = currentDepth;
-      pass_descriptor.depthAttachment.loadAction = MTLLoadActionClear;
-      pass_descriptor.depthAttachment.storeAction = MTLStoreActionDontCare;
-      pass_descriptor.depthAttachment.clearDepth = 1.0;
-    }
+        create_render_pass_descriptor(state, drawable);
 
     id<MTLRenderCommandEncoder> encoder =
         [command_buffer renderCommandEncoderWithDescriptor:pass_descriptor];
@@ -721,8 +317,8 @@ void draw_frame(RendererHandle handle) {
       [encoder setDepthStencilState:depthState];
 
     update_grid_scale(state);
-    draw_grid(state, encoder);
-    draw_debug_graphics(state, encoder);
+    draw_grid(state, (__bridge void *)encoder);
+    draw_debug_graphics(state, (__bridge void *)(encoder));
     draw_celestial_bodies(state, encoder);
 
     [encoder endEncoding];

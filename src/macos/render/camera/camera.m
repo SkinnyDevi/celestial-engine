@@ -1,6 +1,17 @@
-#include <math.h>
+#import "camera.h"
+#import "core/space/units.h"
 
-#include "core/renderer/camera/camera.h"
+#import "macos/render/grid/displaced_mesh.h"
+#import "macos/render/shape/vertex.h"
+#import "macos/render/space/moon.h"
+#import "macos/render/space/planet.h"
+#import "macos/render/space/star.h"
+#import "macos/render/state/render_state.h"
+
+#import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/QuartzCore.h>
+#import <math.h>
 
 static const float kOrbitSensitivity = 0.007f;
 static const float kMaxElevation = M_PI / 2.0f; // 90 degree clamp
@@ -196,4 +207,100 @@ void camera_update_transition(Camera *camera, float dt) {
   camera->center = simd_mix(camera->start_center, camera->target_center, t);
   camera->zoom =
       camera->start_zoom + (camera->target_zoom - camera->start_zoom) * t;
+}
+
+void update_camera_uniforms(RenderState *state) {
+  if (!state || !RenderState_GetUniformBuffer(state))
+    return;
+
+  Camera *camera = RenderState_GetCamera(state);
+
+  CAMetalLayer *metal_layer =
+      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
+  float aspect = metal_layer.drawableSize.width /
+                 MAX(metal_layer.drawableSize.height, 1.0f);
+
+  simd_float4x4 view = camera_view_matrix(camera);
+  simd_float4x4 projection =
+      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect,
+                         CAMERA_NEAR_CLIPPING_PLANE, CAMERA_FAR_CLIPPING_PLANE);
+
+  DisplacedMeshUniforms uniforms;
+  uniforms.mvpMatrix = simd_mul(projection, view);
+  uniforms.gridColor =
+      (simd_float4){1.0f, 1.0f, 1.0f, DISPLACED_MESH_GRID_OPACITY};
+
+  id<MTLBuffer> uniform_buffer =
+      (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
+  memcpy([uniform_buffer contents], &uniforms, sizeof(uniforms));
+}
+
+void camera_follow_star(void *fobj, simd_float3 *body_pos_out) {
+  MTLStarGraphicsClass *star = fobj;
+  *body_pos_out =
+      simd_make_float3(star->body->position.x * METERS_TO_RENDER_UNITS,
+                       star->body->position.y * METERS_TO_RENDER_UNITS,
+                       star->body->position.z * METERS_TO_RENDER_UNITS);
+}
+
+void camera_follow_planet(void *fobj, simd_float3 *body_pos_out) {
+  MTLPlanetGraphicsClass *planet = fobj;
+  double ax = planet->body->position.x;
+  double ay = planet->body->position.y;
+  double az = planet->body->position.z;
+  if (planet->host_star) {
+    ax += planet->host_star->body->position.x;
+    ay += planet->host_star->body->position.y;
+    az += planet->host_star->body->position.z;
+  }
+  *body_pos_out =
+      simd_make_float3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
+                       az * METERS_TO_RENDER_UNITS);
+}
+
+void camera_follow_moon(void *fobj, simd_float3 *body_pos_out) {
+  MTLMoonGraphicsClass *moon = fobj;
+  double ax = moon->body->position.x;
+  double ay = moon->body->position.y;
+  double az = moon->body->position.z;
+  if (moon->host_planet) {
+    ax += moon->host_planet->body->position.x;
+    ay += moon->host_planet->body->position.y;
+    az += moon->host_planet->body->position.z;
+    if (moon->host_planet->host_star) {
+      ax += moon->host_planet->host_star->body->position.x;
+      ay += moon->host_planet->host_star->body->position.y;
+      az += moon->host_planet->host_star->body->position.z;
+    }
+  }
+  *body_pos_out =
+      simd_make_float3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
+                       az * METERS_TO_RENDER_UNITS);
+}
+
+void camera_follow_body(RenderState *state) {
+  FollowType ftype = RenderState_GetFollowedType(state);
+  void *fobj = RenderState_GetFollowedBody(state);
+  simd_float3 body_pos = {0};
+
+  switch (ftype) {
+  case FOLLOW_STAR:
+    camera_follow_star(fobj, &body_pos);
+    break;
+  case FOLLOW_PLANET:
+    camera_follow_planet(fobj, &body_pos);
+    break;
+  case FOLLOW_MOON:
+    camera_follow_moon(fobj, &body_pos);
+    break;
+  default: // FOLLOW_NONE
+    break;
+  }
+
+  Camera *cam = RenderState_GetCamera(state);
+  if (cam->is_transitioning) {
+    cam->target_center = body_pos;
+  } else {
+    cam->center = body_pos;
+  }
 }

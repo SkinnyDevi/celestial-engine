@@ -10,6 +10,7 @@ add_executable(celengine
   main.c
   core/data/dyn_array.c
   core/data/raycast.c
+  core/data/math.c
   core/cli/functions.c
   core/cli/instance_data.c
   core/cli/args/debug.c
@@ -23,18 +24,20 @@ add_executable(celengine
   core/space/astro_time.c
   macos/app.m
   macos/menu/menu.m
-  macos/render/camera.m
+  macos/render/camera/camera.m
   macos/render/grid/displaced_mesh.m
   macos/render/renderer.m
-  macos/render/state/render_handler.m
+  macos/render/state/render_state.m
   macos/render/shape/solid_sphere.m
   macos/render/shape/orbit_ellipse.m
   macos/render/space/star.m
   macos/render/space/planet.m
   macos/render/space/moon.m
+  macos/render/space/graphics.m
   macos/shaders/shader_loader.m
   macos/event/input_registry.m
   macos/event/mouse.m
+  macos/debug/graphics.m
   macos/debug/overlay.m
   macos/debug/sphere_wireframe.m
   macos/debug/camera_properties.m
@@ -62,10 +65,11 @@ target_compile_definitions(celengine PRIVATE
 set_source_files_properties(
     macos/app.m
     macos/menu/menu.m
-    macos/render/camera.m
-    macos/render/state/render_handler.m
+    macos/render/camera/camera.m
+    macos/render/state/render_state.m
     macos/render/grid/displaced_mesh.m
     macos/render/renderer.m
+    macos/render/space/graphics.m
     macos/render/space/star.m
     macos/render/space/planet.m
     macos/render/space/moon.m
@@ -74,6 +78,7 @@ set_source_files_properties(
     macos/shaders/shader_loader.m
     macos/event/input_registry.m
     macos/event/mouse.m
+    macos/debug/graphics.m
     macos/debug/overlay.m
     macos/debug/sphere_wireframe.m
     macos/debug/camera_properties.m

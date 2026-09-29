@@ -1,5 +1,5 @@
-#ifndef MACOS_RENDER_HANDLER_H
-#define MACOS_RENDER_HANDLER_H
+#ifndef MACOS_RENDER_STATE_H
+#define MACOS_RENDER_STATE_H
 
 #include "core/data/dyn_array.h"
 #include "core/renderer/camera/camera.h"

@@ -1,12 +1,14 @@
 #import "displaced_mesh.h"
-#include "macos/debug/fps_counter.h"
+#import "core/data/math.h"
+#import "core/log/log.h"
+
+#import "macos/debug/fps_counter.h"
+#import "macos/render/state/render_state.h"
+
 #import <AppKit/AppKit.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 #import <stdlib.h>
-
-#import "core/log/log.h"
-#import "macos/render/state/render_handler.h"
 
 Vertex *generate_grid_vertices(int grid_size, float spacing, int num_vertices) {
   Vertex *vertices = calloc(num_vertices, sizeof(Vertex));
@@ -115,4 +117,35 @@ void update_grid_scale(RenderState *state) {
   int subdivisions = dynamic_grid_subdivisions(camera->zoom);
   int num_vertices = (subdivisions * 2 + 1) * 4;
   init_grid_mesh(state, subdivisions, spacing);
+}
+
+void draw_grid(RenderState *state, void *encoder_ptr) {
+  if (!RenderState_IsGridVisible(state))
+    return;
+
+  id<MTLRenderCommandEncoder> encoder =
+      (__bridge id<MTLRenderCommandEncoder>)encoder_ptr;
+
+  id<MTLBuffer> vertex_buffer =
+      (__bridge id<MTLBuffer>)RenderState_GetVec3Buffer(state);
+  id<MTLBuffer> uniform_buffer =
+      (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(state);
+
+  Camera *camera = RenderState_GetCamera(state);
+  float spacing = dynamic_grid_spacing(camera->zoom);
+
+  simd_float3 translation = camera->center;
+
+  DisplacedMeshUniforms uniforms;
+  memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
+
+  simd_float4x4 model = make_translation_matrix(translation);
+  uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
+
+  [encoder setVertexBuffer:vertex_buffer offset:0 atIndex:0];
+  [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
+  [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
+  [encoder drawPrimitives:MTLPrimitiveTypeLine
+              vertexStart:0
+              vertexCount:RenderState_GetVertexCount(state)];
 }

@@ -2,7 +2,7 @@
 #define MACOS_RENDER_SHAPE_ORBIT_ELLIPSE_H
 
 #include "core/space/orbit.h"
-#include "macos/render/state/render_handler.h"
+#include "macos/render/state/render_state.h"
 #import <Metal/Metal.h>
 
 void init_orbit_graphics(RenderState *state, CelestialBody_Orbit *orbit,

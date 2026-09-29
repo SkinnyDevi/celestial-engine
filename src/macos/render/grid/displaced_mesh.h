@@ -13,5 +13,6 @@ float dynamic_grid_spacing(float zoom);
 void init_grid_mesh(RenderState *state, int grid_size, float spacing);
 void toggle_grid_visibility(RenderState *state);
 void update_grid_scale(RenderState *state);
+void draw_grid(RenderState *state, void *encoder_ptr);
 
 #endif

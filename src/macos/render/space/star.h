@@ -2,7 +2,7 @@
 #define MACOS_RENDER_SPACE_STAR_H
 
 #include "core/space/star.h"
-#include "macos/render/state/render_handler.h"
+#include "macos/render/state/render_state.h"
 
 typedef struct MTLStarGraphicsClass {
   CelestialBody_Star *body;
