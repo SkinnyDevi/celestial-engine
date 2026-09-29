@@ -3,17 +3,21 @@
 #include <string.h>
 
 #include "core/cli/functions.h"
-#include "core/renderer/app_renderer.h"
+#include "core/cli/instance_data.h"
 
 #include "macos/app.h"
 
-void render_with(RenderingEngine engine) {
+int render_with(RenderingEngine engine) {
   switch (engine) {
   case Metal:
     run_macos_app();
-    break;
+    return EXIT_SUCCESS;
   case Vulkan:
-    break;
+    puts("Vulkan rendering engine not yet implemented.");
+    return EXIT_SUCCESS;
+  default:
+    puts("No rendering engine specified! Use --help for more information.");
+    return EXIT_FAILURE;
   }
 }
 
@@ -26,17 +30,5 @@ int main(int argc, char *argv[]) {
   cli_register_flags();
   cli_parse_args(argc, argv);
 
-  if (cli_find_arg("--macos", argc, argv)) {
-    render_with(Metal);
-    return EXIT_SUCCESS;
-  }
-
-  if (cli_find_arg("--vulkan", argc, argv)) {
-    puts("Using Vulkan rendering engine.");
-    render_with(Vulkan);
-    return EXIT_SUCCESS;
-  }
-
-  puts("No rendering engine specified! Use --help for more information.");
-  return EXIT_FAILURE;
+  return render_with(cli_get_rendering_engine());
 }

@@ -15,6 +15,7 @@ add_executable(celengine
   core/cli/args/debug.c
   core/cli/args/fps.c
   core/cli/args/help.c
+  core/cli/args/rendering_engine.c
   core/cli/args/registry.c
   core/cli/args/sim_date.c
   core/cli/args/time_scale.c

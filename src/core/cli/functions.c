@@ -7,6 +7,7 @@
 #include "core/data/dyn_array.h"
 
 static DynamicArray REGISTERED_CLI_FLAGS;
+DynamicArray *cli_get_register_flags(void) { return &REGISTERED_CLI_FLAGS; }
 
 int cli_index_of_arg(const char *arg, int argc, char **args) {
   for (int i = 1; i < argc; i++) {
@@ -37,6 +38,8 @@ void cli_register_flags(void) {
   DynamicArray_init(&REGISTERED_CLI_FLAGS, sizeof(CLIArg));
 
   DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_HELP_FLAG);
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_MACOS_FLAG);
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_VULKAN_FLAG);
   DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_SIM_DATE_FLAG);
   DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_TIME_SCALE_FLAG);
   DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_SHOW_FPS_FLAG);
