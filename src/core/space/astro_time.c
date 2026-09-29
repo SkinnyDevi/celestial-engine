@@ -29,7 +29,6 @@ void astro_time_set_date_gregorian(AstronomicalTime *time, struct tm *date) {
   time->current_jd =
       gregorian_to_jd(date->tm_year + 1900, date->tm_mon + 1, date->tm_mday,
                       date->tm_hour, date->tm_min, date->tm_sec);
-  time->epoch_jd = time->current_jd;
 }
 
 double astro_time_get_jd_since_epoch(const AstronomicalTime *time) {
@@ -72,17 +71,19 @@ void jd_to_gregorian(double jd, int *out_year, int *out_month, int *out_day,
   *out_second = (int)((total_minutes - *out_minute) * 60.0);
 }
 
-// https://aa.usno.navy.mil/faq/JD_formula
+// https://aa.usno.navy.mil/faq/JD_formula using long for date calculations
 double gregorian_to_jd(int year, int month, int day, int hour, int minute,
                        int second) {
 
-  double I = year;
-  double J = month;
-  double K = day;
+  long I = year;
+  long J = month;
+  long K = day;
 
-  return K - 32075 + 1461 * (I + 4800 + (J - 14) / 12) / 4 +
-         367 * (J - 2 - (J - 14) / 12 * 12) / 12 -
-         3 * ((I + 4900 + (J - 14) / 12) / 100) / 4;
+  long jd = K - 32075 + 1461 * (I + 4800 + (J - 14) / 12) / 4 +
+            367 * (J - 2 - (J - 14) / 12 * 12) / 12 -
+            3 * ((I + 4900 + (J - 14) / 12) / 100) / 4;
+
+  return (double)jd - 0.5 + hour / 24.0 + minute / 1440.0 + second / 86400.0;
 }
 
 unsigned long astro_time_jd_to_timestamp(AstronomicalTime *time) {
@@ -122,6 +123,7 @@ void astro_time_from_cli_args(AstronomicalTime *time,
   if (!time || !cli_sim_date)
     return;
 
-  astro_time_init(time, 130, cli_sim_date->time_scale);
+  astro_time_init(time, 130,
+                  cli_sim_date->time_scale); // Dummy start julian day
   astro_time_set_date_gregorian(time, &cli_sim_date->time);
 }
