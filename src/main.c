@@ -4,6 +4,7 @@
 
 #include "core/cli/functions.h"
 #include "core/cli/instance_data.h"
+#include "core/data/loader/data_loader.h"
 
 #include "macos/app.h"
 
@@ -28,6 +29,8 @@ int main(int argc, char *argv[]) {
   }
 
   cli_register_flags();
+  data_loader_register_loaders();
+
   cli_parse_args(argc, argv);
 
   return render_with(cli_get_rendering_engine());

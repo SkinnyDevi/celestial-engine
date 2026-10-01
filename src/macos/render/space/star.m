@@ -123,7 +123,7 @@ void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
 }
 
 MTLStarGraphicsClass *MTLStarGraphics_Create(CelestialBody_Star *body) {
-  MTLStarGraphicsClass *star = malloc(sizeof(MTLStarGraphicsClass));
+  MTLStarGraphicsClass *star = calloc(1, sizeof(MTLStarGraphicsClass));
   if (!star) {
     LOG_ERROR("Failed to allocate memory for star graphics for star: %s (%s)",
               body->name, body->body_id);
@@ -165,5 +165,20 @@ void init_celestial_body_stars(RenderState *render_state) {
     LOG_DEBUG("Registered star (%lu): %s (%s)", i,
               ((CelestialBody_Star *)star->body)->name,
               ((CelestialBody_Star *)star->body)->body_id);
+  }
+}
+
+void load_celestial_body_stars_from_file(RenderState *render_state,
+                                         LoadedSimulationBodies *bodies) {
+  DynamicArray *stars = RenderState_GetStars(render_state);
+
+  for (size_t i = 0; i < bodies->num_stars; i++) {
+    CelestialBody_Star *star = &bodies->stars[i];
+    MTLStarGraphicsClass *mtl_star = MTLStarGraphics_Create(star);
+    MTLStarGraphicsClass_init(mtl_star, render_state);
+    DynamicArray_push(stars, &mtl_star);
+    LOG_DEBUG("Registered star (%lu): %s (%s)", i,
+              ((CelestialBody_Star *)mtl_star->body)->name,
+              ((CelestialBody_Star *)mtl_star->body)->body_id);
   }
 }

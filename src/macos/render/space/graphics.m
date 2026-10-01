@@ -1,5 +1,8 @@
 #import "graphics.h"
 #import "core/data/dyn_array.h"
+#include "core/log/log.h"
+
+#import "core/cli/instance_data.h"
 
 #import "macos/render/space/moon.h"
 #import "macos/render/space/planet.h"
@@ -50,9 +53,20 @@ void resolve_celestial_body_hierarchy(RenderState *render_state) {
 }
 
 void init_celestial_bodies(RenderState *render_state) {
-  init_celestial_body_stars(render_state);
-  init_celestial_body_planets(render_state);
-  init_celestial_body_moons(render_state);
+  if (!cli_is_using_data_file()) {
+    LOG_WARN("No data file provided, using hardcoded celestial bodies", NULL);
+    init_celestial_body_stars(render_state);
+    init_celestial_body_planets(render_state);
+    init_celestial_body_moons(render_state);
+  } else {
+    LOG_INFO("Loading celestial bodies from data file %s",
+             cli_get_data_file_path());
+
+    LoadedSimulationBodies *bodies = cli_get_sim_bodies();
+    load_celestial_body_stars_from_file(render_state, bodies);
+    load_celestial_body_planets_from_file(render_state, bodies);
+    load_celestial_body_moons_from_file(render_state, bodies);
+  }
 
   resolve_celestial_body_hierarchy(render_state);
 }

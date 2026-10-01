@@ -11,13 +11,18 @@ add_executable(celengine
   core/data/dyn_array.c
   core/data/raycast.c
   core/data/math.c
+  core/data/loader/data_loader.c
+  core/data/loader/loader_registry.c
+  core/data/loader/json/json_data_loader.c
   core/cli/functions.c
   core/cli/instance_data.c
+  core/cli/args/data_file.c
   core/cli/args/debug.c
   core/cli/args/fps.c
   core/cli/args/help.c
   core/cli/args/rendering_engine.c
   core/cli/args/registry.c
+  core/cli/args/save_state.c
   core/cli/args/sim_date.c
   core/cli/args/time_scale.c
   core/space/orbit.c
@@ -45,7 +50,18 @@ add_executable(celengine
   macos/debug/time_overlay.m
 )
 
-target_include_directories(celengine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# External Libraries
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+include(FetchContent)
+FetchContent_Declare(
+    cjson
+    GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
+    GIT_TAG        v1.7.18
+)
+set(ENABLE_CJSON_TEST OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(cjson)
+
+target_include_directories(celengine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${cjson_SOURCE_DIR})
 
 target_sources(celengine
   PRIVATE
@@ -56,6 +72,7 @@ target_link_libraries(celengine PRIVATE
     "-framework Cocoa"          # AppKit + Foundation
     "-framework Metal"          # MTLCreateSystemDefaultDevice, etc.
     "-framework QuartzCore"     # CAMetalLayer
+    cjson
 )
 
 target_compile_definitions(celengine PRIVATE
@@ -87,4 +104,3 @@ set_source_files_properties(
     PROPERTIES
     COMPILE_OPTIONS "-fobjc-arc"
 )
-

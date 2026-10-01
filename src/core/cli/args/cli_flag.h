@@ -31,6 +31,7 @@ void cli_flag_sim_date(int argc, char **args);
 void cli_flag_time_scale(int argc, char **args);
 void cli_flag_show_fps(int argc, char **args);
 void cli_flag_enable_debug(int argc, char **args);
+void cli_flag_load_data_file(int argc, char **argv);
 
 #ifndef CLI_REGISTRY
 #define CLI_REGISTRY
@@ -39,6 +40,7 @@ extern const CLIArg CLI_VULKAN_FLAG;
 extern const CLIArg CLI_HELP_FLAG;
 extern const CLIArg CLI_SIM_DATE_FLAG;
 extern const CLIArg CLI_TIME_SCALE_FLAG;
+extern const CLIArg CLI_DATA_FILE_FLAG;
 extern const CLIArg CLI_SHOW_FPS_FLAG;
 extern const CLIArg CLI_ENABLE_DEBUG_FLAG;
 #endif

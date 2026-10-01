@@ -1,0 +1,364 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Celestial Body Simulation Data",
+    "type": "object",
+    "properties": {
+        "orbits": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/orbit"
+            }
+        },
+        "stars": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/star"
+            }
+        },
+        "planets": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/planet"
+            }
+        },
+        "moons": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/moon"
+            }
+        }
+    },
+    "required": [
+        "orbits",
+        "stars",
+        "planets",
+        "moons"
+    ],
+    "definitions": {
+        "vector3": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                },
+                "z": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "x",
+                "y",
+                "z"
+            ]
+        },
+        "quaternion": {
+            "type": "object",
+            "properties": {
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                },
+                "z": {
+                    "type": "number"
+                },
+                "w": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "x",
+                "y",
+                "z",
+                "w"
+            ]
+        },
+        "orbit": {
+            "type": "object",
+            "properties": {
+                "semimajor_axis": {
+                    "type": "number"
+                },
+                "eccentricity": {
+                    "type": "number"
+                },
+                "inclination": {
+                    "type": "number"
+                },
+                "longitude_of_ascending_node": {
+                    "type": "number"
+                },
+                "argument_of_periapsis": {
+                    "type": "number"
+                },
+                "mean_anomaly_at_epoch": {
+                    "type": "number"
+                },
+                "orbital_period_days": {
+                    "type": "number"
+                },
+                "mean_anomaly": {
+                    "type": "number"
+                },
+                "true_anomaly": {
+                    "type": "number"
+                },
+                "center_position": {
+                    "$ref": "#/definitions/vector3"
+                }
+            }
+        },
+        "star": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "body_id": {
+                    "type": "string"
+                },
+                "spectral_type": {
+                    "type": "integer"
+                },
+                "spectral_subtype": {
+                    "type": "integer"
+                },
+                "position": {
+                    "$ref": "#/definitions/vector3"
+                },
+                "rotation": {
+                    "$ref": "#/definitions/quaternion"
+                },
+                "right_ascension_rad": {
+                    "type": "number"
+                },
+                "declination_rad": {
+                    "type": "number"
+                },
+                "distance_pc": {
+                    "type": "number"
+                },
+                "mass_kg": {
+                    "type": "number"
+                },
+                "radius_m": {
+                    "type": "number"
+                },
+                "surface_temperature_k": {
+                    "type": "number"
+                },
+                "core_temperature_k": {
+                    "type": "number"
+                },
+                "luminosity_w": {
+                    "type": "number"
+                },
+                "bolometric_luminosity_w": {
+                    "type": "number"
+                },
+                "rotation_period_days": {
+                    "type": "number"
+                },
+                "magnetic_field_gauss": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "name"
+            ]
+        },
+        "planet": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "body_id": {
+                    "type": "string"
+                },
+                "host_star_index": {
+                    "type": "integer",
+                    "description": "Index of the host star in the 'stars' array."
+                },
+                "orbit_index": {
+                    "type": "integer",
+                    "description": "Index of the orbit in the 'orbits' array."
+                },
+                "planet_class": {
+                    "type": "integer"
+                },
+                "position": {
+                    "$ref": "#/definitions/vector3"
+                },
+                "rotation": {
+                    "$ref": "#/definitions/quaternion"
+                },
+                "right_ascension_rad": {
+                    "type": "number"
+                },
+                "declination_rad": {
+                    "type": "number"
+                },
+                "distance_pc": {
+                    "type": "number"
+                },
+                "semi_major_axis_au": {
+                    "type": "number"
+                },
+                "eccentricity": {
+                    "type": "number"
+                },
+                "inclination_rad": {
+                    "type": "number"
+                },
+                "longitude_ascending_node_rad": {
+                    "type": "number"
+                },
+                "argument_periapsis_rad": {
+                    "type": "number"
+                },
+                "mean_anomaly_rad": {
+                    "type": "number"
+                },
+                "orbital_period_days": {
+                    "type": "number"
+                },
+                "mass_kg": {
+                    "type": "number"
+                },
+                "radius_m": {
+                    "type": "number"
+                },
+                "density_kg_m3": {
+                    "type": "number"
+                },
+                "surface_gravity_m_s2": {
+                    "type": "number"
+                },
+                "albedo": {
+                    "type": "number"
+                },
+                "surface_temperature_k": {
+                    "type": "number"
+                },
+                "axial_tilt_rad": {
+                    "type": "number"
+                },
+                "rotation_period_days": {
+                    "type": "number"
+                },
+                "magnetic_field_gauss": {
+                    "type": "number"
+                },
+                "atmosphere_type": {
+                    "type": "integer"
+                },
+                "surface_pressure_pa": {
+                    "type": "number"
+                },
+                "has_rings": {
+                    "type": "integer"
+                },
+                "ring_inner_radius_m": {
+                    "type": "number"
+                },
+                "ring_outer_radius_m": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "name",
+                "host_star_index",
+                "orbit_index"
+            ]
+        },
+        "moon": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "body_id": {
+                    "type": "string"
+                },
+                "host_planet_index": {
+                    "type": "integer",
+                    "description": "Index of the host planet in the 'planets' array."
+                },
+                "orbit_index": {
+                    "type": "integer",
+                    "description": "Index of the orbit in the 'orbits' array."
+                },
+                "moon_class": {
+                    "type": "integer"
+                },
+                "position": {
+                    "$ref": "#/definitions/vector3"
+                },
+                "rotation": {
+                    "$ref": "#/definitions/quaternion"
+                },
+                "semi_major_axis_km": {
+                    "type": "number"
+                },
+                "eccentricity": {
+                    "type": "number"
+                },
+                "inclination_rad": {
+                    "type": "number"
+                },
+                "longitude_ascending_node_rad": {
+                    "type": "number"
+                },
+                "argument_periapsis_rad": {
+                    "type": "number"
+                },
+                "mean_anomaly_rad": {
+                    "type": "number"
+                },
+                "orbital_period_days": {
+                    "type": "number"
+                },
+                "mass_kg": {
+                    "type": "number"
+                },
+                "radius_m": {
+                    "type": "number"
+                },
+                "surface_gravity_m_s2": {
+                    "type": "number"
+                },
+                "is_tidally_locked": {
+                    "type": "integer"
+                },
+                "axial_tilt_rad": {
+                    "type": "number"
+                },
+                "rotation_period_days": {
+                    "type": "number"
+                },
+                "albedo": {
+                    "type": "number"
+                },
+                "surface_temperature_k": {
+                    "type": "number"
+                },
+                "atmosphere_type": {
+                    "type": "integer"
+                },
+                "surface_pressure_pa": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "name",
+                "host_planet_index",
+                "orbit_index"
+            ]
+        }
+    }
+}

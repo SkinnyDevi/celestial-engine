@@ -8,7 +8,7 @@ Vector3 orbit_calculate_position(CelestialBody_Orbit *orbit,
     return (Vector3){0.0, 0.0, 0.0};
 
   // Update mean anomaly based on time
-  if (orbit->orbital_period_days > 0.0) {
+  if (orbit->orbital_period_days != 0.0) {
     // Mean motion n = 2 * PI / orbital_period
     double mean_motion = (2.0 * M_PI) / orbit->orbital_period_days;
     orbit->mean_anomaly =

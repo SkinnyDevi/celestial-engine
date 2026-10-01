@@ -4,11 +4,14 @@
 #import <stdlib.h>
 
 #import "core/log/log.h"
+
+#import "core/cli/instance_data.h"
 #import "core/space/defined/moons.h"
 #import "core/space/units.h"
+
 #import "macos/render/grid/displaced_mesh.h"
-#import "macos/render/shape/solid_sphere.h"
 #import "macos/render/shape/orbit_ellipse.h"
+#import "macos/render/shape/solid_sphere.h"
 #import "macos/render/space/planet.h"
 #import "macos/render/space/star.h"
 
@@ -49,7 +52,7 @@ void MTLMoonGraphicsClass_init(MTLMoonGraphicsClass *moon,
   moon->vertex_buffer = (void *)CFBridgingRetain(vertex_buffer);
   moon->index_buffer = (void *)CFBridgingRetain(index_buffer);
   moon->index_count = mesh.index_count;
-  
+
   moon->orbit_buffer = NULL;
   moon->orbit_vertex_count = 0;
   if (moon->body->orbit) {
@@ -81,12 +84,12 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
         hy += moon->host_planet->host_star->body->position.y;
         hz += moon->host_planet->host_star->body->position.z;
       }
-      host_pos = simd_make_float3(
-          hx * METERS_TO_RENDER_UNITS,
-          hy * METERS_TO_RENDER_UNITS,
-          hz * METERS_TO_RENDER_UNITS);
+      host_pos = simd_make_float3(hx * METERS_TO_RENDER_UNITS,
+                                  hy * METERS_TO_RENDER_UNITS,
+                                  hz * METERS_TO_RENDER_UNITS);
     }
-    draw_orbit_ellipse(render_state, encoder, buf, moon->orbit_vertex_count, host_pos);
+    draw_orbit_ellipse(render_state, encoder, buf, moon->orbit_vertex_count,
+                       host_pos);
   }
 
   simd_float4 color = get_moon_color(moon->body->moon_class);
@@ -121,10 +124,10 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
     }
   }
 
-  simd_float3 body_pos = simd_make_float3(
-      (float)(abs_x * METERS_TO_RENDER_UNITS),
-      (float)(abs_y * METERS_TO_RENDER_UNITS),
-      (float)(abs_z * METERS_TO_RENDER_UNITS));
+  simd_float3 body_pos =
+      simd_make_float3((float)(abs_x * METERS_TO_RENDER_UNITS),
+                       (float)(abs_y * METERS_TO_RENDER_UNITS),
+                       (float)(abs_z * METERS_TO_RENDER_UNITS));
 
   float dist = simd_distance(cam_pos, body_pos);
   float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility
@@ -165,7 +168,7 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
 }
 
 MTLMoonGraphicsClass *MTLMoonGraphics_Create(CelestialBody_Moon *body) {
-  MTLMoonGraphicsClass *moon = malloc(sizeof(MTLMoonGraphicsClass));
+  MTLMoonGraphicsClass *moon = calloc(1, sizeof(MTLMoonGraphicsClass));
   if (!moon) {
     LOG_ERROR("Failed to allocate memory for moon graphics for moon: %s (%s)",
               body->name, body->body_id);
@@ -226,5 +229,20 @@ void init_celestial_body_moons(RenderState *render_state) {
     LOG_DEBUG("Registered moon (%lu): %s (%s)", i,
               ((CelestialBody_Moon *)moon->body)->name,
               ((CelestialBody_Moon *)moon->body)->body_id);
+  }
+}
+
+void load_celestial_body_moons_from_file(RenderState *render_state,
+                                         LoadedSimulationBodies *bodies) {
+  DynamicArray *moons = RenderState_GetMoons(render_state);
+
+  for (size_t i = 0; i < bodies->num_moons; i++) {
+    CelestialBody_Moon *moon = &bodies->moons[i];
+    MTLMoonGraphicsClass *mtl_moon = MTLMoonGraphics_Create(moon);
+    MTLMoonGraphicsClass_init(mtl_moon, render_state);
+    DynamicArray_push(moons, &mtl_moon);
+    LOG_DEBUG("Registered moon (%lu): %s (%s)", i,
+              ((CelestialBody_Moon *)mtl_moon->body)->name,
+              ((CelestialBody_Moon *)mtl_moon->body)->body_id);
   }
 }

@@ -1,7 +1,9 @@
 #ifndef MACOS_RENDER_SPACE_PLANET_H
 #define MACOS_RENDER_SPACE_PLANET_H
 
+#include "core/data/loader/data_loader.h"
 #include "core/space/planet.h"
+
 #include "macos/render/state/render_state.h"
 
 typedef struct MTLStarGraphicsClass MTLStarGraphicsClass;
@@ -28,5 +30,7 @@ void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
 void MTLPlanetGraphics_Destroy(MTLPlanetGraphicsClass *planet_graphics);
 
 void init_celestial_body_planets(RenderState *render_state);
+void load_celestial_body_planets_from_file(RenderState *render_state,
+                                           LoadedSimulationBodies *bodies);
 
 #endif

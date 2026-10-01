@@ -20,6 +20,11 @@ const CLIArg CLI_TIME_SCALE_FLAG = {
     .func = cli_flag_time_scale,
     .description = "Set the time scale (e.g: 1, 5, 1e5, including negatives).",
     .category = CLI_HELP_CATEGORY_SIMULATION};
+const CLIArg CLI_DATA_FILE_FLAG = {.arg = "--data-file",
+                                   .func = cli_flag_load_data_file,
+                                   .description =
+                                       "Load simulation data from a file.",
+                                   .category = CLI_HELP_CATEGORY_SIMULATION};
 
 const CLIArg CLI_ENABLE_DEBUG_FLAG = {.arg = "--debug",
                                       .func = cli_flag_enable_debug,

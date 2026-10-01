@@ -1,7 +1,9 @@
 #ifndef MACOS_RENDER_SPACE_MOON_H
 #define MACOS_RENDER_SPACE_MOON_H
 
+#include "core/data/loader/data_loader.h"
 #include "core/space/moon.h"
+
 #include "macos/render/state/render_state.h"
 
 typedef struct MTLPlanetGraphicsClass MTLPlanetGraphicsClass;
@@ -28,5 +30,7 @@ void MTLMoonGraphicsClass_init(MTLMoonGraphicsClass *moon,
 void MTLMoonGraphics_Destroy(MTLMoonGraphicsClass *moon_graphics);
 
 void init_celestial_body_moons(RenderState *render_state);
+void load_celestial_body_moons_from_file(RenderState *render_state,
+                                         LoadedSimulationBodies *bodies);
 
 #endif

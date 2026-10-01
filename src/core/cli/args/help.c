@@ -1,6 +1,8 @@
 #include "cli_flag.h"
 #include "core/cli/functions.h"
 #include "core/data/dyn_array.h"
+#include "core/data/loader/data_loader.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,6 +60,20 @@ void print_simulation_help(DynamicArray *flags) {
   puts("");
 }
 
+void print_data_file_help() {
+  print_title("DATA FILE FORMATS");
+  puts("Available data file formats (extensions):");
+  DynamicArray *data_loaders = data_loader_get_registered_loaders();
+  int num_loaders = DynamicArray_length(data_loaders);
+  for (int i = 0; i < num_loaders; i++) {
+    const DataLoader *loader;
+    DynamicArray_get(data_loaders, i, &loader);
+    printf("- %s\n", loader->format_ext);
+  }
+
+  puts("");
+}
+
 void print_other_help(DynamicArray *flags) {
   print_title("OTHER OPTIONS");
   print_category_help(flags, CLI_HELP_CATEGORY_OTHER);
@@ -68,6 +84,7 @@ void print_command_help() {
   DynamicArray *flags = cli_get_register_flags();
   print_rendering_engine_help(flags);
   print_simulation_help(flags);
+  print_data_file_help();
   print_other_help(flags);
 }
 

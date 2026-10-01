@@ -7,8 +7,8 @@
 #import "core/space/defined/planets.h"
 #import "core/space/units.h"
 #import "macos/render/grid/displaced_mesh.h"
-#import "macos/render/shape/solid_sphere.h"
 #import "macos/render/shape/orbit_ellipse.h"
+#import "macos/render/shape/solid_sphere.h"
 #import "macos/render/space/star.h"
 
 simd_float4 get_planet_color(PlanetClass planet_class) {
@@ -50,7 +50,7 @@ void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
   planet->vertex_buffer = (void *)CFBridgingRetain(vertex_buffer);
   planet->index_buffer = (void *)CFBridgingRetain(index_buffer);
   planet->index_count = mesh.index_count;
-  
+
   planet->orbit_buffer = NULL;
   planet->orbit_vertex_count = 0;
   if (planet->body->orbit) {
@@ -79,7 +79,8 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
           planet->host_star->body->position.y * METERS_TO_RENDER_UNITS,
           planet->host_star->body->position.z * METERS_TO_RENDER_UNITS);
     }
-    draw_orbit_ellipse(render_state, encoder, buf, planet->orbit_vertex_count, host_pos);
+    draw_orbit_ellipse(render_state, encoder, buf, planet->orbit_vertex_count,
+                       host_pos);
   }
 
   simd_float4 color = get_planet_color(planet->body->planet_class);
@@ -108,10 +109,10 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
     abs_z += planet->host_star->body->position.z;
   }
 
-  simd_float3 body_pos = simd_make_float3(
-      (float)(abs_x * METERS_TO_RENDER_UNITS),
-      (float)(abs_y * METERS_TO_RENDER_UNITS),
-      (float)(abs_z * METERS_TO_RENDER_UNITS));
+  simd_float3 body_pos =
+      simd_make_float3((float)(abs_x * METERS_TO_RENDER_UNITS),
+                       (float)(abs_y * METERS_TO_RENDER_UNITS),
+                       (float)(abs_z * METERS_TO_RENDER_UNITS));
 
   float dist = simd_distance(cam_pos, body_pos);
   float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility
@@ -152,7 +153,7 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
 }
 
 MTLPlanetGraphicsClass *MTLPlanetGraphics_Create(CelestialBody_Planet *body) {
-  MTLPlanetGraphicsClass *planet = malloc(sizeof(MTLPlanetGraphicsClass));
+  MTLPlanetGraphicsClass *planet = calloc(1, sizeof(MTLPlanetGraphicsClass));
   if (!planet) {
     LOG_ERROR(
         "Failed to allocate memory for planet graphics for planet: %s (%s)",
@@ -198,7 +199,7 @@ void init_celestial_body_planets(RenderState *render_state) {
   MTLPlanetGraphicsClass *mtl_saturn = MTLPlanetGraphics_Create(&SATURN);
   MTLPlanetGraphicsClass *mtl_uranus = MTLPlanetGraphics_Create(&URANUS);
   MTLPlanetGraphicsClass *mtl_neptune = MTLPlanetGraphics_Create(&NEPTUNE);
-  
+
   DynamicArray_push(planets, &mtl_mercury);
   DynamicArray_push(planets, &mtl_venus);
   DynamicArray_push(planets, &mtl_earth);
@@ -216,5 +217,20 @@ void init_celestial_body_planets(RenderState *render_state) {
     LOG_DEBUG("Registered planet (%lu): %s (%s)", i,
               ((CelestialBody_Planet *)planet->body)->name,
               ((CelestialBody_Planet *)planet->body)->body_id);
+  }
+}
+
+void load_celestial_body_planets_from_file(RenderState *render_state,
+                                           LoadedSimulationBodies *bodies) {
+  DynamicArray *planets = RenderState_GetPlanets(render_state);
+
+  for (size_t i = 0; i < bodies->num_planets; i++) {
+    CelestialBody_Planet *planet = &bodies->planets[i];
+    MTLPlanetGraphicsClass *mtl_planet = MTLPlanetGraphics_Create(planet);
+    MTLPlanetGraphicsClass_init(mtl_planet, render_state);
+    DynamicArray_push(planets, &mtl_planet);
+    LOG_DEBUG("Registered planet (%lu): %s (%s)", i,
+              ((CelestialBody_Planet *)mtl_planet->body)->name,
+              ((CelestialBody_Planet *)mtl_planet->body)->body_id);
   }
 }

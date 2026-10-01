@@ -34,14 +34,20 @@ void cli_parse_args(int argc, char **args) {
   }
 }
 
+void register_cli_arg(const CLIArg *arg) {
+  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)arg);
+}
+
 void cli_register_flags(void) {
   DynamicArray_init(&REGISTERED_CLI_FLAGS, sizeof(CLIArg));
 
-  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_HELP_FLAG);
-  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_MACOS_FLAG);
-  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_VULKAN_FLAG);
-  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_SIM_DATE_FLAG);
-  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_TIME_SCALE_FLAG);
-  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_SHOW_FPS_FLAG);
-  DynamicArray_push(&REGISTERED_CLI_FLAGS, (void *)&CLI_ENABLE_DEBUG_FLAG);
+  register_cli_arg(&CLI_HELP_FLAG);
+  register_cli_arg(&CLI_MACOS_FLAG);
+  register_cli_arg(&CLI_VULKAN_FLAG);
+  register_cli_arg(&CLI_SIM_DATE_FLAG);
+  register_cli_arg(&CLI_TIME_SCALE_FLAG);
+  register_cli_arg(&CLI_SHOW_FPS_FLAG);
+  register_cli_arg(&CLI_ENABLE_DEBUG_FLAG);
+  register_cli_arg(&CLI_DATA_FILE_FLAG);
+  // register_cli_arg(&CLI_SAVE_STATE_FLAG);
 }
