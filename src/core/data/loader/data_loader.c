@@ -7,6 +7,10 @@ DynamicArray *data_loader_get_registered_loaders(void) {
   return &REGISTERED_LOADERS;
 }
 
+const char *get_file_ext(const char *filename) {
+  return strrchr(filename, '.');
+}
+
 const DataLoader *data_loader_get_by_ext(const char *ext) {
   int num_loaders = DynamicArray_length(&REGISTERED_LOADERS);
   for (int i = 0; i < num_loaders; i++) {

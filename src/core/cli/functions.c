@@ -49,5 +49,5 @@ void cli_register_flags(void) {
   register_cli_arg(&CLI_SHOW_FPS_FLAG);
   register_cli_arg(&CLI_ENABLE_DEBUG_FLAG);
   register_cli_arg(&CLI_DATA_FILE_FLAG);
-  // register_cli_arg(&CLI_SAVE_STATE_FLAG);
+  register_cli_arg(&CLI_SAVE_STATE_FLAG);
 }

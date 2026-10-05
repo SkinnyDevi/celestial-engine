@@ -6,6 +6,7 @@
 #import <mach/mach_time.h>
 
 #import "core/cli/functions.h"
+#import "core/cli/instance_data.h"
 #import "core/data/dyn_array.h"
 #import "core/data/math.h"
 #import "core/data/raycast.h"

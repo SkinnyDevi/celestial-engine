@@ -3,6 +3,18 @@
     "title": "Celestial Body Simulation Data",
     "type": "object",
     "properties": {
+        "sim_date": {
+            "type": "object",
+            "properties": {
+                "year": { "type": "integer" },
+                "month": { "type": "integer" },
+                "day": { "type": "integer" },
+                "hour": { "type": "integer" },
+                "minute": { "type": "integer" },
+                "second": { "type": "integer" }
+            },
+            "required": ["year", "month", "day", "hour", "minute", "second"]
+        },
         "orbits": {
             "type": "array",
             "items": {

@@ -7,12 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *get_file_ext(const char *filename) {
-  return strrchr(filename, '.');
-}
-
 void cli_flag_load_data_file(int argc, char **argv) {
-  int arg_idx = cli_index_of_arg("--data-file", argc, argv);
+  int arg_idx = cli_index_of_arg(CLI_DATA_FILE_FLAG.arg, argc, argv);
   const char *file_path = argv[arg_idx + 1];
 
   const char *ext = get_file_ext(file_path);
@@ -39,4 +35,11 @@ void cli_flag_load_data_file(int argc, char **argv) {
   _cli_arg_set_using_data_file(true);
   _cli_arg_set_data_file_path(file_path);
   _cli_arg_set_sim_bodies(bodies);
+
+  if (bodies->sim_date.has_set_date) {
+    CLIArgSimDate *sim_date = cli_get_sim_date();
+    sim_date->time = bodies->sim_date.time;
+    sim_date->has_set_date = true;
+    _cli_arg_set_sim_date(sim_date);
+  }
 }

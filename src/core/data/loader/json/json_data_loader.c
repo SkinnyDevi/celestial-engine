@@ -268,6 +268,21 @@ static void parse_moons(cJSON *root, LoadedSimulationBodies *bodies) {
   }
 }
 
+static void parse_sim_date(cJSON *root, LoadedSimulationBodies *bodies) {
+  cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "sim_date");
+  if (cJSON_IsObject(item)) {
+    bodies->sim_date.time.tm_year = get_int(item, "year", 2000) - 1900;
+    bodies->sim_date.time.tm_mon = get_int(item, "month", 1) - 1;
+    bodies->sim_date.time.tm_mday = get_int(item, "day", 1);
+    bodies->sim_date.time.tm_hour = get_int(item, "hour", 0);
+    bodies->sim_date.time.tm_min = get_int(item, "minute", 0);
+    bodies->sim_date.time.tm_sec = get_int(item, "second", 0);
+    bodies->sim_date.has_set_date = true;
+  } else {
+    bodies->sim_date.has_set_date = false;
+  }
+}
+
 LoadedSimulationBodies *json_load(const char *filename) {
   char *json_string = read_file_to_string(filename);
   if (!json_string)
@@ -285,6 +300,7 @@ LoadedSimulationBodies *json_load(const char *filename) {
   }
 
   // Parse in dependency order
+  parse_sim_date(root, bodies);
   parse_orbits(root, bodies);
   parse_stars(root, bodies);
   parse_planets(root, bodies);
@@ -520,11 +536,27 @@ void json_save_moons(cJSON *root, const LoadedSimulationBodies *bodies) {
   cJSON_AddItemToObject(root, "moons", moons_arr);
 }
 
+void json_save_sim_date(cJSON *root, const LoadedSimulationBodies *bodies) {
+  if (!bodies->sim_date.has_set_date)
+    return;
+
+  cJSON *sim_date_obj = cJSON_CreateObject();
+  cJSON_AddNumberToObject(sim_date_obj, "year", bodies->sim_date.time.tm_year + 1900);
+  cJSON_AddNumberToObject(sim_date_obj, "month", bodies->sim_date.time.tm_mon + 1);
+  cJSON_AddNumberToObject(sim_date_obj, "day", bodies->sim_date.time.tm_mday);
+  cJSON_AddNumberToObject(sim_date_obj, "hour", bodies->sim_date.time.tm_hour);
+  cJSON_AddNumberToObject(sim_date_obj, "minute", bodies->sim_date.time.tm_min);
+  cJSON_AddNumberToObject(sim_date_obj, "second", bodies->sim_date.time.tm_sec);
+
+  cJSON_AddItemToObject(root, "sim_date", sim_date_obj);
+}
+
 bool json_save(const char *filename, const LoadedSimulationBodies *bodies) {
   if (!bodies)
     return false;
 
   cJSON *root = cJSON_CreateObject();
+  json_save_sim_date(root, bodies);
   json_save_orbits(root, bodies);
   json_save_stars(root, bodies);
   json_save_planets(root, bodies);

@@ -5,6 +5,8 @@
 #include "core/renderer/camera/camera.h"
 #include "core/space/astro_time.h"
 
+#include "macos/render/renderer.h"
+
 #include <simd/simd.h>
 #include <stdbool.h>
 
@@ -83,5 +85,7 @@ void RenderState_SetCameraDebugOverlay(RenderState *state,
 void RenderState_SetFPSCounterOverlay(RenderState *state,
                                       DebugOverlay *overlay);
 void RenderState_SetTimeOverlay(RenderState *state, DebugOverlay *overlay);
+
+void RenderHandler_SaveStateToInstanceData(RendererHandle handler);
 
 #endif

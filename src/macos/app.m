@@ -3,8 +3,11 @@
 #import <stdio.h>
 #import <stdlib.h>
 
+#import "core/cli/args/cli_flag.h"
+#import "core/cli/instance_data.h"
 #import "core/data/constants.h"
 #import "core/log/log.h"
+
 #import "macos/menu/menu.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/renderer.h"
@@ -24,6 +27,14 @@ static RendererHandle handler;
     item.state = NSControlStateValueOn;
   }
   toggle_grid_visibility(handler);
+}
+
+- (void)applicationWillTerminate:(NSNotification *)notification {
+  LOG_INFO("Application will terminate. Running cleanup / save-state...", NULL);
+  if (cli_wants_save_state()) {
+    RenderHandler_SaveStateToInstanceData(handler);
+    exec_flag_save_state();
+  }
 }
 
 @end

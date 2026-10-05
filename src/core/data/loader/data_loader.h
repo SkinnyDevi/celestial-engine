@@ -3,6 +3,8 @@
 
 #include "core/data/dyn_array.h"
 
+#include "core/cli/args/cli_flag.h"
+
 #include "core/space/moon.h"
 #include "core/space/orbit.h"
 #include "core/space/planet.h"
@@ -12,6 +14,7 @@
 #include <stddef.h>
 
 typedef struct {
+  CLIArgSimDate sim_date;
   size_t num_orbits;
   CelestialBody_Orbit *orbits;
   size_t num_planets;
@@ -28,6 +31,7 @@ typedef struct {
   bool (*save)(const char *filename, const LoadedSimulationBodies *bodies);
 } DataLoader;
 
+const char *get_file_ext(const char *filename);
 DynamicArray *data_loader_get_registered_loaders(void);
 const DataLoader *data_loader_get_by_ext(const char *ext);
 void data_loader_register_loaders(void);

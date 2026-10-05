@@ -1,13 +1,20 @@
 #import "render_state.h"
+#import "core/cli/instance_data.h"
+#include "macos/render/space/star.h"
+
+#import "core/data/dyn_array.h"
+#import "core/data/loader/data_loader.h"
+#import "core/space/astro_time.h"
+#import "core/space/star.h"
+
+#import "macos/debug/overlay.h"
+#import "macos/event/input_registry.h"
+#import "macos/render/space/moon.h"
+#import "macos/render/space/planet.h"
+
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
-
-#import "core/data/dyn_array.h"
-#include "core/space/astro_time.h"
-#include "core/space/star.h"
-#import "macos/debug/overlay.h"
-#import "macos/event/input_registry.h"
 
 typedef struct {
   NSWindow *window;
@@ -411,4 +418,156 @@ void *RenderState_GetFollowedBody(const RenderState *state) {
   if (!state)
     return NULL;
   return ((const RenderStateImpl *)state)->followed_body;
+}
+
+void renderer_save_orbits_state(RenderState *state, DynamicArray *planets,
+                                DynamicArray *moons, DynamicArray *orbits_arr,
+                                LoadedSimulationBodies *bodies,
+                                void (^add_orbit)(CelestialBody_Orbit *)) {
+  for (size_t i = 0; i < DynamicArray_length(planets); i++) {
+    MTLPlanetGraphicsClass *p;
+    DynamicArray_get(planets, i, &p);
+    add_orbit(p->body->orbit);
+  }
+
+  for (size_t i = 0; i < DynamicArray_length(moons); i++) {
+    MTLMoonGraphicsClass *m;
+    DynamicArray_get(moons, i, &m);
+    add_orbit(m->body->orbit);
+  }
+
+  bodies->num_orbits = DynamicArray_length(orbits_arr);
+  if (bodies->num_orbits > 0) {
+    bodies->orbits = calloc(bodies->num_orbits, sizeof(CelestialBody_Orbit));
+    for (size_t i = 0; i < bodies->num_orbits; i++) {
+      CelestialBody_Orbit *o;
+      DynamicArray_get(orbits_arr, i, &o);
+      bodies->orbits[i] = *o;
+    }
+  }
+}
+
+void renderer_save_stars_state(RenderState *state,
+                               LoadedSimulationBodies *bodies,
+                               DynamicArray *stars) {
+  bodies->num_stars = DynamicArray_length(stars);
+  if (bodies->num_stars > 0) {
+    bodies->stars = calloc(bodies->num_stars, sizeof(CelestialBody_Star));
+    for (size_t i = 0; i < bodies->num_stars; i++) {
+      MTLStarGraphicsClass *s;
+      DynamicArray_get(stars, i, &s);
+      bodies->stars[i] = *(s->body);
+    }
+  }
+}
+
+void renderer_save_planets_state(RenderState *state,
+                                 LoadedSimulationBodies *bodies,
+                                 DynamicArray *orbits_arr,
+                                 DynamicArray *planets) {
+  bodies->num_planets = DynamicArray_length(planets);
+  if (bodies->num_planets > 0) {
+    bodies->planets = calloc(bodies->num_planets, sizeof(CelestialBody_Planet));
+    for (size_t i = 0; i < bodies->num_planets; i++) {
+      MTLPlanetGraphicsClass *p;
+      DynamicArray_get(planets, i, &p);
+      bodies->planets[i] = *(p->body);
+
+      if (p->body->orbit) {
+        for (size_t j = 0; j < DynamicArray_length(orbits_arr); j++) {
+          CelestialBody_Orbit *o;
+          DynamicArray_get(orbits_arr, j, &o);
+
+          if (o == p->body->orbit) {
+            bodies->planets[i].orbit = &bodies->orbits[j];
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+void renderer_save_moons_state(RenderState *state,
+                               LoadedSimulationBodies *bodies,
+                               DynamicArray *orbits_arr, DynamicArray *moons) {
+  bodies->num_moons = DynamicArray_length(moons);
+  if (bodies->num_moons > 0) {
+    bodies->moons = calloc(bodies->num_moons, sizeof(CelestialBody_Moon));
+    for (size_t i = 0; i < bodies->num_moons; i++) {
+      MTLMoonGraphicsClass *m;
+      DynamicArray_get(moons, i, &m);
+      bodies->moons[i] = *(m->body);
+
+      if (m->body->orbit) {
+        for (size_t j = 0; j < DynamicArray_length(orbits_arr); j++) {
+          CelestialBody_Orbit *o;
+          DynamicArray_get(orbits_arr, j, &o);
+
+          if (o == m->body->orbit) {
+            bodies->moons[i].orbit = &bodies->orbits[j];
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+void renderer_save_astro_time_state(RenderState *state,
+                                    LoadedSimulationBodies *bodies) {
+  AstronomicalTime *sim_time = RenderState_GetSimTime(state);
+  int year, month, day, hour, minute, second;
+  jd_to_gregorian(sim_time->current_jd, &year, &month, &day, &hour, &minute,
+                  &second);
+
+  bodies->sim_date.time.tm_year = year - 1900;
+  bodies->sim_date.time.tm_mon = month - 1;
+  bodies->sim_date.time.tm_mday = day;
+  bodies->sim_date.time.tm_hour = hour;
+  bodies->sim_date.time.tm_min = minute;
+  bodies->sim_date.time.tm_sec = second;
+  bodies->sim_date.has_set_date = true;
+}
+
+void RenderHandler_SaveStateToInstanceData(RendererHandle handle) {
+  RenderState *state = (RenderState *)handle;
+  if (!state)
+    return;
+
+  DynamicArray *stars = RenderState_GetStars(state);
+  DynamicArray *planets = RenderState_GetPlanets(state);
+  DynamicArray *moons = RenderState_GetMoons(state);
+
+  LoadedSimulationBodies bodies = {0};
+  renderer_save_astro_time_state(state, &bodies);
+
+  __block DynamicArray orbits_arr;
+  DynamicArray_init(&orbits_arr, sizeof(CelestialBody_Orbit *));
+
+  // Add all unique orbits
+  void (^add_orbit)(CelestialBody_Orbit *) = ^(CelestialBody_Orbit *orbit) {
+    if (!orbit)
+      return;
+
+    for (size_t i = 0; i < DynamicArray_length(&orbits_arr); i++) {
+      CelestialBody_Orbit *o;
+      DynamicArray_get(&orbits_arr, i, &o);
+
+      if (o == orbit)
+        return;
+    }
+
+    DynamicArray_push(&orbits_arr, &orbit);
+  };
+
+  renderer_save_orbits_state(state, planets, moons, &orbits_arr, &bodies,
+                             add_orbit);
+  renderer_save_stars_state(state, &bodies, stars);
+  renderer_save_planets_state(state, &bodies, &orbits_arr, planets);
+  renderer_save_moons_state(state, &bodies, &orbits_arr, moons);
+
+  DynamicArray_free(&orbits_arr);
+
+  _cli_arg_set_sim_bodies(&bodies);
 }

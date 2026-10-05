@@ -25,6 +25,12 @@ const CLIArg CLI_DATA_FILE_FLAG = {.arg = "--data-file",
                                    .description =
                                        "Load simulation data from a file.",
                                    .category = CLI_HELP_CATEGORY_SIMULATION};
+const CLIArg CLI_SAVE_STATE_FLAG = {
+    .arg = "--save-state",
+    .func = cli_flag_save_state,
+    .description = "Save the current state of all celestial "
+                   "bodies to a data file format of choice.",
+    .category = CLI_HELP_CATEGORY_SIMULATION};
 
 const CLIArg CLI_ENABLE_DEBUG_FLAG = {.arg = "--debug",
                                       .func = cli_flag_enable_debug,

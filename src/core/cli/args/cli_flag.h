@@ -24,6 +24,7 @@ typedef struct {
   bool has_set_time_scale;
 } CLIArgSimDate;
 
+// Flags run on app start
 void cli_flag_macos(int argc, char **args);
 void cli_flag_vulkan(int argc, char **args);
 void cli_flag_help(int argc, char **args);
@@ -32,6 +33,10 @@ void cli_flag_time_scale(int argc, char **args);
 void cli_flag_show_fps(int argc, char **args);
 void cli_flag_enable_debug(int argc, char **args);
 void cli_flag_load_data_file(int argc, char **argv);
+void cli_flag_save_state(int argc, char **argv);
+
+// Flags that needed deferred runs (mid-app, on-quit...)
+void exec_flag_save_state(void);
 
 #ifndef CLI_REGISTRY
 #define CLI_REGISTRY
@@ -41,6 +46,7 @@ extern const CLIArg CLI_HELP_FLAG;
 extern const CLIArg CLI_SIM_DATE_FLAG;
 extern const CLIArg CLI_TIME_SCALE_FLAG;
 extern const CLIArg CLI_DATA_FILE_FLAG;
+extern const CLIArg CLI_SAVE_STATE_FLAG;
 extern const CLIArg CLI_SHOW_FPS_FLAG;
 extern const CLIArg CLI_ENABLE_DEBUG_FLAG;
 #endif
