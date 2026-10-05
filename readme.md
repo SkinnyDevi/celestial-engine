@@ -14,27 +14,26 @@ A celestial mechanics simulation and 3D visualization engine written in C and Ob
 - macOS (Metal API support required)
 - CMake `3.23` or newer
 - Apple Clang (Command Line Tools)
+- [Criterion](https://github.com/Snaipe/Criterion) (Optional, required for running tests)
 
-## Building the Project
+## Quick Start (Makefile)
 
-The project uses CMake to configure and build the executable. The build process automatically fetches external dependencies such as `cJSON`.
+The project includes a `Makefile` with convenient shortcuts for building, running, and testing. It uses CMake under the hood to configure the project and fetch dependencies like `cJSON`.
 
-```bash
-# Create a build directory
-mkdir -p build && cd build
+- **`make build`**: Configures and compiles the project.
+- **`make run`**: Builds the project and runs the `celengine` executable.
+- **`make test`**: Builds the project and runs the included CTest suite.
+- **`make clean`**: Removes the `build` directory.
 
-# Configure the project
-cmake ../src
-
-# Build the executable
-cmake --build .
-```
-
-This will produce the `celengine` executable inside the `build` directory.
+Alternatively, you can manually build using CMake: `cmake -S src -B build && cmake --build build`
 
 ## Usage
 
+You can run the engine directly from the build directory or via `make run`. To pass command-line arguments using `make`, use the `ARGS` variable:
+
 ```bash
+make run ARGS="[OPTIONS]"
+# or
 ./build/celengine [OPTIONS]
 ```
 
@@ -71,3 +70,22 @@ Load a local JSON dataset, speed up time significantly, show the FPS counter, en
 
 Currently supported formats:
 - `.json`: Standard JSON schema for describing stars, planets, and moons along with their orbital properties.
+
+## Testing
+
+The project uses [Criterion](https://github.com/Snaipe/Criterion) for unit testing and CTest as the test runner. 
+To run the test suite locally, ensure Criterion is installed (e.g., via `brew install criterion` on macOS), then run:
+
+```bash
+make test
+```
+
+The test suite validates:
+- Core Math & Raycasting routines
+- Astronomical Time conversions
+- Dynamic Array data structures
+- JSON Data Loader capabilities and Schema validation
+- CLI Argument Parsing and configuration states
+
+**Continuous Integration (CI)**
+A GitHub Actions workflow (`.github/workflows/tests.yml`) is included to automatically build the engine and run the full test suite on every push to the `master` branch.

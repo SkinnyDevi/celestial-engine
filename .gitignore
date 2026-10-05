@@ -45,3 +45,4 @@ DerivedData/
 .idea/
 
 Package.resolved
+.venv/

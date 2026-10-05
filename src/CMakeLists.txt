@@ -104,3 +104,7 @@ set_source_files_properties(
     PROPERTIES
     COMPILE_OPTIONS "-fobjc-arc"
 )
+
+# Enable testing and include the tests directory
+enable_testing()
+add_subdirectory(tests)
