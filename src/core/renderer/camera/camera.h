@@ -4,7 +4,7 @@
 #include <simd/simd.h>
 #include <stdbool.h>
 
-#define CAMERA_FAR_CLIPPING_PLANE 100000.0f
+#define CAMERA_FAR_CLIPPING_PLANE 1e7f
 #define CAMERA_NEAR_CLIPPING_PLANE 0.01f
 
 typedef struct {
@@ -32,5 +32,7 @@ void camera_set_position(Camera *camera, simd_float3 position);
 
 void camera_start_transition_to(Camera *camera, simd_float3 target, float zoom);
 void camera_update_transition(Camera *camera, float dt);
+void camera_get_clipping_planes(const Camera *camera, float *near_out,
+                                float *far_out);
 
 #endif

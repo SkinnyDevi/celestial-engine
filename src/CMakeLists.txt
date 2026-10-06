@@ -39,6 +39,7 @@ add_executable(celengine
   macos/render/space/planet.m
   macos/render/space/moon.m
   macos/render/space/graphics.m
+  macos/render/scale_bar/scale_bar.m
   macos/shaders/shader_loader.m
   macos/event/input_registry.m
   macos/event/mouse.m
@@ -92,6 +93,7 @@ set_source_files_properties(
     macos/render/space/moon.m
     macos/render/shape/solid_sphere.m
     macos/render/shape/orbit_ellipse.m
+    macos/render/scale_bar/scale_bar.m
     macos/shaders/shader_loader.m
     macos/event/input_registry.m
     macos/event/mouse.m

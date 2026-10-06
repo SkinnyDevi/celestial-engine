@@ -27,6 +27,7 @@
 
 #import "macos/render/camera/camera.h"
 #import "macos/render/grid/displaced_mesh.h"
+#import "macos/render/scale_bar/scale_bar.h"
 #import "macos/render/space/graphics.h"
 #import "macos/render/space/moon.h"
 #import "macos/render/space/planet.h"
@@ -202,6 +203,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   create_render_pipeline(state);
   generate_debug_graphics(state);
   init_celestial_bodies(state);
+  create_scale_bar((__bridge void *)window);
 
   AstronomicalTime *sim_time = RenderState_GetSimTime(state);
   astro_time_from_cli_args(sim_time, cli_get_sim_date());
@@ -321,6 +323,9 @@ void draw_frame(RendererHandle handle) {
     draw_grid(state, (__bridge void *)encoder);
     draw_debug_graphics(state, (__bridge void *)(encoder));
     draw_celestial_bodies(state, encoder);
+    update_scale_bar(RenderState_GetCamera(state),
+                     metal_layer.drawableSize.width,
+                     metal_layer.drawableSize.height);
 
     [encoder endEncoding];
 

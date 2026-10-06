@@ -13,12 +13,6 @@
 #import <QuartzCore/QuartzCore.h>
 #import <math.h>
 
-static const float kOrbitSensitivity = 0.007f;
-static const float kMaxElevation = M_PI / 2.0f; // 90 degree clamp
-static const float kZoomFactor = 1.05f;
-static const float kMinzoom = 0.01f;
-static const float kMaxzoom = 10000.0f;
-
 void camera_init(Camera *camera) {
   if (!camera) {
     return;
@@ -209,6 +203,17 @@ void camera_update_transition(Camera *camera, float dt) {
       camera->start_zoom + (camera->target_zoom - camera->start_zoom) * t;
 }
 
+void camera_get_clipping_planes(const Camera *camera, float *near_out,
+                                float *far_out) {
+  if (camera) {
+    *near_out = fmaxf(CAMERA_NEAR_CLIPPING_PLANE, camera->zoom * 0.001f);
+    *far_out = fmaxf(CAMERA_FAR_CLIPPING_PLANE, camera->zoom * 1000.0f);
+  } else {
+    *near_out = CAMERA_NEAR_CLIPPING_PLANE;
+    *far_out = CAMERA_FAR_CLIPPING_PLANE;
+  }
+}
+
 void update_camera_uniforms(RenderState *state) {
   if (!state || !RenderState_GetUniformBuffer(state))
     return;
@@ -221,9 +226,10 @@ void update_camera_uniforms(RenderState *state) {
                  MAX(metal_layer.drawableSize.height, 1.0f);
 
   simd_float4x4 view = camera_view_matrix(camera);
-  simd_float4x4 projection =
-      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect,
-                         CAMERA_NEAR_CLIPPING_PLANE, CAMERA_FAR_CLIPPING_PLANE);
+  float near_plane, far_plane;
+  camera_get_clipping_planes(camera, &near_plane, &far_plane);
+  simd_float4x4 projection = camera_perspective(70.0f * (float)M_PI / 180.0f,
+                                                aspect, near_plane, far_plane);
 
   DisplacedMeshUniforms uniforms;
   uniforms.mvpMatrix = simd_mul(projection, view);

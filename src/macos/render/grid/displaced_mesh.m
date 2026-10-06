@@ -3,6 +3,7 @@
 #import "core/log/log.h"
 
 #import "macos/debug/fps_counter.h"
+#import "macos/render/camera/camera.h"
 #import "macos/render/state/render_state.h"
 
 #import <AppKit/AppKit.h>
@@ -55,52 +56,24 @@ void init_grid_mesh(RenderState *state, int grid_size, float spacing) {
 }
 
 float dynamic_grid_spacing(float zoom) {
-  float spacing_factor;
+  if (zoom <= 0.0f)
+    return 1.0f;
 
-  if (zoom < 5.0f)
-    spacing_factor = 0.05f;
-  else if (zoom < 10.0f)
-    spacing_factor = 0.1f;
-  else if (zoom < 30.0f)
-    spacing_factor = 0.2f;
-  else if (zoom < 60.0f)
-    spacing_factor = 0.5f;
-  else if (zoom < 100.0f)
-    spacing_factor = 1.0f;
-  else if (zoom < 150.0f)
-    spacing_factor = 2.0f;
-  else if (zoom < 500.0f)
-    spacing_factor = 5.0f;
-  else if (zoom < 1000.0f)
-    spacing_factor = 10.0f;
+  float exponent = floorf(log10f(zoom));
+  float power_of_ten = powf(10.0f, exponent);
+
+  float fraction = zoom / power_of_ten; // [1.0, 10.0)
+
+  // Adjusts square density in the grid
+  float base_spacing;
+  if (fraction < 2.0f)
+    base_spacing = 0.1f;
+  else if (fraction < 5.0f)
+    base_spacing = 0.2f;
   else
-    spacing_factor = 20.0f;
+    base_spacing = 0.5f;
 
-  return powf(2.0f, floorf(log10f(zoom * 2.0f))) * spacing_factor;
-}
-
-int dynamic_grid_subdivisions(float zoom) {
-  float spacing = dynamic_grid_spacing(zoom);
-  float grid_factor;
-
-  if (zoom < 5.0f)
-    grid_factor = 20.0f;
-  else if (zoom < 20.0f)
-    grid_factor = 10.0f;
-  else if (zoom < 50.0f)
-    grid_factor = 5.0f;
-  else if (zoom < 100.0f)
-    grid_factor = 3.0f;
-  else if (zoom < 200.0f)
-    grid_factor = 2.0f;
-  else if (zoom < 500.0f)
-    grid_factor = 1.5f;
-  else if (zoom < 1000.0f)
-    grid_factor = 1.0f;
-  else
-    grid_factor = 0.5f;
-
-  return 20 + (int)((zoom / spacing) * grid_factor);
+  return base_spacing * power_of_ten;
 }
 
 void toggle_grid_visibility(RenderState *state) {
@@ -110,13 +83,12 @@ void toggle_grid_visibility(RenderState *state) {
   RenderState_SetGridVisible(state, !current);
 }
 
+static bool grid_initialized = false;
 void update_grid_scale(RenderState *state) {
-  Camera *camera = RenderState_GetCamera(state);
-
-  float spacing = dynamic_grid_spacing(camera->zoom);
-  int subdivisions = dynamic_grid_subdivisions(camera->zoom);
-  int num_vertices = (subdivisions * 2 + 1) * 4;
-  init_grid_mesh(state, subdivisions, spacing);
+  if (!grid_initialized) {
+    init_grid_mesh(state, 100, 1.0f);
+    grid_initialized = true;
+  }
 }
 
 void draw_grid(RenderState *state, void *encoder_ptr) {
@@ -134,13 +106,30 @@ void draw_grid(RenderState *state, void *encoder_ptr) {
   Camera *camera = RenderState_GetCamera(state);
   float spacing = dynamic_grid_spacing(camera->zoom);
 
-  simd_float3 translation = camera->center;
+  float snapped_x = floorf(camera->center.x / spacing) * spacing;
+  float snapped_z = floorf(camera->center.z / spacing) * spacing;
+
+  Camera temp_cam = *camera;
+  temp_cam.center.x = camera->center.x - snapped_x;
+  temp_cam.center.y = camera->center.y;
+  temp_cam.center.z = camera->center.z - snapped_z;
+
+  simd_float4x4 relative_view = camera_view_matrix(&temp_cam);
+
+  CAMetalLayer *metal_layer =
+      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
+  float aspect = metal_layer.drawableSize.width /
+                 MAX(metal_layer.drawableSize.height, 1.0f);
+  float near_plane, far_plane;
+  camera_get_clipping_planes(camera, &near_plane, &far_plane);
+  simd_float4x4 projection = camera_perspective(70.0f * (float)M_PI / 180.0f,
+                                                aspect, near_plane, far_plane);
 
   DisplacedMeshUniforms uniforms;
   memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
 
-  simd_float4x4 model = make_translation_matrix(translation);
-  uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
+  simd_float4x4 scale = make_scale_matrix(spacing);
+  uniforms.mvpMatrix = simd_mul(projection, simd_mul(relative_view, scale));
 
   [encoder setVertexBuffer:vertex_buffer offset:0 atIndex:0];
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
