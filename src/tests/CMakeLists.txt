@@ -16,6 +16,12 @@ if (CRITERION_LIBRARY AND CRITERION_INCLUDE_DIR)
     target_link_libraries(test_astro_time PRIVATE ${CRITERION_LIBRARY})
     add_test(NAME test_astro_time COMMAND test_astro_time)
 
+    # test_orbit
+    add_executable(test_orbit test_orbit.c ../core/space/orbit.c)
+    target_include_directories(test_orbit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CRITERION_INCLUDE_DIR})
+    target_link_libraries(test_orbit PRIVATE ${CRITERION_LIBRARY})
+    add_test(NAME test_orbit COMMAND test_orbit)
+
     # test_raycast
     add_executable(test_raycast test_raycast.c ../core/data/raycast.c)
     target_include_directories(test_raycast PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CRITERION_INCLUDE_DIR})
