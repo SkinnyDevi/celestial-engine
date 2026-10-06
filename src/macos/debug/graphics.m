@@ -329,8 +329,10 @@ void draw_debug_graphics(RenderState *state, void *encoder_void) {
   float aspect = metal_layer.drawableSize.width /
                  MAX(metal_layer.drawableSize.height, 1.0f);
   simd_float4x4 view = camera_view_matrix(cam);
+  float near_plane, far_plane;
+  camera_get_clipping_planes(cam, &near_plane, &far_plane);
   simd_float4x4 proj =
-      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, 0.1f, 10000.0f);
+      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, near_plane, far_plane);
   simd_float4x4 vp = simd_mul(proj, view);
 
   update_camera_debug_properties(cam);

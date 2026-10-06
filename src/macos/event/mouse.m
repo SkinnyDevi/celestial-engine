@@ -34,7 +34,8 @@ void event_left_mouse_drag(RenderState *state, MousePoint current,
 
 void check_intersect_stars(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
-                           void (^check_intersect)(simd_float3, float, void *, FollowType)) {
+                           void (^check_intersect)(simd_float3, float, float,
+                                                   void *, FollowType)) {
   DynamicArray *stars = RenderState_GetStars(state);
   for (size_t i = 0; i < DynamicArray_length(stars); i++) {
     MTLStarGraphicsClass *star;
@@ -46,13 +47,15 @@ void check_intersect_stars(RenderState *state, MousePoint mouse,
     float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = simd_distance(ray_origin, pos);
     float click_radius = dist * 0.02f; // Enlarge hitbox for easier clicking
-    check_intersect(pos, fmaxf(base_radius, click_radius), star, FOLLOW_STAR);
+    check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), star,
+                    FOLLOW_STAR);
   }
 }
 
 void check_intersect_planets(RenderState *state, MousePoint mouse,
                              simd_float3 ray_origin,
-                             void (^check_intersect)(simd_float3, float, void *, FollowType)) {
+                             void (^check_intersect)(simd_float3, float, float,
+                                                     void *, FollowType)) {
   DynamicArray *planets = RenderState_GetPlanets(state);
   for (size_t i = 0; i < DynamicArray_length(planets); i++) {
     MTLPlanetGraphicsClass *planet;
@@ -71,13 +74,15 @@ void check_intersect_planets(RenderState *state, MousePoint mouse,
     float base_radius = planet->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = simd_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
-    check_intersect(pos, fmaxf(base_radius, click_radius), planet, FOLLOW_PLANET);
+    check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), planet,
+                    FOLLOW_PLANET);
   }
 }
 
 void check_intersect_moons(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
-                           void (^check_intersect)(simd_float3, float, void *, FollowType)) {
+                           void (^check_intersect)(simd_float3, float, float,
+                                                   void *, FollowType)) {
   DynamicArray *moons = RenderState_GetMoons(state);
   for (size_t i = 0; i < DynamicArray_length(moons); i++) {
     MTLMoonGraphicsClass *moon;
@@ -101,7 +106,8 @@ void check_intersect_moons(RenderState *state, MousePoint mouse,
     float base_radius = moon->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = simd_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
-    check_intersect(pos, fmaxf(base_radius, click_radius), moon, FOLLOW_MOON);
+    check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), moon,
+                    FOLLOW_MOON);
   }
 }
 
@@ -111,43 +117,60 @@ void event_mouse_double_click(RenderState *state, MousePoint mouse) {
   CGSize size = metal_layer.bounds.size;
 
   Camera *camera = RenderState_GetCamera(state);
-  float aspect = size.width / MAX(size.height, 1.0f);
   simd_float4x4 view = camera_view_matrix(camera);
-  simd_float4x4 proj = camera_perspective(70.0f * (float)M_PI / 180.0f, aspect,
-                                          0.1f, CAMERA_FAR_CLIPPING_PLANE);
-  simd_float4x4 vp = simd_mul(proj, view);
-  simd_float4x4 vp_inv = simd_inverse(vp);
+  simd_float4x4 view_inv = simd_inverse(view);
 
   simd_float3 ray_origin = camera_orbit_position(camera);
   simd_float3 ray_dir = raycast_screen_to_world_dir(
-      mouse.x, mouse.y, size.width, size.height, vp_inv, ray_origin);
+      mouse.x, mouse.y, size.width, size.height, view_inv, 70.0f * (float)M_PI / 180.0f);
 
   // Block: check intersection with a body
+  __block float best_score = INFINITY;
   __block float best_t = -1.0f;
   __block simd_float3 best_center = {0};
-  __block float best_radius = 0;
+  __block float best_base_radius = 0;
   __block void *best_obj = NULL;
   __block FollowType best_type = FOLLOW_NONE;
-  void (^check_intersect)(simd_float3, float, void *, FollowType) =
-      ^(simd_float3 pos, float radius, void *obj, FollowType type) {
-        float t;
-        if (raycast_intersects_sphere(ray_origin, ray_dir, pos, radius, &t)) {
-          if (best_t < 0.0f || t < best_t) {
-            best_t = t;
-            best_center = pos;
-            best_radius = radius;
-            best_obj = obj;
-            best_type = type;
-          }
-        }
-      };
+  void (^check_intersect)(simd_float3, float, float, void *, FollowType) = ^(
+      simd_float3 pos, float base_radius, float hit_radius, void *obj,
+      FollowType type) {
+    float t;
+    if (!raycast_intersects_sphere(ray_origin, ray_dir, pos, hit_radius, &t))
+      return;
+
+    simd_float3 m = ray_origin - pos;
+    double ox = ray_origin.x, oy = ray_origin.y, oz = ray_origin.z;
+    double px = pos.x, py = pos.y, pz = pos.z;
+    double dx = ray_dir.x, dy = ray_dir.y, dz = ray_dir.z;
+    
+    double mx = ox - px;
+    double my = oy - py;
+    double mz = oz - pz;
+    
+    double b = mx * dx + my * dy + mz * dz;
+    double c = mx * mx + my * my + mz * mz;
+    double perp_dist_sq = fmax(0.0, c - b * b);
+
+    // Use normalized distances to enlarge the hitboxes
+    float score = (float)(perp_dist_sq / ((double)hit_radius * (double)hit_radius));
+    score += t * 1e-12f; // Evade objects behind the clicked object
+
+    if (score < best_score) {
+      best_score = score;
+      best_t = t;
+      best_center = pos;
+      best_base_radius = base_radius;
+      best_obj = obj;
+      best_type = type;
+    }
+  };
 
   check_intersect_stars(state, mouse, ray_origin, check_intersect);
   check_intersect_planets(state, mouse, ray_origin, check_intersect);
   check_intersect_moons(state, mouse, ray_origin, check_intersect);
 
   if (best_t >= 0.0f) {
-    float zoom = fmaxf(best_radius * 5.0f, 1.0f);
+    float zoom = fmaxf(best_base_radius * 5.0f, 1.0f);
     RenderState_SetFollowedBody(state, best_type, best_obj);
     camera_start_transition_to(camera, best_center, zoom);
   }
