@@ -14,9 +14,9 @@
 #import <math.h>
 
 void camera_init(Camera *camera) {
-  if (!camera) {
+  if (!camera)
     return;
-  }
+
   // Blender-style 3/4 elevated view: 45° azimuth, ~25° elevation
   camera->azimuth = 0.7854f;   // 45°
   camera->elevation = 0.4363f; // 25°
@@ -27,9 +27,8 @@ void camera_init(Camera *camera) {
 }
 
 simd_float3 camera_orbit_position(const Camera *camera) {
-  if (!camera) {
+  if (!camera)
     return simd_make_float3(0.0f, 0.0f, 0.0f);
-  }
 
   float ce = cosf(camera->elevation);
   float se = sinf(camera->elevation);
@@ -97,9 +96,9 @@ simd_float4x4 camera_perspective(float fovRadians, float aspect, float nearZ,
 }
 
 void camera_orbit_from_input(Camera *camera, float dx, float dy) {
-  if (!camera) {
+  if (!camera)
     return;
-  }
+
   camera->azimuth -= dx * kOrbitSensitivity;
   camera->elevation += dy * kOrbitSensitivity;
   camera->elevation =
@@ -107,9 +106,8 @@ void camera_orbit_from_input(Camera *camera, float dx, float dy) {
 }
 
 void camera_pan_from_input(Camera *camera, float dx, float dy) {
-  if (!camera) {
+  if (!camera)
     return;
-  }
 
   float ca = cosf(camera->azimuth);
   float sa = sinf(camera->azimuth);
@@ -127,31 +125,29 @@ void camera_pan_from_input(Camera *camera, float dx, float dy) {
 }
 
 void camera_zoom_from_input(Camera *camera, float scrollDelta) {
-  if (!camera) {
+  if (!camera)
     return;
-  }
-  if (scrollDelta > 0.0f) {
+
+  if (scrollDelta > 0.0f)
     camera->zoom /= powf(kZoomFactor, scrollDelta);
-  } else if (scrollDelta < 0.0f) {
+  else if (scrollDelta < 0.0f)
     camera->zoom *= powf(kZoomFactor, -scrollDelta);
-  }
+
   camera->zoom = fmaxf(kMinzoom, fminf(kMaxzoom, camera->zoom));
 }
 
 void camera_focus_on(Camera *camera, simd_float3 target, float zoom) {
-  if (!camera) {
+  if (!camera)
     return;
-  }
+
   camera->center = target;
-  if (zoom > 0.0f) {
+  if (zoom > 0.0f)
     camera->zoom = fmaxf(kMinzoom, zoom);
-  }
 }
 
 void camera_set_position(Camera *camera, simd_float3 position) {
-  if (!camera) {
+  if (!camera)
     return;
-  }
 
   simd_float3 offset = position - camera->center;
   float dist = simd_length(offset);
@@ -172,6 +168,7 @@ void camera_start_transition_to(Camera *camera, simd_float3 target,
                                 float zoom) {
   if (!camera)
     return;
+
   camera->start_center = camera->center;
   camera->target_center = target;
   camera->start_zoom = camera->zoom;
@@ -259,6 +256,7 @@ void camera_follow_planet(void *fobj, simd_float3 *body_pos_out) {
     ay += planet->host_star->body->position.y;
     az += planet->host_star->body->position.z;
   }
+
   *body_pos_out =
       simd_make_float3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
                        az * METERS_TO_RENDER_UNITS);
@@ -273,6 +271,7 @@ void camera_follow_moon(void *fobj, simd_float3 *body_pos_out) {
     ax += moon->host_planet->body->position.x;
     ay += moon->host_planet->body->position.y;
     az += moon->host_planet->body->position.z;
+
     if (moon->host_planet->host_star) {
       ax += moon->host_planet->host_star->body->position.x;
       ay += moon->host_planet->host_star->body->position.y;
@@ -284,29 +283,36 @@ void camera_follow_moon(void *fobj, simd_float3 *body_pos_out) {
                        az * METERS_TO_RENDER_UNITS);
 }
 
+bool camera_get_body_pos(FollowType type, void *fobj, simd_float3 *pos_out) {
+  if (!fobj || !pos_out)
+    return false;
+
+  switch (type) {
+  case FOLLOW_STAR:
+    camera_follow_star(fobj, pos_out);
+    return true;
+  case FOLLOW_PLANET:
+    camera_follow_planet(fobj, pos_out);
+    return true;
+  case FOLLOW_MOON:
+    camera_follow_moon(fobj, pos_out);
+    return true;
+  default: // FOLLOW_NONE
+    return false;
+  }
+}
+
 void camera_follow_body(RenderState *state) {
   FollowType ftype = RenderState_GetFollowedType(state);
   void *fobj = RenderState_GetFollowedBody(state);
   simd_float3 body_pos = {0};
 
-  switch (ftype) {
-  case FOLLOW_STAR:
-    camera_follow_star(fobj, &body_pos);
-    break;
-  case FOLLOW_PLANET:
-    camera_follow_planet(fobj, &body_pos);
-    break;
-  case FOLLOW_MOON:
-    camera_follow_moon(fobj, &body_pos);
-    break;
-  default: // FOLLOW_NONE
-    break;
-  }
+  if (!camera_get_body_pos(ftype, fobj, &body_pos))
+    return;
 
   Camera *cam = RenderState_GetCamera(state);
-  if (cam->is_transitioning) {
+  if (cam->is_transitioning)
     cam->target_center = body_pos;
-  } else {
+  else
     cam->center = body_pos;
-  }
 }

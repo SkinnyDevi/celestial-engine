@@ -1,6 +1,5 @@
 #import "render_state.h"
 #import "core/cli/instance_data.h"
-#include "macos/render/space/star.h"
 
 #import "core/data/dyn_array.h"
 #import "core/data/loader/data_loader.h"
@@ -11,6 +10,7 @@
 #import "macos/event/input_registry.h"
 #import "macos/render/space/moon.h"
 #import "macos/render/space/planet.h"
+#import "macos/render/space/star.h"
 
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
@@ -41,6 +41,8 @@ typedef struct {
   AstronomicalTime sim_time;
   FollowType followed_type;
   void *followed_body;
+  FollowType grid_followed_type;
+  void *grid_followed_body;
 } RenderStateImpl;
 
 RenderState *RenderState_Create(void) {
@@ -68,6 +70,8 @@ RenderState *RenderState_Create(void) {
   impl->sim_time = (AstronomicalTime){0, 0, 0};
   impl->followed_type = FOLLOW_NONE;
   impl->followed_body = NULL;
+  impl->grid_followed_type = FOLLOW_NONE;
+  impl->grid_followed_body = NULL;
   camera_init(&impl->camera);
 
   return (RenderState *)impl;
@@ -418,6 +422,35 @@ void *RenderState_GetFollowedBody(const RenderState *state) {
   if (!state)
     return NULL;
   return ((const RenderStateImpl *)state)->followed_body;
+}
+
+void RenderState_SetGridFollowedBody(RenderState *state, FollowType type,
+                                     void *body) {
+  if (!state)
+    return;
+  RenderStateImpl *impl = (RenderStateImpl *)state;
+  impl->grid_followed_type = type;
+  impl->grid_followed_body = body;
+}
+
+void RenderState_ClearGridFollowedBody(RenderState *state) {
+  if (!state)
+    return;
+  RenderStateImpl *impl = (RenderStateImpl *)state;
+  impl->grid_followed_type = FOLLOW_NONE;
+  impl->grid_followed_body = NULL;
+}
+
+FollowType RenderState_GetGridFollowedType(const RenderState *state) {
+  if (!state)
+    return FOLLOW_NONE;
+  return ((const RenderStateImpl *)state)->grid_followed_type;
+}
+
+void *RenderState_GetGridFollowedBody(const RenderState *state) {
+  if (!state)
+    return NULL;
+  return ((const RenderStateImpl *)state)->grid_followed_body;
 }
 
 void renderer_save_orbits_state(RenderState *state, DynamicArray *planets,

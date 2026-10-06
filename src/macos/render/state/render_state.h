@@ -80,6 +80,12 @@ bool RenderState_IsFollowing(const RenderState *state);
 FollowType RenderState_GetFollowedType(const RenderState *state);
 void *RenderState_GetFollowedBody(const RenderState *state);
 
+void RenderState_SetGridFollowedBody(RenderState *state, FollowType type,
+                                     void *body);
+void RenderState_ClearGridFollowedBody(RenderState *state);
+FollowType RenderState_GetGridFollowedType(const RenderState *state);
+void *RenderState_GetGridFollowedBody(const RenderState *state);
+
 void RenderState_SetCameraDebugOverlay(RenderState *state,
                                        DebugOverlay *overlay);
 void RenderState_SetFPSCounterOverlay(RenderState *state,

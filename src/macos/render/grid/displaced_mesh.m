@@ -106,12 +106,26 @@ void draw_grid(RenderState *state, void *encoder_ptr) {
   Camera *camera = RenderState_GetCamera(state);
   float spacing = dynamic_grid_spacing(camera->zoom);
 
-  float snapped_x = floorf(camera->center.x / spacing) * spacing;
-  float snapped_z = floorf(camera->center.z / spacing) * spacing;
+  simd_float3 grid_center = {0, 0, 0};
+  FollowType grid_ftype = RenderState_GetGridFollowedType(state);
+  void *grid_fobj = RenderState_GetGridFollowedBody(state);
+
+  if (grid_ftype == FOLLOW_NONE) {
+    grid_ftype = RenderState_GetFollowedType(state);
+    grid_fobj = RenderState_GetFollowedBody(state);
+  }
+  camera_get_body_pos(grid_ftype, grid_fobj, &grid_center);
+
+  float snapped_x =
+      floorf((camera->center.x - grid_center.x) / spacing) * spacing +
+      grid_center.x;
+  float snapped_z =
+      floorf((camera->center.z - grid_center.z) / spacing) * spacing +
+      grid_center.z;
 
   Camera temp_cam = *camera;
   temp_cam.center.x = camera->center.x - snapped_x;
-  temp_cam.center.y = camera->center.y;
+  temp_cam.center.y = 0.0f;
   temp_cam.center.z = camera->center.z - snapped_z;
 
   simd_float4x4 relative_view = camera_view_matrix(&temp_cam);

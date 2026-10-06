@@ -363,10 +363,12 @@ void pump_os_events(void) {
       if ([event type] == NSEventTypeLeftMouseDown) {
         NSPoint mouse = [event locationInWindow];
         MousePoint point = {mouse.x, mouse.y};
+        bool shiftHeld =
+            ([event modifierFlags] & NSEventModifierFlagShift) != 0;
         if ([event clickCount] == 2)
           event_mouse_double_click(state, point);
         else
-          event_left_mouse_down(state, point);
+          event_left_mouse_down(state, point, shiftHeld);
 
       } else if ([event type] == NSEventTypeLeftMouseDragged) {
         NSPoint current = [event locationInWindow];

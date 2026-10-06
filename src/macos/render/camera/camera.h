@@ -12,5 +12,6 @@ static const float kMaxzoom = 1e10f;
 
 void update_camera_uniforms(RenderState *state);
 void camera_follow_body(RenderState *state);
+bool camera_get_body_pos(FollowType type, void *fobj, simd_float3 *pos_out);
 
 #endif // MACOS_RENDER_CAMERA_CAMERA_H
