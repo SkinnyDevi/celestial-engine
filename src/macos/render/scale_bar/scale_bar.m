@@ -1,6 +1,8 @@
 #import "scale_bar.h"
-#include "core/log/log.h"
+#import "core/log/log.h"
 #import "core/space/units.h"
+
+#import "macos/render/grid/displaced_mesh.h"
 
 #import <Cocoa/Cocoa.h>
 #import <math.h>
@@ -113,31 +115,13 @@ void update_scale_bar(const Camera *camera, float screen_width,
   double visible_width_ru = visible_height_ru * (screen_width / screen_height);
   double visible_width_meters = render_unit_to_meter(visible_width_ru);
 
-  double target_pixels = 150.0;
-  double target_meters = visible_width_meters * (target_pixels / screen_width);
+  double grid_spacing_ru = dynamic_grid_spacing(camera->zoom);
+  double grid_spacing_meters = render_unit_to_meter(grid_spacing_ru);
 
-  if (target_meters <= 0.0)
-    return;
-
-  double log10_val = floor(log10(target_meters));
-  double base = pow(10.0, log10_val);
-  double normalized = target_meters / base;
-
-  double nice_factor = 1.0;
-  if (normalized >= 5.0)
-    nice_factor = 5.0;
-  else if (normalized >= 2.0)
-    nice_factor = 2.0;
-
-  double nice_meters = nice_factor * base;
-  LOG_DEBUG("Visible width: %g meters | Actual meters %g", visible_width_meters,
-            nice_meters);
-
-  double nice_ru = meter_to_render_unit(nice_meters);
-  double actual_pixels = (nice_ru / visible_width_ru) * screen_width;
+  double actual_pixels = (grid_spacing_ru / visible_width_ru) * screen_width;
 
   char label_buf[64];
-  format_distance(nice_meters, label_buf, sizeof(label_buf));
+  format_distance(grid_spacing_meters, label_buf, sizeof(label_buf));
 
   g_scale_bar_view.actual_pixels = actual_pixels;
   g_scale_bar_view.label_text = [NSString stringWithUTF8String:label_buf];
