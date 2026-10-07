@@ -4,7 +4,7 @@
 #include <simd/simd.h>
 #include <stdbool.h>
 
-#define CAMERA_FAR_CLIPPING_PLANE 1e7f
+#define CAMERA_FAR_CLIPPING_PLANE 1e23f
 #define CAMERA_NEAR_CLIPPING_PLANE 0.01f
 
 typedef struct {

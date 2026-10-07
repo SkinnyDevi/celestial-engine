@@ -9,6 +9,13 @@
 
 #import <QuartzCore/QuartzCore.h>
 
+static inline float safe_distance(simd_float3 a, simd_float3 b) {
+  double dx = (double)a.x - (double)b.x;
+  double dy = (double)a.y - (double)b.y;
+  double dz = (double)a.z - (double)b.z;
+  return (float)sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 void check_intersect_stars(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
                            void (^check_intersect)(simd_float3, float, float,
@@ -22,7 +29,7 @@ void check_intersect_stars(RenderState *state, MousePoint mouse,
                          star->body->position.y * METERS_TO_RENDER_UNITS,
                          star->body->position.z * METERS_TO_RENDER_UNITS);
     float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
-    float dist = simd_distance(ray_origin, pos);
+    float dist = safe_distance(ray_origin, pos);
     float click_radius = dist * 0.02f; // Enlarge hitbox for easier clicking
     check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), star,
                     FOLLOW_STAR);
@@ -50,7 +57,7 @@ void check_intersect_planets(RenderState *state, MousePoint mouse,
                                        ay * METERS_TO_RENDER_UNITS,
                                        az * METERS_TO_RENDER_UNITS);
     float base_radius = planet->body->radius_m * METERS_TO_RENDER_UNITS;
-    float dist = simd_distance(ray_origin, pos);
+    float dist = safe_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
     check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), planet,
                     FOLLOW_PLANET);
@@ -83,7 +90,7 @@ void check_intersect_moons(RenderState *state, MousePoint mouse,
                                        ay * METERS_TO_RENDER_UNITS,
                                        az * METERS_TO_RENDER_UNITS);
     float base_radius = moon->body->radius_m * METERS_TO_RENDER_UNITS;
-    float dist = simd_distance(ray_origin, pos);
+    float dist = safe_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
     check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), moon,
                     FOLLOW_MOON);

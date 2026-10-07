@@ -84,7 +84,7 @@ simd_float4x4 camera_perspective(float fovRadians, float aspect, float nearZ,
 
   // Right-handed Metal projection (Z goes from 0 to 1 in NDC, clip_w = -z)
   float A = farZ / (nearZ - farZ);
-  float B = (farZ * nearZ) / (nearZ - farZ);
+  float B = (float)(((double)farZ * (double)nearZ) / ((double)nearZ - (double)farZ));
 
   simd_float4x4 projection;
   projection.columns[0] = simd_make_float4(xScale, 0.0f, 0.0f, 0.0f);
@@ -197,7 +197,7 @@ void camera_update_transition(Camera *camera, float dt) {
   float t = ease_in_out_cubic(camera->transition_progress);
   camera->center = simd_mix(camera->start_center, camera->target_center, t);
   camera->zoom =
-      camera->start_zoom + (camera->target_zoom - camera->start_zoom) * t;
+      camera->start_zoom * powf(camera->target_zoom / camera->start_zoom, t);
 }
 
 void camera_get_clipping_planes(const Camera *camera, float *near_out,
