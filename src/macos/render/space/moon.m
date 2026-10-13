@@ -72,6 +72,9 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
   id<MTLRenderCommandEncoder> encoder =
       (__bridge id<MTLRenderCommandEncoder>)encoder_ptr;
 
+  Camera *camera = RenderState_GetCamera(render_state);
+  simd_float3 cam_pos = camera_orbit_position(camera);
+
   if (moon->orbit_buffer) {
     id<MTLBuffer> buf = (__bridge id<MTLBuffer>)moon->orbit_buffer;
     simd_float3 host_pos = simd_make_float3(0.0f, 0.0f, 0.0f);
@@ -84,9 +87,10 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
         hy += moon->host_planet->host_star->body->position.y;
         hz += moon->host_planet->host_star->body->position.z;
       }
-      host_pos = simd_make_float3(hx * METERS_TO_RENDER_UNITS,
-                                  hy * METERS_TO_RENDER_UNITS,
-                                  hz * METERS_TO_RENDER_UNITS);
+      double h_rel_x = hx * METERS_TO_RENDER_UNITS - camera->center.x;
+      double h_rel_y = hy * METERS_TO_RENDER_UNITS - camera->center.y;
+      double h_rel_z = hz * METERS_TO_RENDER_UNITS - camera->center.z;
+      host_pos = simd_make_float3((float)h_rel_x, (float)h_rel_y, (float)h_rel_z);
     }
     draw_orbit_ellipse(render_state, encoder, buf, moon->orbit_vertex_count,
                        host_pos);
@@ -105,9 +109,6 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
 
   float base_scale = (float)(moon->body->radius_m * METERS_TO_RENDER_UNITS);
 
-  Camera *camera = RenderState_GetCamera(render_state);
-  simd_float3 cam_pos = camera_orbit_position(camera);
-
   double abs_x = moon->body->position.x;
   double abs_y = moon->body->position.y;
   double abs_z = moon->body->position.z;
@@ -124,10 +125,10 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
     }
   }
 
-  simd_float3 body_pos =
-      simd_make_float3((float)(abs_x * METERS_TO_RENDER_UNITS),
-                       (float)(abs_y * METERS_TO_RENDER_UNITS),
-                       (float)(abs_z * METERS_TO_RENDER_UNITS));
+  double rel_x = abs_x * METERS_TO_RENDER_UNITS - camera->center.x;
+  double rel_y = abs_y * METERS_TO_RENDER_UNITS - camera->center.y;
+  double rel_z = abs_z * METERS_TO_RENDER_UNITS - camera->center.z;
+  simd_float3 body_pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
 
   float dist = simd_distance(cam_pos, body_pos);
   float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility

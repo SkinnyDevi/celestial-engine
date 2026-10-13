@@ -3,6 +3,7 @@
 #import "core/data/raycast.h"
 #import "core/space/units.h"
 
+#import "macos/render/camera/camera.h"
 #import "macos/render/space/moon.h"
 #import "macos/render/space/planet.h"
 #import "macos/render/space/star.h"
@@ -20,14 +21,15 @@ void check_intersect_stars(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
                            void (^check_intersect)(simd_float3, float, float,
                                                    void *, FollowType)) {
+  Camera *camera = RenderState_GetCamera(state);
   DynamicArray *stars = RenderState_GetStars(state);
   for (size_t i = 0; i < DynamicArray_length(stars); i++) {
     MTLStarGraphicsClass *star;
     DynamicArray_get(stars, i, &star);
-    simd_float3 pos =
-        simd_make_float3(star->body->position.x * METERS_TO_RENDER_UNITS,
-                         star->body->position.y * METERS_TO_RENDER_UNITS,
-                         star->body->position.z * METERS_TO_RENDER_UNITS);
+    double rel_x = star->body->position.x * METERS_TO_RENDER_UNITS - camera->center.x;
+    double rel_y = star->body->position.y * METERS_TO_RENDER_UNITS - camera->center.y;
+    double rel_z = star->body->position.z * METERS_TO_RENDER_UNITS - camera->center.z;
+    simd_float3 pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
     float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = safe_distance(ray_origin, pos);
     float click_radius = dist * 0.02f; // Enlarge hitbox for easier clicking
@@ -40,6 +42,7 @@ void check_intersect_planets(RenderState *state, MousePoint mouse,
                              simd_float3 ray_origin,
                              void (^check_intersect)(simd_float3, float, float,
                                                      void *, FollowType)) {
+  Camera *camera = RenderState_GetCamera(state);
   DynamicArray *planets = RenderState_GetPlanets(state);
   for (size_t i = 0; i < DynamicArray_length(planets); i++) {
     MTLPlanetGraphicsClass *planet;
@@ -53,9 +56,10 @@ void check_intersect_planets(RenderState *state, MousePoint mouse,
       az += planet->host_star->body->position.z;
     }
 
-    simd_float3 pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
-                                       ay * METERS_TO_RENDER_UNITS,
-                                       az * METERS_TO_RENDER_UNITS);
+    double rel_x = ax * METERS_TO_RENDER_UNITS - camera->center.x;
+    double rel_y = ay * METERS_TO_RENDER_UNITS - camera->center.y;
+    double rel_z = az * METERS_TO_RENDER_UNITS - camera->center.z;
+    simd_float3 pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
     float base_radius = planet->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = safe_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
@@ -68,6 +72,7 @@ void check_intersect_moons(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
                            void (^check_intersect)(simd_float3, float, float,
                                                    void *, FollowType)) {
+  Camera *camera = RenderState_GetCamera(state);
   DynamicArray *moons = RenderState_GetMoons(state);
   for (size_t i = 0; i < DynamicArray_length(moons); i++) {
     MTLMoonGraphicsClass *moon;
@@ -86,9 +91,10 @@ void check_intersect_moons(RenderState *state, MousePoint mouse,
         az += moon->host_planet->host_star->body->position.z;
       }
     }
-    simd_float3 pos = simd_make_float3(ax * METERS_TO_RENDER_UNITS,
-                                       ay * METERS_TO_RENDER_UNITS,
-                                       az * METERS_TO_RENDER_UNITS);
+    double rel_x = ax * METERS_TO_RENDER_UNITS - camera->center.x;
+    double rel_y = ay * METERS_TO_RENDER_UNITS - camera->center.y;
+    double rel_z = az * METERS_TO_RENDER_UNITS - camera->center.z;
+    simd_float3 pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
     float base_radius = moon->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = safe_distance(ray_origin, pos);
     float click_radius = dist * 0.02f;
@@ -184,7 +190,9 @@ void event_mouse_double_click(RenderState *state, MousePoint mouse) {
     float zoom = fmaxf(best_base_radius * 5.0f, 1.0f);
     RenderState_SetFollowedBody(state, best_type, best_obj);
     Camera *camera = RenderState_GetCamera(state);
-    camera_start_transition_to(camera, best_center, zoom);
+    simd_double3 world_pos = {0};
+    camera_get_body_pos(best_type, best_obj, &world_pos);
+    camera_start_transition_to(camera, world_pos, zoom);
   }
 }
 

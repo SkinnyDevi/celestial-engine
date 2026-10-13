@@ -136,7 +136,7 @@ void update_camera_path_wireframe(Camera *cam, simd_float4x4 vp,
                                   id<MTLRenderCommandEncoder> encoder) {
 #if DEBUG_CAMERA_PATH_WIREFRAME_VISIBLE
   {
-    simd_float4x4 model = simd_mul(make_translation_matrix(cam->center),
+    simd_float4x4 model = simd_mul(make_translation_matrix(simd_make_float3(0.0f, 0.0f, 0.0f)),
                                    make_scale_matrix(cam->zoom));
     DisplacedMeshUniforms mesh_uniforms;
     mesh_uniforms.mvpMatrix = simd_mul(vp, model);
@@ -163,7 +163,7 @@ void update_debug_camera_fixation_point(Camera *cam, simd_float4x4 vp,
 #if DEBUG_CAMERA_FIXATION_POINT_VISIBLE
   {
     float fixation_radius = 0.15f;
-    simd_float4x4 model = simd_mul(make_translation_matrix(cam->center),
+    simd_float4x4 model = simd_mul(make_translation_matrix(simd_make_float3(0.0f, 0.0f, 0.0f)),
                                    make_scale_matrix(fixation_radius));
     DisplacedMeshUniforms mesh_uniforms;
     mesh_uniforms.mvpMatrix = simd_mul(vp, model);

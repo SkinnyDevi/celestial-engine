@@ -21,7 +21,7 @@ void camera_init(Camera *camera) {
   camera->azimuth = 0.7854f;   // 45°
   camera->elevation = 0.4363f; // 25°
   camera->zoom = 12.0f;
-  camera->center = simd_make_float3(0.0f, 0.0f, 0.0f);
+  camera->center = simd_make_double3(0.0, 0.0, 0.0);
   camera->is_transitioning = false;
   camera->transition_progress = 0.0f;
 }
@@ -35,11 +35,11 @@ simd_float3 camera_orbit_position(const Camera *camera) {
   float ca = cosf(camera->azimuth);
   float sa = sinf(camera->azimuth);
 
-  // Position on sphere matches the Rx(elev) * Ry(-az) view rotation
+  // In camera-relative space, the orbit position is the offset relative to the center
   simd_float3 offset = simd_make_float3(
       sa * ce * camera->zoom, se * camera->zoom, ca * ce * camera->zoom);
 
-  return camera->center + offset;
+  return offset;
 }
 
 simd_float4x4 camera_view_matrix(const Camera *camera) {
@@ -58,21 +58,13 @@ simd_float4x4 camera_view_matrix(const Camera *camera) {
   float se = sinf(camera->elevation);
   float d = camera->zoom;
 
-  float cx = camera->center.x;
-  float cy = camera->center.y;
-  float cz = camera->center.z;
-
-  // View Matrix = Translate(0,0,-zoom) * Rx(elev) * Ry(-az) *
-  // Translate(-center)
-  float tx = ca * (-cx) - sa * (-cz);
-  float ty = -se * sa * (-cx) + ce * (-cy) - se * ca * (-cz);
-  float tz = ce * sa * (-cx) + se * (-cy) + ce * ca * (-cz) - d;
-
+  // View Matrix = Translate(0, 0, -zoom) * Rx(elev) * Ry(-az)
+  // Camera-relative: center is at the origin (0, 0, 0), eliminating precision loss
   simd_float4x4 view;
   view.columns[0] = simd_make_float4(ca, -se * sa, ce * sa, 0.0f);
   view.columns[1] = simd_make_float4(0.0f, ce, se, 0.0f);
   view.columns[2] = simd_make_float4(-sa, -se * ca, ce * ca, 0.0f);
-  view.columns[3] = simd_make_float4(tx, ty, tz, 1.0f);
+  view.columns[3] = simd_make_float4(0.0f, 0.0f, -d, 1.0f);
 
   return view;
 }
@@ -115,13 +107,13 @@ void camera_pan_from_input(Camera *camera, float dx, float dy) {
   float se = sinf(camera->elevation);
 
   // Camera Right (Row 0 of view rotation)
-  simd_float3 right = simd_make_float3(ca, 0.0f, -sa);
+  simd_double3 right = simd_make_double3(ca, 0.0, -sa);
   // Camera Up (Row 1 of view rotation)
-  simd_float3 up = simd_make_float3(-se * sa, ce, -se * ca);
+  simd_double3 up = simd_make_double3(-se * sa, ce, -se * ca);
 
-  float panSpeed = camera->zoom * 0.002f;
+  double panSpeed = (double)camera->zoom * 0.002;
   camera->center =
-      camera->center - right * (dx * panSpeed) - up * (dy * panSpeed);
+      camera->center - right * ((double)dx * panSpeed) - up * ((double)dy * panSpeed);
 }
 
 void camera_zoom_from_input(Camera *camera, float scrollDelta) {
@@ -136,7 +128,7 @@ void camera_zoom_from_input(Camera *camera, float scrollDelta) {
   camera->zoom = fmaxf(kMinzoom, fminf(kMaxzoom, camera->zoom));
 }
 
-void camera_focus_on(Camera *camera, simd_float3 target, float zoom) {
+void camera_focus_on(Camera *camera, simd_double3 target, float zoom) {
   if (!camera)
     return;
 
@@ -145,26 +137,26 @@ void camera_focus_on(Camera *camera, simd_float3 target, float zoom) {
     camera->zoom = fmaxf(kMinzoom, zoom);
 }
 
-void camera_set_position(Camera *camera, simd_float3 position) {
+void camera_set_position(Camera *camera, simd_double3 position) {
   if (!camera)
     return;
 
-  simd_float3 offset = position - camera->center;
-  float dist = simd_length(offset);
+  simd_double3 offset = position - camera->center;
+  double dist = simd_length(offset);
 
-  if (dist < 1e-6f) {
-    camera->zoom = fmaxf(kMinzoom, dist);
+  if (dist < 1e-6) {
+    camera->zoom = fmaxf(kMinzoom, (float)dist);
     return;
   }
 
-  camera->zoom = fmaxf(kMinzoom, dist);
-  camera->elevation = asinf(offset.y / dist);
+  camera->zoom = fmaxf(kMinzoom, (float)dist);
+  camera->elevation = (float)asin(offset.y / dist);
   camera->elevation =
       fminf(kMaxElevation, fmaxf(-kMaxElevation, camera->elevation));
-  camera->azimuth = atan2f(offset.x, offset.z);
+  camera->azimuth = (float)atan2(offset.x, offset.z);
 }
 
-void camera_start_transition_to(Camera *camera, simd_float3 target,
+void camera_start_transition_to(Camera *camera, simd_double3 target,
                                 float zoom) {
   if (!camera)
     return;
@@ -195,7 +187,7 @@ void camera_update_transition(Camera *camera, float dt) {
   }
 
   float t = ease_in_out_cubic(camera->transition_progress);
-  camera->center = simd_mix(camera->start_center, camera->target_center, t);
+  camera->center = camera->start_center + (camera->target_center - camera->start_center) * (double)t;
   camera->zoom =
       camera->start_zoom * powf(camera->target_zoom / camera->start_zoom, t);
 }
@@ -238,15 +230,15 @@ void update_camera_uniforms(RenderState *state) {
   memcpy([uniform_buffer contents], &uniforms, sizeof(uniforms));
 }
 
-void camera_follow_star(void *fobj, simd_float3 *body_pos_out) {
+void camera_follow_star(void *fobj, simd_double3 *body_pos_out) {
   MTLStarGraphicsClass *star = fobj;
   *body_pos_out =
-      simd_make_float3(star->body->position.x * METERS_TO_RENDER_UNITS,
-                       star->body->position.y * METERS_TO_RENDER_UNITS,
-                       star->body->position.z * METERS_TO_RENDER_UNITS);
+      simd_make_double3(star->body->position.x * METERS_TO_RENDER_UNITS,
+                        star->body->position.y * METERS_TO_RENDER_UNITS,
+                        star->body->position.z * METERS_TO_RENDER_UNITS);
 }
 
-void camera_follow_planet(void *fobj, simd_float3 *body_pos_out) {
+void camera_follow_planet(void *fobj, simd_double3 *body_pos_out) {
   MTLPlanetGraphicsClass *planet = fobj;
   double ax = planet->body->position.x;
   double ay = planet->body->position.y;
@@ -258,11 +250,11 @@ void camera_follow_planet(void *fobj, simd_float3 *body_pos_out) {
   }
 
   *body_pos_out =
-      simd_make_float3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
-                       az * METERS_TO_RENDER_UNITS);
+      simd_make_double3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
+                        az * METERS_TO_RENDER_UNITS);
 }
 
-void camera_follow_moon(void *fobj, simd_float3 *body_pos_out) {
+void camera_follow_moon(void *fobj, simd_double3 *body_pos_out) {
   MTLMoonGraphicsClass *moon = fobj;
   double ax = moon->body->position.x;
   double ay = moon->body->position.y;
@@ -279,11 +271,11 @@ void camera_follow_moon(void *fobj, simd_float3 *body_pos_out) {
     }
   }
   *body_pos_out =
-      simd_make_float3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
-                       az * METERS_TO_RENDER_UNITS);
+      simd_make_double3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
+                        az * METERS_TO_RENDER_UNITS);
 }
 
-bool camera_get_body_pos(FollowType type, void *fobj, simd_float3 *pos_out) {
+bool camera_get_body_pos(FollowType type, void *fobj, simd_double3 *pos_out) {
   if (!fobj || !pos_out)
     return false;
 
@@ -305,7 +297,7 @@ bool camera_get_body_pos(FollowType type, void *fobj, simd_float3 *pos_out) {
 void camera_follow_body(RenderState *state) {
   FollowType ftype = RenderState_GetFollowedType(state);
   void *fobj = RenderState_GetFollowedBody(state);
-  simd_float3 body_pos = {0};
+  simd_double3 body_pos = {0};
 
   if (!camera_get_body_pos(ftype, fobj, &body_pos))
     return;

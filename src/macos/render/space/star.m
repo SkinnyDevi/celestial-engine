@@ -79,10 +79,10 @@ void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
 
   Camera *camera = RenderState_GetCamera(render_state);
   simd_float3 cam_pos = camera_orbit_position(camera);
-  simd_float3 body_pos = simd_make_float3(
-      (float)(star->body->position.x * METERS_TO_RENDER_UNITS),
-      (float)(star->body->position.y * METERS_TO_RENDER_UNITS),
-      (float)(star->body->position.z * METERS_TO_RENDER_UNITS));
+  double rel_x = star->body->position.x * METERS_TO_RENDER_UNITS - camera->center.x;
+  double rel_y = star->body->position.y * METERS_TO_RENDER_UNITS - camera->center.y;
+  double rel_z = star->body->position.z * METERS_TO_RENDER_UNITS - camera->center.z;
+  simd_float3 body_pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
 
   float dist = simd_distance(cam_pos, body_pos);
   float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility

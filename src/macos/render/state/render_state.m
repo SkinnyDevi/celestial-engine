@@ -1,8 +1,9 @@
 #import "render_state.h"
-#import "core/cli/instance_data.h"
 
+#import "core/cli/instance_data.h"
 #import "core/data/dyn_array.h"
 #import "core/data/loader/data_loader.h"
+#import "core/log/log.h"
 #import "core/space/astro_time.h"
 #import "core/space/star.h"
 
@@ -395,6 +396,8 @@ void RenderState_SetFollowedBody(RenderState *state, FollowType type,
   RenderStateImpl *impl = (RenderStateImpl *)state;
   impl->followed_type = type;
   impl->followed_body = body;
+  CelestialBody_Star *dummy = (CelestialBody_Star *)body;
+  LOG_DEBUG("Body followed: %s.%s", dummy->name, dummy->body_id);
 }
 
 void RenderState_ClearFollowedBody(RenderState *state) {

@@ -106,7 +106,7 @@ void draw_grid(RenderState *state, void *encoder_ptr) {
   Camera *camera = RenderState_GetCamera(state);
   float spacing = dynamic_grid_spacing(camera->zoom);
 
-  simd_float3 grid_center = {0, 0, 0};
+  simd_double3 grid_center = {0, 0, 0};
   FollowType grid_ftype = RenderState_GetGridFollowedType(state);
   void *grid_fobj = RenderState_GetGridFollowedBody(state);
 
@@ -116,19 +116,20 @@ void draw_grid(RenderState *state, void *encoder_ptr) {
   }
   camera_get_body_pos(grid_ftype, grid_fobj, &grid_center);
 
-  float snapped_x =
-      floorf((camera->center.x - grid_center.x) / spacing) * spacing +
+  double snapped_x =
+      floor((camera->center.x - grid_center.x) / (double)spacing) * (double)spacing +
       grid_center.x;
-  float snapped_z =
-      floorf((camera->center.z - grid_center.z) / spacing) * spacing +
+  double snapped_z =
+      floor((camera->center.z - grid_center.z) / (double)spacing) * (double)spacing +
       grid_center.z;
 
-  Camera temp_cam = *camera;
-  temp_cam.center.x = camera->center.x - snapped_x;
-  temp_cam.center.y = 0.0f;
-  temp_cam.center.z = camera->center.z - snapped_z;
+  double rel_grid_x = snapped_x - camera->center.x;
+  double rel_grid_y = grid_center.y - camera->center.y;
+  double rel_grid_z = snapped_z - camera->center.z;
+  simd_float3 grid_rel_pos =
+      simd_make_float3((float)rel_grid_x, (float)rel_grid_y, (float)rel_grid_z);
 
-  simd_float4x4 relative_view = camera_view_matrix(&temp_cam);
+  simd_float4x4 view = camera_view_matrix(camera);
 
   CAMetalLayer *metal_layer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
@@ -142,8 +143,14 @@ void draw_grid(RenderState *state, void *encoder_ptr) {
   DisplacedMeshUniforms uniforms;
   memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
 
-  simd_float4x4 scale = make_scale_matrix(spacing);
-  uniforms.mvpMatrix = simd_mul(projection, simd_mul(relative_view, scale));
+  simd_float4x4 model = {0};
+  model.columns[0] = simd_make_float4(spacing, 0.0f, 0.0f, 0.0f);
+  model.columns[1] = simd_make_float4(0.0f, spacing, 0.0f, 0.0f);
+  model.columns[2] = simd_make_float4(0.0f, 0.0f, spacing, 0.0f);
+  model.columns[3] =
+      simd_make_float4(grid_rel_pos.x, grid_rel_pos.y, grid_rel_pos.z, 1.0f);
+
+  uniforms.mvpMatrix = simd_mul(projection, simd_mul(view, model));
 
   [encoder setVertexBuffer:vertex_buffer offset:0 atIndex:0];
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];

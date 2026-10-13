@@ -6,6 +6,7 @@ Icon?
 ._*
 *.swp
 .cache
+__pycache__
 
 # ────────────────────────────────  CMake build artifacts  ───────────────────────
 CMakeCache.txt
