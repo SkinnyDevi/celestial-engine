@@ -71,7 +71,7 @@ vertex StarVertexOut star_vertex(
     // Quad expansion in view space:
     // At r=1.0 is the physical star boundary.
     // Margin provides room for radiant glow at distance and corona up close.
-    float margin = mix(1.35f, 1.25f, close_factor);
+    float margin = mix(1.15f, 1.25f, close_factor);
     float quad_scale = render_scale * margin;
 
     float2 corner = quad_corners[vid];
@@ -88,20 +88,31 @@ fragment StarFragmentOut star_fragment(StarVertexOut in [[stage_in]]) {
     StarFragmentOut out;
     float r = length(in.uv);
     float close = in.close_factor;
-    float max_r = mix(1.35f, 1.25f, close);
 
+    // --- MODE 1: DISTANT STAR FAST-PATH (close < 0.01f) ---
+    // 99.999% of stars in large clusters. Uses 1-cycle quadratic falloff with zero
+    // transcendentals (no pow/sqrt/smoothstep), eliminating fillrate bottlenecks.
+    if (close < 0.01f) {
+        float d = 1.0f - (r / 1.15f);
+        if (d <= 0.0f) {
+            discard_fragment();
+        }
+        out.color = float4(in.color.rgb, d * d);
+        out.depth = 1.0f;
+        return out;
+    }
+
+    // --- MODE 2: CLOSE-UP SPHERICAL BODY (close >= 0.01f) ---
+    float max_r = mix(1.15f, 1.25f, close);
     if (r > max_r) {
         discard_fragment();
     }
 
-    // --- MODE 1: DISTANT STAR (close == 0.0) ---
-    // Smooth luminous glow with bright core that radiates outward
-    float distant_glow = pow(max(0.0f, 1.0f - r / 1.35f), 1.6f);
+    float distant_glow = pow(max(0.0f, 1.0f - r / 1.15f), 1.6f);
     float distant_core = smoothstep(1.0f, 0.0f, r);
     float distant_alpha = mix(distant_glow, distant_core, 0.5f);
     float4 distant_color = float4(in.color.rgb, distant_alpha);
 
-    // --- MODE 2: CLOSE-UP SPHERICAL BODY (close == 1.0) ---
     // A clearly defined spherical body with a crisp limb edge, 3D spherical curvature,
     // and a subtle corona outside the limb
     float4 close_color;

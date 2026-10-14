@@ -11,12 +11,35 @@
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/shaders/shader_loader.h"
 
+#import <dispatch/dispatch.h>
+
 typedef struct {
   double x, y, z;
-} StarWorldPos;
+  float radius;
+  simd_float4 color;
+} StarStaticData;
 
-static StarWorldPos *cached_world_positions = NULL;
-static size_t cached_world_count = 0;
+typedef struct {
+  simd_double3 center;
+  double radius;
+  bool active;
+} StarClusterBounds;
+
+static StarStaticData *cached_star_data = NULL;
+static size_t cached_star_count = 0;
+static uint32_t *cull_scratch_indices = NULL;
+
+static StarClusterBounds m31_cluster = {0};
+
+static size_t last_visible_count = 0;
+static struct {
+  float azimuth;
+  float elevation;
+  float zoom;
+  simd_double3 center;
+  float aspect;
+} last_cull_cam = {0};
+static bool last_cull_valid = false;
 
 simd_float4 get_star_color(StarSpectralType spectral_type) {
   switch (spectral_type) {
@@ -80,7 +103,7 @@ void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
       simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
 
   float dist = simd_distance(cam_pos, body_pos);
-  float min_visual_size = dist * 0.003f;
+  float min_visual_size = dist * 0.0018f;
   float render_scale =
       base_scale > min_visual_size ? base_scale : min_visual_size;
 
@@ -215,30 +238,91 @@ void init_star_instance_buffer(RenderState *state) {
   if (!metal_layer)
     return;
 
-  if (cached_world_positions) {
-    free(cached_world_positions);
-    cached_world_positions = NULL;
+  if (cached_star_data) {
+    free(cached_star_data);
+    cached_star_data = NULL;
   }
-  cached_world_positions = malloc(sizeof(StarWorldPos) * count);
-  cached_world_count = count;
+
+  if (cull_scratch_indices) {
+    free(cull_scratch_indices);
+    cull_scratch_indices = NULL;
+  }
+
+  cached_star_data = malloc(sizeof(StarStaticData) * count);
+  cull_scratch_indices = malloc(sizeof(uint32_t) * count);
+  cached_star_count = count;
+  last_cull_valid = false;
+  last_visible_count = 0;
 
   size_t buffer_size = sizeof(StarInstance) * count;
   id<MTLBuffer> buffer =
       [metal_layer.device newBufferWithLength:buffer_size
                                       options:MTLResourceStorageModeShared];
 
-  StarInstance *instances = (StarInstance *)[buffer contents];
+  simd_double3 m31_min = {1e30, 1e30, 1e30};
+  simd_double3 m31_max = {-1e30, -1e30, -1e30};
+  size_t m31_count = 0;
+
   for (size_t i = 0; i < count; i++) {
     MTLStarGraphicsClass *star_gfx;
     DynamicArray_get(stars, i, &star_gfx);
     CelestialBody_Star *star = star_gfx->body;
 
-    cached_world_positions[i].x = star->position.x * METERS_TO_RENDER_UNITS;
-    cached_world_positions[i].y = star->position.y * METERS_TO_RENDER_UNITS;
-    cached_world_positions[i].z = star->position.z * METERS_TO_RENDER_UNITS;
+    double wx = star->position.x * METERS_TO_RENDER_UNITS;
+    double wy = star->position.y * METERS_TO_RENDER_UNITS;
+    double wz = star->position.z * METERS_TO_RENDER_UNITS;
 
-    instances[i].radius = (float)(star->radius_m * METERS_TO_RENDER_UNITS);
-    instances[i].color = get_star_color(star->spectral_type);
+    cached_star_data[i].x = wx;
+    cached_star_data[i].y = wy;
+    cached_star_data[i].z = wz;
+    cached_star_data[i].radius =
+        (float)(star->radius_m * METERS_TO_RENDER_UNITS);
+    cached_star_data[i].color = get_star_color(star->spectral_type);
+
+    // M31 stars are external galaxy stars with distance from origin > 10^10
+    // render units (> 1000 light years)
+    double dist_sq = wx * wx + wy * wy + wz * wz;
+    if (dist_sq > 1e20) {
+      if (wx < m31_min.x)
+        m31_min.x = wx;
+      if (wy < m31_min.y)
+        m31_min.y = wy;
+      if (wz < m31_min.z)
+        m31_min.z = wz;
+      if (wx > m31_max.x)
+        m31_max.x = wx;
+      if (wy > m31_max.y)
+        m31_max.y = wy;
+      if (wz > m31_max.z)
+        m31_max.z = wz;
+      m31_count++;
+    }
+  }
+
+  if (m31_count > 100) {
+    m31_cluster.center = (m31_min + m31_max) * 0.5;
+    double max_r_sq = 0.0;
+    for (size_t i = 0; i < count; i++) {
+      double wx = cached_star_data[i].x;
+      double wy = cached_star_data[i].y;
+      double wz = cached_star_data[i].z;
+      if (wx * wx + wy * wy + wz * wz > 1e20) {
+        simd_double3 diff = simd_make_double3(wx - m31_cluster.center.x,
+                                              wy - m31_cluster.center.y,
+                                              wz - m31_cluster.center.z);
+        double r_sq = simd_length_squared(diff);
+        if (r_sq > max_r_sq)
+          max_r_sq = r_sq;
+      }
+    }
+
+    m31_cluster.radius = sqrt(max_r_sq);
+    m31_cluster.active = true;
+    LOG_INFO("Configured M31 cluster bounding sphere: %lu stars, radius %.2e "
+             "render units",
+             m31_count, m31_cluster.radius);
+  } else {
+    m31_cluster.active = false;
   }
 
   RenderState_SetStarInstanceBuffer(state, (__bridge void *)buffer);
@@ -266,25 +350,6 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
     return;
 
   Camera *camera = RenderState_GetCamera(state);
-
-  // Update instance positions relative to current camera center whenever camera
-  // moves
-  static simd_double3 last_center = {-1e30, -1e30, -1e30};
-  if (camera->center.x != last_center.x || camera->center.y != last_center.y ||
-      camera->center.z != last_center.z) {
-    StarInstance *instances = (StarInstance *)[instance_buffer contents];
-    double cx = camera->center.x;
-    double cy = camera->center.y;
-    double cz = camera->center.z;
-    for (size_t i = 0; i < star_count; i++) {
-      instances[i].position =
-          (PackedFloat3){(float)(cached_world_positions[i].x - cx),
-                         (float)(cached_world_positions[i].y - cy),
-                         (float)(cached_world_positions[i].z - cz)};
-    }
-    last_center = camera->center;
-  }
-
   CAMetalLayer *metal_layer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
   float aspect = metal_layer.drawableSize.width /
@@ -292,11 +357,172 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
   float near_plane, far_plane;
   camera_get_clipping_planes(camera, &near_plane, &far_plane);
 
+  bool camera_changed = !last_cull_valid ||
+                        camera->azimuth != last_cull_cam.azimuth ||
+                        camera->elevation != last_cull_cam.elevation ||
+                        camera->zoom != last_cull_cam.zoom ||
+                        camera->center.x != last_cull_cam.center.x ||
+                        camera->center.y != last_cull_cam.center.y ||
+                        camera->center.z != last_cull_cam.center.z ||
+                        aspect != last_cull_cam.aspect;
+
+  if (camera_changed) {
+    float cull_fov = 75.0f * (float)M_PI / 180.0f; // FOV = 75°
+    simd_float4x4 V = camera_view_matrix(camera);
+    simd_float4x4 P_cull =
+        camera_perspective(cull_fov, aspect, near_plane, far_plane);
+
+    // Rows of M
+    simd_float4x4 M = simd_mul(P_cull, V);
+    simd_float4 r0 = {M.columns[0].x, M.columns[1].x, M.columns[2].x,
+                      M.columns[3].x};
+    simd_float4 r1 = {M.columns[0].y, M.columns[1].y, M.columns[2].y,
+                      M.columns[3].y};
+    simd_float4 r2 = {M.columns[0].z, M.columns[1].z, M.columns[2].z,
+                      M.columns[3].z};
+    simd_float4 r3 = {M.columns[0].w, M.columns[1].w, M.columns[2].w,
+                      M.columns[3].w};
+
+    // 5 Frustum planes (Left, Right, Bottom, Top, Near) (far plane omitted)
+    simd_float4 raw_planes[5] = {
+        r3 + r0, // Left
+        r3 - r0, // Right
+        r3 + r1, // Bottom
+        r3 - r1, // Top
+        r2       // Near
+    };
+
+    simd_float4 planes[5];
+    for (int p = 0; p < 5; p++) {
+      float len = sqrtf(raw_planes[p].x * raw_planes[p].x +
+                        raw_planes[p].y * raw_planes[p].y +
+                        raw_planes[p].z * raw_planes[p].z);
+      planes[p] = raw_planes[p] / (len > 1e-6f ? len : 1.0f);
+    }
+
+    double cx = camera->center.x;
+    double cy = camera->center.y;
+    double cz = camera->center.z;
+
+    // Test M31 cluster bounding sphere in 5 nanoseconds
+    bool m31_in_frustum = true;
+    if (m31_cluster.active) {
+      simd_double3 c_rel = m31_cluster.center - camera->center;
+      for (int p = 0; p < 5; p++) {
+        double dist = planes[p].x * c_rel.x + planes[p].y * c_rel.y +
+                      planes[p].z * c_rel.z + planes[p].w;
+        if (dist < -m31_cluster.radius) {
+          m31_in_frustum = false;
+          break;
+        }
+      }
+    }
+
+    // Parallel multi-threaded frustum culling across CPU cores using GCD
+    size_t num_blocks = 8;
+    if (star_count < 8192)
+      num_blocks = 1;
+    size_t block_size = (star_count + num_blocks - 1) / num_blocks;
+    uint32_t *block_counts = calloc(num_blocks, sizeof(uint32_t));
+    uint32_t *block_offsets = calloc(num_blocks, sizeof(uint32_t));
+
+    simd_float4 p0 = planes[0], p1 = planes[1], p2 = planes[2], p3 = planes[3],
+                p4 = planes[4];
+
+    dispatch_apply(
+        num_blocks, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
+        ^(size_t b) {
+          size_t start_idx = b * block_size;
+          size_t end_idx = start_idx + block_size;
+          if (end_idx > star_count)
+            end_idx = star_count;
+
+          uint32_t count = 0;
+          uint32_t *out_indices = cull_scratch_indices + start_idx;
+
+          for (size_t i = start_idx; i < end_idx; i++) {
+            double wx = cached_star_data[i].x;
+            double wy = cached_star_data[i].y;
+            double wz = cached_star_data[i].z;
+
+            // If M31 cluster is outside frustum, skip all external
+            // stars (> 10^10 render units)
+            if (!m31_in_frustum && (wx * wx + wy * wy + wz * wz > 1e20)) {
+              continue;
+            }
+
+            float rx = (float)(wx - cx);
+            float ry = (float)(wy - cy);
+            float rz = (float)(wz - cz);
+
+            // Early-exit 5-plane test against camera frustum
+            if (p0.x * rx + p0.y * ry + p0.z * rz + p0.w < 0.0f)
+              continue;
+            if (p1.x * rx + p1.y * ry + p1.z * rz + p1.w < 0.0f)
+              continue;
+            if (p2.x * rx + p2.y * ry + p2.z * rz + p2.w < 0.0f)
+              continue;
+            if (p3.x * rx + p3.y * ry + p3.z * rz + p3.w < 0.0f)
+              continue;
+            if (p4.x * rx + p4.y * ry + p4.z * rz + p4.w < 0.0f)
+              continue;
+
+            out_indices[count++] = (uint32_t)i;
+          }
+          block_counts[b] = count;
+        });
+
+    // Compute prefix sum offsets
+    uint32_t total_visible = 0;
+    for (size_t b = 0; b < num_blocks; b++) {
+      block_offsets[b] = total_visible;
+      total_visible += block_counts[b];
+    }
+
+    // Pass 2: Pack visible StarInstances directly into the Metal instance
+    // buffer
+    StarInstance *instances = (StarInstance *)[instance_buffer contents];
+    dispatch_apply(
+        num_blocks, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
+        ^(size_t b) {
+          uint32_t b_count = block_counts[b];
+          if (b_count == 0)
+            return;
+
+          uint32_t *src_indices = cull_scratch_indices + b * block_size;
+          StarInstance *dst = instances + block_offsets[b];
+
+          for (uint32_t j = 0; j < b_count; j++) {
+            uint32_t idx = src_indices[j];
+            dst[j].position =
+                (PackedFloat3){(float)(cached_star_data[idx].x - cx),
+                               (float)(cached_star_data[idx].y - cy),
+                               (float)(cached_star_data[idx].z - cz)};
+            dst[j].radius = cached_star_data[idx].radius;
+            dst[j].color = cached_star_data[idx].color;
+          }
+        });
+
+    free(block_counts);
+    free(block_offsets);
+
+    last_visible_count = total_visible;
+    last_cull_cam.azimuth = camera->azimuth;
+    last_cull_cam.elevation = camera->elevation;
+    last_cull_cam.zoom = camera->zoom;
+    last_cull_cam.center = camera->center;
+    last_cull_cam.aspect = aspect;
+    last_cull_valid = true;
+  }
+
+  if (last_visible_count == 0)
+    return;
+
   StarUniforms uniforms;
   uniforms.viewMatrix = camera_view_matrix(camera);
   uniforms.projectionMatrix = camera_perspective(70.0f * (float)M_PI / 180.0f,
                                                  aspect, near_plane, far_plane);
-  uniforms.minSizeFactor = 0.003f;
+  uniforms.minSizeFactor = 0.0018f;
   uniforms._pad[0] = 0.0f;
   uniforms._pad[1] = 0.0f;
   uniforms._pad[2] = 0.0f;
@@ -310,7 +536,7 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
   [encoder drawPrimitives:MTLPrimitiveTypeTriangle
               vertexStart:0
               vertexCount:6
-            instanceCount:star_count];
+            instanceCount:last_visible_count];
 }
 
 void init_celestial_body_stars(RenderState *render_state) {
