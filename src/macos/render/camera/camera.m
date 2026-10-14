@@ -35,7 +35,8 @@ simd_float3 camera_orbit_position(const Camera *camera) {
   float ca = cosf(camera->azimuth);
   float sa = sinf(camera->azimuth);
 
-  // In camera-relative space, the orbit position is the offset relative to the center
+  // In camera-relative space, the orbit position is the offset relative to the
+  // center
   simd_float3 offset = simd_make_float3(
       sa * ce * camera->zoom, se * camera->zoom, ca * ce * camera->zoom);
 
@@ -59,7 +60,8 @@ simd_float4x4 camera_view_matrix(const Camera *camera) {
   float d = camera->zoom;
 
   // View Matrix = Translate(0, 0, -zoom) * Rx(elev) * Ry(-az)
-  // Camera-relative: center is at the origin (0, 0, 0), eliminating precision loss
+  // Camera-relative: center is at the origin (0, 0, 0), eliminating precision
+  // loss
   simd_float4x4 view;
   view.columns[0] = simd_make_float4(ca, -se * sa, ce * sa, 0.0f);
   view.columns[1] = simd_make_float4(0.0f, ce, se, 0.0f);
@@ -76,7 +78,8 @@ simd_float4x4 camera_perspective(float fovRadians, float aspect, float nearZ,
 
   // Right-handed Metal projection (Z goes from 0 to 1 in NDC, clip_w = -z)
   float A = farZ / (nearZ - farZ);
-  float B = (float)(((double)farZ * (double)nearZ) / ((double)nearZ - (double)farZ));
+  float B =
+      (float)(((double)farZ * (double)nearZ) / ((double)nearZ - (double)farZ));
 
   simd_float4x4 projection;
   projection.columns[0] = simd_make_float4(xScale, 0.0f, 0.0f, 0.0f);
@@ -112,8 +115,8 @@ void camera_pan_from_input(Camera *camera, float dx, float dy) {
   simd_double3 up = simd_make_double3(-se * sa, ce, -se * ca);
 
   double panSpeed = (double)camera->zoom * 0.002;
-  camera->center =
-      camera->center - right * ((double)dx * panSpeed) - up * ((double)dy * panSpeed);
+  camera->center = camera->center - right * ((double)dx * panSpeed) -
+                   up * ((double)dy * panSpeed);
 }
 
 void camera_zoom_from_input(Camera *camera, float scrollDelta) {
@@ -187,7 +190,8 @@ void camera_update_transition(Camera *camera, float dt) {
   }
 
   float t = ease_in_out_cubic(camera->transition_progress);
-  camera->center = camera->start_center + (camera->target_center - camera->start_center) * (double)t;
+  camera->center = camera->start_center +
+                   (camera->target_center - camera->start_center) * (double)t;
   camera->zoom =
       camera->start_zoom * powf(camera->target_zoom / camera->start_zoom, t);
 }
@@ -249,9 +253,9 @@ void camera_follow_planet(void *fobj, simd_double3 *body_pos_out) {
     az += planet->host_star->body->position.z;
   }
 
-  *body_pos_out =
-      simd_make_double3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
-                        az * METERS_TO_RENDER_UNITS);
+  *body_pos_out = simd_make_double3(ax * METERS_TO_RENDER_UNITS,
+                                    ay * METERS_TO_RENDER_UNITS,
+                                    az * METERS_TO_RENDER_UNITS);
 }
 
 void camera_follow_moon(void *fobj, simd_double3 *body_pos_out) {
@@ -270,9 +274,9 @@ void camera_follow_moon(void *fobj, simd_double3 *body_pos_out) {
       az += moon->host_planet->host_star->body->position.z;
     }
   }
-  *body_pos_out =
-      simd_make_double3(ax * METERS_TO_RENDER_UNITS, ay * METERS_TO_RENDER_UNITS,
-                        az * METERS_TO_RENDER_UNITS);
+  *body_pos_out = simd_make_double3(ax * METERS_TO_RENDER_UNITS,
+                                    ay * METERS_TO_RENDER_UNITS,
+                                    az * METERS_TO_RENDER_UNITS);
 }
 
 bool camera_get_body_pos(FollowType type, void *fobj, simd_double3 *pos_out) {
@@ -307,4 +311,61 @@ void camera_follow_body(RenderState *state) {
     cam->target_center = body_pos;
   else
     cam->center = body_pos;
+}
+
+CameraFrustum camera_extract_frustum(const Camera *camera, float aspect,
+                                     float fovRadians) {
+  CameraFrustum frustum = {0};
+  if (!camera)
+    return frustum;
+
+  float near_plane, far_plane;
+  camera_get_clipping_planes(camera, &near_plane, &far_plane);
+
+  simd_float4x4 V = camera_view_matrix(camera);
+  simd_float4x4 P =
+      camera_perspective(fovRadians, aspect, near_plane, far_plane);
+  simd_float4x4 M = simd_mul(P, V);
+
+  simd_float4 r0 = {M.columns[0].x, M.columns[1].x, M.columns[2].x,
+                    M.columns[3].x};
+  simd_float4 r1 = {M.columns[0].y, M.columns[1].y, M.columns[2].y,
+                    M.columns[3].y};
+  simd_float4 r2 = {M.columns[0].z, M.columns[1].z, M.columns[2].z,
+                    M.columns[3].z};
+  simd_float4 r3 = {M.columns[0].w, M.columns[1].w, M.columns[2].w,
+                    M.columns[3].w};
+
+  simd_float4 raw_planes[5] = {
+      r3 + r0, // Left
+      r3 - r0, // Right
+      r3 + r1, // Bottom
+      r3 - r1, // Top
+      r2       // Near
+  };
+
+  for (int p = 0; p < 5; p++) {
+    float len = sqrtf(raw_planes[p].x * raw_planes[p].x +
+                      raw_planes[p].y * raw_planes[p].y +
+                      raw_planes[p].z * raw_planes[p].z);
+    frustum.planes[p] = raw_planes[p] / (len > 1e-6f ? len : 1.0f);
+  }
+
+  return frustum;
+}
+
+bool camera_frustum_test_sphere(const CameraFrustum *frustum,
+                                simd_float3 center_rel, float radius) {
+  if (!frustum)
+    return true;
+
+  for (int p = 0; p < 5; p++) {
+    float dist = frustum->planes[p].x * center_rel.x +
+                 frustum->planes[p].y * center_rel.y +
+                 frustum->planes[p].z * center_rel.z + frustum->planes[p].w;
+    if (dist < -radius)
+      return false;
+  }
+
+  return true;
 }

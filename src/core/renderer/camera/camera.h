@@ -35,4 +35,13 @@ void camera_update_transition(Camera *camera, float dt);
 void camera_get_clipping_planes(const Camera *camera, float *near_out,
                                 float *far_out);
 
+typedef struct {
+  simd_float4 planes[5]; // 0: Left, 1: Right, 2: Bottom, 3: Top, 4: Near
+} CameraFrustum;
+
+CameraFrustum camera_extract_frustum(const Camera *camera, float aspect,
+                                     float fovRadians);
+bool camera_frustum_test_sphere(const CameraFrustum *frustum,
+                                simd_float3 center_rel, float radius);
+
 #endif

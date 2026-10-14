@@ -30,26 +30,14 @@ simd_float4 get_planet_color(PlanetClass planet_class) {
 
 void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
                                  RenderState *render_state) {
-  CAMetalLayer *metal_layer =
-      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(render_state);
-  if (!metal_layer)
-    return;
+  void *vbuf = NULL;
+  void *ibuf = NULL;
+  int idx_count = 0;
+  get_shared_solid_sphere_buffers(render_state, &vbuf, &ibuf, &idx_count);
 
-  SolidSphereMesh mesh = generate_solid_sphere(32, 32);
-
-  id<MTLBuffer> vertex_buffer = [metal_layer.device
-      newBufferWithBytes:mesh.vertices
-                  length:(sizeof(Vertex) * mesh.vertex_count)
-                 options:MTLResourceStorageModeShared];
-
-  id<MTLBuffer> index_buffer = [metal_layer.device
-      newBufferWithBytes:mesh.indices
-                  length:(sizeof(uint16_t) * mesh.index_count)
-                 options:MTLResourceStorageModeShared];
-
-  planet->vertex_buffer = (void *)CFBridgingRetain(vertex_buffer);
-  planet->index_buffer = (void *)CFBridgingRetain(index_buffer);
-  planet->index_count = mesh.index_count;
+  planet->vertex_buffer = vbuf;
+  planet->index_buffer = ibuf;
+  planet->index_count = idx_count;
 
   planet->orbit_buffer = NULL;
   planet->orbit_vertex_count = 0;
@@ -60,45 +48,59 @@ void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
     planet->orbit_buffer = (void *)CFBridgingRetain(buf);
     planet->orbit_vertex_count = count;
   }
-
-  free(mesh.vertices);
-  free(mesh.indices);
 }
 
 void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
                                  RenderState *render_state, void *encoder_ptr) {
+  if (!planet)
+    return;
+
+  Camera *camera = RenderState_GetCamera(render_state);
+  CAMetalLayer *metal_layer =
+      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(render_state);
+  float aspect = metal_layer.drawableSize.width /
+                 MAX(metal_layer.drawableSize.height, 1.0f);
+  simd_float3 cam_pos = camera_orbit_position(camera);
+
+  // Extract camera frustum with 75° FOV margin
+  CameraFrustum frustum =
+      camera_extract_frustum(camera, aspect, 75.0f * (float)M_PI / 180.0f);
+
   id<MTLRenderCommandEncoder> encoder =
       (__bridge id<MTLRenderCommandEncoder>)encoder_ptr;
 
-  Camera *camera = RenderState_GetCamera(render_state);
-  simd_float3 cam_pos = camera_orbit_position(camera);
-
-  if (planet->orbit_buffer) {
-    id<MTLBuffer> buf = (__bridge id<MTLBuffer>)planet->orbit_buffer;
+  // 1. Orbit Rendering with Frustum & Sub-pixel Culling
+  if (planet->orbit_buffer && planet->body->orbit) {
     simd_float3 host_pos = simd_make_float3(0.0f, 0.0f, 0.0f);
     if (planet->host_star) {
-      double hx = planet->host_star->body->position.x * METERS_TO_RENDER_UNITS - camera->center.x;
-      double hy = planet->host_star->body->position.y * METERS_TO_RENDER_UNITS - camera->center.y;
-      double hz = planet->host_star->body->position.z * METERS_TO_RENDER_UNITS - camera->center.z;
+      double hx = planet->host_star->body->position.x * METERS_TO_RENDER_UNITS -
+                  camera->center.x;
+      double hy = planet->host_star->body->position.y * METERS_TO_RENDER_UNITS -
+                  camera->center.y;
+      double hz = planet->host_star->body->position.z * METERS_TO_RENDER_UNITS -
+                  camera->center.z;
       host_pos = simd_make_float3((float)hx, (float)hy, (float)hz);
     }
-    draw_orbit_ellipse(render_state, encoder, buf, planet->orbit_vertex_count,
-                       host_pos);
+
+    float dist_to_host = simd_distance(cam_pos, host_pos);
+    float max_orbit_r = (float)(planet->body->orbit->semimajor_axis *
+                                (1.0 + planet->body->orbit->eccentricity) *
+                                METERS_TO_RENDER_UNITS);
+
+    // Sub-pixel culling: if orbit spans < 0.0005 radians (< 1 pixel on screen),
+    // skip 65k vertices
+    bool is_subpixel = (max_orbit_r / fmaxf(dist_to_host, 1e-4f)) < 0.0005f;
+    bool orbit_in_frustum =
+        camera_frustum_test_sphere(&frustum, host_pos, max_orbit_r);
+
+    if (orbit_in_frustum && !is_subpixel) {
+      id<MTLBuffer> buf = (__bridge id<MTLBuffer>)planet->orbit_buffer;
+      draw_orbit_ellipse(render_state, encoder, buf, planet->orbit_vertex_count,
+                         host_pos);
+    }
   }
 
-  simd_float4 color = get_planet_color(planet->body->planet_class);
-
-  DisplacedMeshUniforms uniforms;
-  id<MTLBuffer> uniform_buffer =
-      (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(render_state);
-  if (uniform_buffer) {
-    memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
-  } else {
-    memset(&uniforms, 0, sizeof(uniforms));
-  }
-
-  float base_scale = (float)(planet->body->radius_m * METERS_TO_RENDER_UNITS);
-
+  // 2. Planet Sphere Rendering with Frustum Culling
   double abs_x = planet->body->position.x;
   double abs_y = planet->body->position.y;
   double abs_z = planet->body->position.z;
@@ -112,12 +114,28 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
   double rel_x = abs_x * METERS_TO_RENDER_UNITS - camera->center.x;
   double rel_y = abs_y * METERS_TO_RENDER_UNITS - camera->center.y;
   double rel_z = abs_z * METERS_TO_RENDER_UNITS - camera->center.z;
-  simd_float3 body_pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
+  simd_float3 body_pos =
+      simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
 
   float dist = simd_distance(cam_pos, body_pos);
-  float min_visual_size = dist * 0.003f; // 0.3% of distance ensures visibility
+  float base_scale = (float)(planet->body->radius_m * METERS_TO_RENDER_UNITS);
+  float min_visual_size = dist * 0.0018f;
   float render_scale =
       base_scale > min_visual_size ? base_scale : min_visual_size;
+
+  // Frustum test on planet sphere
+  if (!camera_frustum_test_sphere(&frustum, body_pos, render_scale))
+    return; // Off-screen! Culled.
+
+  simd_float4 color = get_planet_color(planet->body->planet_class);
+
+  DisplacedMeshUniforms uniforms;
+  id<MTLBuffer> uniform_buffer =
+      (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(render_state);
+  if (uniform_buffer)
+    memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
+  else
+    memset(&uniforms, 0, sizeof(uniforms));
 
   simd_float4x4 model = {0};
   model.columns[0] = simd_make_float4(render_scale, 0.0f, 0.0f, 0.0f);
@@ -131,13 +149,16 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
 
-  id<MTLRenderPipelineState> pipeline = planet->pipeline_state
-      ? (__bridge id<MTLRenderPipelineState>)planet->pipeline_state
-      : (__bridge id<MTLRenderPipelineState>)RenderState_GetPipelineState(render_state);
+  id<MTLRenderPipelineState> pipeline =
+      planet->pipeline_state
+          ? (__bridge id<MTLRenderPipelineState>)planet->pipeline_state
+          : (__bridge id<MTLRenderPipelineState>)RenderState_GetPipelineState(
+                render_state);
   [encoder setRenderPipelineState:pipeline];
 
   id<MTLDepthStencilState> depth_state =
-      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(render_state);
+      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(
+          render_state);
   if (depth_state)
     [encoder setDepthStencilState:depth_state];
 
@@ -180,12 +201,9 @@ void MTLPlanetGraphics_Destroy(MTLPlanetGraphicsClass *planet_graphics) {
   if (!planet_graphics)
     return;
 
-  if (planet_graphics->vertex_buffer)
-    CFRelease(planet_graphics->vertex_buffer);
-  if (planet_graphics->index_buffer)
-    CFRelease(planet_graphics->index_buffer);
   if (planet_graphics->pipeline_state)
     CFRelease(planet_graphics->pipeline_state);
+
   if (planet_graphics->orbit_buffer)
     CFRelease(planet_graphics->orbit_buffer);
 

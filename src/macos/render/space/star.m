@@ -367,38 +367,9 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
                         aspect != last_cull_cam.aspect;
 
   if (camera_changed) {
-    float cull_fov = 75.0f * (float)M_PI / 180.0f; // FOV = 75°
-    simd_float4x4 V = camera_view_matrix(camera);
-    simd_float4x4 P_cull =
-        camera_perspective(cull_fov, aspect, near_plane, far_plane);
-
-    // Rows of M
-    simd_float4x4 M = simd_mul(P_cull, V);
-    simd_float4 r0 = {M.columns[0].x, M.columns[1].x, M.columns[2].x,
-                      M.columns[3].x};
-    simd_float4 r1 = {M.columns[0].y, M.columns[1].y, M.columns[2].y,
-                      M.columns[3].y};
-    simd_float4 r2 = {M.columns[0].z, M.columns[1].z, M.columns[2].z,
-                      M.columns[3].z};
-    simd_float4 r3 = {M.columns[0].w, M.columns[1].w, M.columns[2].w,
-                      M.columns[3].w};
-
-    // 5 Frustum planes (Left, Right, Bottom, Top, Near) (far plane omitted)
-    simd_float4 raw_planes[5] = {
-        r3 + r0, // Left
-        r3 - r0, // Right
-        r3 + r1, // Bottom
-        r3 - r1, // Top
-        r2       // Near
-    };
-
-    simd_float4 planes[5];
-    for (int p = 0; p < 5; p++) {
-      float len = sqrtf(raw_planes[p].x * raw_planes[p].x +
-                        raw_planes[p].y * raw_planes[p].y +
-                        raw_planes[p].z * raw_planes[p].z);
-      planes[p] = raw_planes[p] / (len > 1e-6f ? len : 1.0f);
-    }
+    CameraFrustum frustum =
+        camera_extract_frustum(camera, aspect, 75.0f * (float)M_PI / 180.0f);
+    simd_float4 *planes = frustum.planes;
 
     double cx = camera->center.x;
     double cy = camera->center.y;
@@ -447,9 +418,8 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
 
             // If M31 cluster is outside frustum, skip all external
             // stars (> 10^10 render units)
-            if (!m31_in_frustum && (wx * wx + wy * wy + wz * wz > 1e20)) {
+            if (!m31_in_frustum && (wx * wx + wy * wy + wz * wz > 1e20))
               continue;
-            }
 
             float rx = (float)(wx - cx);
             float ry = (float)(wy - cy);

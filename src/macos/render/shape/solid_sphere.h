@@ -13,4 +13,7 @@ typedef struct {
 
 SolidSphereMesh generate_solid_sphere(int latitude_bands, int longitude_bands);
 
+void get_shared_solid_sphere_buffers(void *render_state_ptr, void **out_vbuf,
+                                     void **out_ibuf, int *out_index_count);
+
 #endif // MACOS_RENDER_SHAPE_SOLID_SPHERE_H
