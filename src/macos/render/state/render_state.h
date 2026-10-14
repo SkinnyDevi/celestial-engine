@@ -44,6 +44,15 @@ void *RenderState_GetDepthTexture(RenderState *state);
 void *RenderState_GetDepthStencilState(RenderState *state);
 Camera *RenderState_GetCamera(RenderState *state);
 
+void *RenderState_GetStarPipelineState(RenderState *state);
+void *RenderState_GetStarDepthState(RenderState *state);
+void *RenderState_GetStarInstanceBuffer(RenderState *state);
+size_t RenderState_GetStarInstanceCount(RenderState *state);
+void RenderState_SetStarPipelineState(RenderState *state, void *pipelineState);
+void RenderState_SetStarDepthState(RenderState *state, void *depthState);
+void RenderState_SetStarInstanceBuffer(RenderState *state, void *buffer);
+void RenderState_SetStarInstanceCount(RenderState *state, size_t count);
+
 DynamicArray *RenderState_GetStars(RenderState *state);
 DynamicArray *RenderState_GetPlanets(RenderState *state);
 DynamicArray *RenderState_GetMoons(RenderState *state);

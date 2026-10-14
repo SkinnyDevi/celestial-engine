@@ -1,0 +1,145 @@
+#include <metal_stdlib>
+using namespace metal;
+
+struct StarInstance {
+    packed_float3 position; // Camera-relative position in render units
+    float radius;           // Base physical radius in render units
+    float4 color;           // Spectral color (RGBA)
+};
+
+struct StarUniforms {
+    float4x4 viewMatrix;
+    float4x4 projectionMatrix;
+    float minSizeFactor;
+};
+
+struct StarVertexOut {
+    float4 position [[position]];
+    float2 uv;
+    float4 color;
+    float close_factor;
+};
+
+struct StarFragmentOut {
+    float4 color [[color(0)]];
+    float depth [[depth(any)]];
+};
+
+// Billboard quad vertices (2 triangles, 6 vertices)
+constant float2 quad_corners[6] = {
+    float2(-1.0f, -1.0f),
+    float2( 1.0f, -1.0f),
+    float2(-1.0f,  1.0f),
+    float2(-1.0f,  1.0f),
+    float2( 1.0f, -1.0f),
+    float2( 1.0f,  1.0f)
+};
+
+vertex StarVertexOut star_vertex(
+    uint vid [[vertex_id]],
+    uint iid [[instance_id]],
+    constant StarUniforms &uniforms [[buffer(0)]],
+    const device StarInstance *instances [[buffer(1)]])
+{
+    StarVertexOut out;
+    StarInstance star = instances[iid];
+
+    // star.position is in camera-relative render units: (star_pos - camera.center)
+    float4 view_pos = uniforms.viewMatrix * float4(float3(star.position), 1.0f);
+
+    // If point is behind the camera near plane, clip it
+    if (view_pos.z >= -0.001f) {
+        out.position = float4(0.0f, 0.0f, 2.0f, 1.0f);
+        out.uv = float2(0.0f);
+        out.color = float4(0.0f);
+        out.close_factor = 0.0f;
+        return out;
+    }
+
+    float dist = length(view_pos.xyz);
+
+    // Dynamic sizing:
+    // When far away, star.radius < min_visual_size, maintaining visibility as a point.
+    // When closing in, star.radius dominates, defining the true physical celestial sphere.
+    float min_visual_size = dist * uniforms.minSizeFactor;
+    float render_scale = max(star.radius, min_visual_size);
+
+    // Transition from distant point glow (0.0) to physically resolved sphere (1.0).
+    // Begins resolving when physical radius approaches min_visual_size.
+    float close_factor = clamp((star.radius / max(min_visual_size, 1e-6f) - 0.7f) / 1.3f, 0.0f, 1.0f);
+
+    // Quad expansion in view space:
+    // At r=1.0 is the physical star boundary.
+    // Margin provides room for radiant glow at distance and corona up close.
+    float margin = mix(1.35f, 1.25f, close_factor);
+    float quad_scale = render_scale * margin;
+
+    float2 corner = quad_corners[vid];
+    view_pos.xy += corner * quad_scale;
+
+    out.position = uniforms.projectionMatrix * view_pos;
+    out.uv = corner * margin; // uv distance 1.0 is the physical boundary
+    out.color = star.color;
+    out.close_factor = close_factor;
+    return out;
+}
+
+fragment StarFragmentOut star_fragment(StarVertexOut in [[stage_in]]) {
+    StarFragmentOut out;
+    float r = length(in.uv);
+    float close = in.close_factor;
+    float max_r = mix(1.35f, 1.25f, close);
+
+    if (r > max_r) {
+        discard_fragment();
+    }
+
+    // --- MODE 1: DISTANT STAR (close == 0.0) ---
+    // Smooth luminous glow with bright core that radiates outward
+    float distant_glow = pow(max(0.0f, 1.0f - r / 1.35f), 1.6f);
+    float distant_core = smoothstep(1.0f, 0.0f, r);
+    float distant_alpha = mix(distant_glow, distant_core, 0.5f);
+    float4 distant_color = float4(in.color.rgb, distant_alpha);
+
+    // --- MODE 2: CLOSE-UP SPHERICAL BODY (close == 1.0) ---
+    // A clearly defined spherical body with a crisp limb edge, 3D spherical curvature,
+    // and a subtle corona outside the limb
+    float4 close_color;
+    if (r <= 1.0f) {
+        // Inside the solid physical sphere:
+        // Calculate 3D sphere normal Z component: Nz = sqrt(1 - r^2)
+        float Nz = sqrt(max(0.0f, 1.0f - r * r));
+
+        // Realistic solar limb darkening: center is brightest, limb darkens smoothly
+        float limb_darkening = 0.68f + 0.32f * pow(Nz, 0.55f);
+
+        // Crisp, antialiased limb edge (narrow 1.5% transition to avoid pixel jaggies)
+        float edge_alpha = smoothstep(1.0f, 0.985f, r);
+
+        // Emissive surface with hot center
+        float3 surface_rgb = in.color.rgb * limb_darkening + float3(0.18f) * pow(Nz, 2.2f);
+        close_color = float4(surface_rgb, edge_alpha);
+    } else {
+        // Outside the physical sphere: subtle glowing corona / solar atmosphere
+        float corona = pow(max(0.0f, 1.0f - (r - 1.0f) / 0.25f), 2.5f) * 0.35f;
+        close_color = float4(in.color.rgb, corona);
+    }
+
+    // Smoothly blend between distant radiant glow and close-up defined sphere
+    float4 final_color = mix(distant_color, close_color, close);
+
+    if (final_color.a < 0.01f) {
+        discard_fragment();
+    }
+
+    out.color = final_color;
+
+    // Depth writing:
+    // When close-up and within the physical sphere (r <= 1.0), write exact depth
+    // to occlude anything behind the star (e.g. Andromeda or background stars).
+    // Outside the sphere (corona) or when distant, write far plane depth (1.0)
+    // so background stars and star fields continue to blend seamlessly without clipping.
+    out.depth = (close > 0.4f && r <= 1.0f) ? in.position.z : 1.0f;
+
+    return out;
+}

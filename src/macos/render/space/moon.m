@@ -147,11 +147,15 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
 
-  if (moon->pipeline_state) {
-    id<MTLRenderPipelineState> pipeline =
-        (__bridge id<MTLRenderPipelineState>)moon->pipeline_state;
-    [encoder setRenderPipelineState:pipeline];
-  }
+  id<MTLRenderPipelineState> pipeline = moon->pipeline_state
+      ? (__bridge id<MTLRenderPipelineState>)moon->pipeline_state
+      : (__bridge id<MTLRenderPipelineState>)RenderState_GetPipelineState(render_state);
+  [encoder setRenderPipelineState:pipeline];
+
+  id<MTLDepthStencilState> depth_state =
+      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(render_state);
+  if (depth_state)
+    [encoder setDepthStencilState:depth_state];
 
   if (moon->vertex_buffer) {
     id<MTLBuffer> vbuf = (__bridge id<MTLBuffer>)moon->vertex_buffer;

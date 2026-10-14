@@ -131,11 +131,15 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
 
-  if (planet->pipeline_state) {
-    id<MTLRenderPipelineState> pipeline =
-        (__bridge id<MTLRenderPipelineState>)planet->pipeline_state;
-    [encoder setRenderPipelineState:pipeline];
-  }
+  id<MTLRenderPipelineState> pipeline = planet->pipeline_state
+      ? (__bridge id<MTLRenderPipelineState>)planet->pipeline_state
+      : (__bridge id<MTLRenderPipelineState>)RenderState_GetPipelineState(render_state);
+  [encoder setRenderPipelineState:pipeline];
+
+  id<MTLDepthStencilState> depth_state =
+      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(render_state);
+  if (depth_state)
+    [encoder setDepthStencilState:depth_state];
 
   if (planet->vertex_buffer) {
     id<MTLBuffer> vbuf = (__bridge id<MTLBuffer>)planet->vertex_buffer;

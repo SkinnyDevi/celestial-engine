@@ -201,6 +201,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   RenderState_SetUniformBuffer(state, (__bridge void *)uniform_buffer);
 
   create_render_pipeline(state);
+  create_star_render_pipeline(state);
   generate_debug_graphics(state);
   init_celestial_bodies(state);
   create_scale_bar((__bridge void *)window);
@@ -225,13 +226,17 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
 
 void draw_celestial_bodies(RenderState *state,
                            id<MTLRenderCommandEncoder> encoder) {
-  DynamicArray *stars = RenderState_GetStars(state);
-  size_t star_count = DynamicArray_length(stars);
-  for (size_t i = 0; i < star_count; i++) {
-    MTLStarGraphicsClass *star;
-    DynamicArray_get(stars, i, &star);
-    MTLStarGraphicsClass_draw(star, state, (__bridge void *)encoder);
-  }
+  draw_stars_instanced(state, (__bridge void *)encoder);
+
+  // Restore the mesh pipeline state and depth state for planets and moons
+  id<MTLRenderPipelineState> mesh_pipeline =
+      (__bridge id<MTLRenderPipelineState>)RenderState_GetPipelineState(state);
+  id<MTLDepthStencilState> mesh_depth =
+      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(state);
+  if (mesh_pipeline)
+    [encoder setRenderPipelineState:mesh_pipeline];
+  if (mesh_depth)
+    [encoder setDepthStencilState:mesh_depth];
 
   DynamicArray *planets = RenderState_GetPlanets(state);
   size_t planet_count = DynamicArray_length(planets);

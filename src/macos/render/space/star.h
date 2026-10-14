@@ -6,6 +6,22 @@
 
 #include "macos/render/state/render_state.h"
 
+#include "macos/render/shape/vertex.h"
+#include <simd/simd.h>
+
+typedef struct {
+  PackedFloat3 position; // 12 bytes: camera-relative pos in render units
+  float radius;          // 4 bytes: base physical radius in render units
+  simd_float4 color;     // 16 bytes: spectral RGBA color
+} StarInstance;
+
+typedef struct {
+  simd_float4x4 viewMatrix;
+  simd_float4x4 projectionMatrix;
+  float minSizeFactor;
+  float _pad[3];
+} StarUniforms;
+
 typedef struct MTLStarGraphicsClass {
   CelestialBody_Star *body;
 
@@ -26,5 +42,9 @@ void MTLStarGraphics_Destroy(MTLStarGraphicsClass *star_graphics);
 void init_celestial_body_stars(RenderState *render_state);
 void load_celestial_body_stars_from_file(RenderState *render_state,
                                          LoadedSimulationBodies *bodies);
+
+void create_star_render_pipeline(RenderState *state);
+void init_star_instance_buffer(RenderState *state);
+void draw_stars_instanced(RenderState *state, void *encoder_ptr);
 
 #endif

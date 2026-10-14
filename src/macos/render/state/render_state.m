@@ -34,6 +34,10 @@ typedef struct {
   bool dragging;
   NSPoint lastMouse;
   NSUInteger gridVertexCount;
+  id<MTLRenderPipelineState> starPipelineState;
+  id<MTLDepthStencilState> starDepthState;
+  id<MTLBuffer> starInstanceBuffer;
+  size_t starInstanceCount;
   DynamicArray stars;
   DynamicArray planets;
   DynamicArray moons;
@@ -62,6 +66,10 @@ RenderState *RenderState_Create(void) {
   impl->uniformBuffer = nil;
   impl->grid_shader_lib = nil;
   impl->pipelineState = nil;
+  impl->starPipelineState = nil;
+  impl->starDepthState = nil;
+  impl->starInstanceBuffer = nil;
+  impl->starInstanceCount = 0;
   impl->depthTexture = nil;
   impl->depthStencilState = nil;
   impl->camera_debug_overlay = nil;
@@ -114,6 +122,9 @@ void RenderState_Destroy(RenderState *state) {
   impl->uniformBuffer = nil;
   impl->grid_shader_lib = nil;
   impl->pipelineState = nil;
+  impl->starPipelineState = nil;
+  impl->starDepthState = nil;
+  impl->starInstanceBuffer = nil;
   impl->depthTexture = nil;
   impl->depthStencilState = nil;
   impl->commandQueue = nil;
@@ -193,6 +204,65 @@ void *RenderState_GetDepthStencilState(RenderState *state) {
     return NULL;
 
   return (__bridge void *)((RenderStateImpl *)state)->depthStencilState;
+}
+
+void *RenderState_GetStarPipelineState(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->starPipelineState;
+}
+
+void RenderState_SetStarPipelineState(RenderState *state, void *pipelineState) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->starPipelineState =
+      (__bridge id<MTLRenderPipelineState>)pipelineState;
+}
+
+void *RenderState_GetStarDepthState(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->starDepthState;
+}
+
+void RenderState_SetStarDepthState(RenderState *state, void *depthState) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->starDepthState =
+      (__bridge id<MTLDepthStencilState>)depthState;
+}
+
+void *RenderState_GetStarInstanceBuffer(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->starInstanceBuffer;
+}
+
+void RenderState_SetStarInstanceBuffer(RenderState *state, void *buffer) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->starInstanceBuffer =
+      (__bridge id<MTLBuffer>)buffer;
+}
+
+size_t RenderState_GetStarInstanceCount(RenderState *state) {
+  if (!state)
+    return 0;
+
+  return ((RenderStateImpl *)state)->starInstanceCount;
+}
+
+void RenderState_SetStarInstanceCount(RenderState *state, size_t count) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->starInstanceCount = count;
 }
 
 DynamicArray *RenderState_GetStars(RenderState *state) {
@@ -396,8 +466,28 @@ void RenderState_SetFollowedBody(RenderState *state, FollowType type,
   RenderStateImpl *impl = (RenderStateImpl *)state;
   impl->followed_type = type;
   impl->followed_body = body;
-  CelestialBody_Star *dummy = (CelestialBody_Star *)body;
-  LOG_DEBUG("Body followed: %s.%s", dummy->name, dummy->body_id);
+  const char *name = "Unknown";
+  const char *id_str = "Unknown";
+  if (type == FOLLOW_STAR) {
+    MTLStarGraphicsClass *star = (MTLStarGraphicsClass *)body;
+    if (star && star->body) {
+      name = star->body->name;
+      id_str = star->body->body_id;
+    }
+  } else if (type == FOLLOW_PLANET) {
+    MTLPlanetGraphicsClass *planet = (MTLPlanetGraphicsClass *)body;
+    if (planet && planet->body) {
+      name = planet->body->name;
+      id_str = planet->body->body_id;
+    }
+  } else if (type == FOLLOW_MOON) {
+    MTLMoonGraphicsClass *moon = (MTLMoonGraphicsClass *)body;
+    if (moon && moon->body) {
+      name = moon->body->name;
+      id_str = moon->body->body_id;
+    }
+  }
+  LOG_DEBUG("Body followed: %s (%s)", name, id_str);
 }
 
 void RenderState_ClearFollowedBody(RenderState *state) {
