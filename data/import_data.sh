@@ -17,4 +17,4 @@ if [ ! -d "$VENV_DIR" ]; then
     "$VENV_DIR/bin/pip" install --quiet astropy
 fi
 
-"$VENV_DIR/bin/python3" "$DIR/import_data.py"
+"$VENV_DIR/bin/python3" "$DIR/import_data.py" "$@"

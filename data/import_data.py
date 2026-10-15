@@ -1,6 +1,8 @@
+import argparse
 import json
 import math
 import re
+import time
 import numpy as np
 from astroquery.jplhorizons import Horizons
 from astroquery.simbad import Simbad
@@ -13,6 +15,10 @@ DEG_TO_RAD = math.pi / 180.0
 LY_TO_PC = 1.0 / 3.261563777
 PC_TO_METERS = 3.085677581e16
 G_CONST = 6.67430e-11  # Gravitational constant in m^3 kg^-1 s^-2
+
+# Optical photometric bands for apparent magnitude filtering (ordered by preference)
+# V: Johnson Visual, G: Gaia broadband, g/r: SDSS green/red, B: Johnson Blue, R/I: Cousins Red/Infrared
+OPTICAL_MAG_BANDS = ['V', 'G', 'g', 'r', 'R', 'B', 'I']
 
 def safe_float(val, default=0.0):
     """Safely converts value to float, handling None, masked arrays, and NaN."""
@@ -47,8 +53,10 @@ class CelestialImporter:
     MOON_CLASS_CAPTURED = 2
     MOON_CLASS_VOLCANIC = 3
 
-    def __init__(self, sim_time):
+    def __init__(self, sim_time, max_apparent_magnitude=None, keep_unmeasured=True):
         self.sim_time = sim_time
+        self.max_apparent_magnitude = max_apparent_magnitude
+        self.keep_unmeasured = keep_unmeasured
         self.orbits = []
         self.stars = []
         self.planets = []
@@ -60,7 +68,33 @@ class CelestialImporter:
         # Configure Simbad
         self.simbad = Simbad()
         self.simbad.ROW_LIMIT = -1
-        self.simbad.add_votable_fields('plx_value', 'sp_type')
+        self._init_simbad_fields()
+
+    def _init_simbad_fields(self):
+        """Initializes votable fields on the Simbad query instance with retry for resilience."""
+        fields_to_add = ['plx_value', 'sp_type'] + OPTICAL_MAG_BANDS
+        for attempt in range(3):
+            try:
+                self.simbad.add_votable_fields(*fields_to_add)
+                break
+            except Exception as e:
+                if attempt == 2:
+                    print(f"Warning: Failed to configure Simbad votable fields ({e}). Basic fields will be used.")
+                else:
+                    time.sleep(1.0)
+
+    def _get_apparent_magnitude(self, row):
+        """
+        Extracts the best available apparent optical magnitude from a Simbad result row.
+        Checks standard optical filters (V, G, g, r, R, B, I) in order of preference.
+        Returns (float_magnitude, band_name) or (None, None).
+        """
+        for band in OPTICAL_MAG_BANDS:
+            if band in row.colnames and not np.ma.is_masked(row[band]):
+                val = safe_float(row[band], default=None)
+                if val is not None:
+                    return val, band
+        return None, None
 
     def _fetch_orbit_jpl(self, jpl_id, center_id):
         print(f"Fetching orbital data for JPL ID {jpl_id}...")
@@ -117,14 +151,26 @@ class CelestialImporter:
         self.star_indices[clean_name] = len(self.stars) - 1
         print(f"Added star {clean_name}")
 
-    def add_star_simbad(self, name, body_id, mass_kg, radius_m, **kwargs):
-        """Fetches RA/Dec/Distance for a star from Simbad and adds it."""
+    def add_star_simbad(self, name, body_id, mass_kg, radius_m, max_apparent_magnitude=None, keep_unmeasured=None, **kwargs):
+        """Fetches RA/Dec/Distance for a star from Simbad and adds it, with optional magnitude filtering."""
         print(f"Fetching Simbad data for {name}...")
         result = self.simbad.query_object(name)
         if result is None:
             print(f"Failed to find {name} in Simbad.")
             return
         
+        mag, band = self._get_apparent_magnitude(result[0])
+        cutoff = self.max_apparent_magnitude if max_apparent_magnitude is None else max_apparent_magnitude
+        keep_unm = self.keep_unmeasured if keep_unmeasured is None else keep_unmeasured
+        
+        if cutoff is not None:
+            if mag is not None and mag > cutoff:
+                print(f"Skipping {name}: apparent magnitude {mag:.2f} ({band}) is fainter than limit {cutoff}")
+                return
+            if mag is None and not keep_unm:
+                print(f"Skipping {name}: no apparent magnitude measured and keep_unmeasured=False")
+                return
+
         ra_rad = float(result['ra'][0]) * DEG_TO_RAD
         dec_rad = float(result['dec'][0]) * DEG_TO_RAD
         
@@ -151,6 +197,8 @@ class CelestialImporter:
             "mass_kg": mass_kg,
             "radius_m": radius_m
         }
+        if mag is not None:
+            star["apparent_magnitude"] = round(mag, 4)
         star.update(kwargs)
         self.stars.append(star)
         self.star_indices[name] = len(self.stars) - 1
@@ -163,16 +211,23 @@ class CelestialImporter:
             star["spectral_type"] = stype
             star["spectral_subtype"] = ssubtype
             
-        print(f"Added star {clean_name} from Simbad")
+        mag_str = f" (mag {mag:.2f} [{band}])" if mag is not None else ""
+        print(f"Added star {clean_name}{mag_str} from Simbad")
 
     def add_nearby_stars(self, max_distance_ly=None, max_distance_pc=None, limit=50,
-                         mass_kg_default=1.989e30, radius_m_default=696340000):
+                         mass_kg_default=1.989e30, radius_m_default=696340000,
+                         max_apparent_magnitude=None, keep_unmeasured=None):
         """
         Fetches stars within a 3D physical distance from the Sun (measured by parallax).
         `max_distance_ly`: Distance limit in light-years.
         `max_distance_pc`: Distance limit in parsecs.
         `limit`: Maximum number of stars to fetch (-1 or None for unlimited).
+        `max_apparent_magnitude`: Apparent magnitude cutoff (drops stars fainter than this).
+        `keep_unmeasured`: Whether to keep stars without catalog magnitude measurement.
         """
+        cutoff = self.max_apparent_magnitude if max_apparent_magnitude is None else max_apparent_magnitude
+        keep_unm = self.keep_unmeasured if keep_unmeasured is None else keep_unmeasured
+
         if max_distance_pc is None:
             if max_distance_ly is not None:
                 max_distance_pc = max_distance_ly * LY_TO_PC
@@ -182,10 +237,18 @@ class CelestialImporter:
         dist_ly = max_distance_pc / LY_TO_PC
         min_plx = 1000.0 / max_distance_pc
         limit_desc = f"up to {limit}" if (limit is not None and limit > 0) else "all"
-        print(f"Fetching {limit_desc} nearby stars within {dist_ly:.1f} ly ({max_distance_pc:.1f} pc) of the Sun...")
+        mag_desc = f" with mag <= {cutoff}" if cutoff is not None else ""
+        print(f"Fetching {limit_desc} nearby stars within {dist_ly:.1f} ly ({max_distance_pc:.1f} pc) of the Sun{mag_desc}...")
         
         top_clause = f"TOP {limit} " if (limit is not None and limit > 0) else ""
-        query = f"SELECT {top_clause}main_id, ra, dec, plx_value, otype, sp_type FROM basic WHERE plx_value >= {min_plx:.4f} ORDER BY plx_value DESC"
+        query = (
+            f"SELECT {top_clause}b.main_id, b.ra, b.dec, b.plx_value, b.otype, b.sp_type, "
+            f"a.V, a.G, a.B, a.R, a.I "
+            f"FROM basic b "
+            f"LEFT JOIN allfluxes a ON b.oid = a.oidref "
+            f"WHERE b.plx_value >= {min_plx:.4f} "
+            f"ORDER BY plx_value DESC"
+        )
         
         try:
             result = self.simbad.query_tap(query)
@@ -198,6 +261,8 @@ class CelestialImporter:
             return
 
         count = 0
+        faint_filtered = 0
+        unmeasured_filtered = 0
         for row in result:
             name = row['main_id']
             if isinstance(name, bytes):
@@ -212,6 +277,15 @@ class CelestialImporter:
             clean_name = re.sub(r'[*]+', '', name).strip()
             if clean_name in self.star_indices or name in self.star_indices:
                 continue
+
+            mag, band = self._get_apparent_magnitude(row)
+            if cutoff is not None:
+                if mag is not None and mag > cutoff:
+                    faint_filtered += 1
+                    continue
+                if mag is None and not keep_unm:
+                    unmeasured_filtered += 1
+                    continue
                 
             body_id = re.sub(r'[^A-Za-z0-9_]', '_', clean_name).strip('_')[:31].upper()
             
@@ -236,6 +310,9 @@ class CelestialImporter:
                 "mass_kg": mass_kg_default,
                 "radius_m": radius_m_default
             }
+            if mag is not None:
+                star["apparent_magnitude"] = round(mag, 4)
+
             self.stars.append(star)
             self.star_indices[name] = len(self.stars) - 1
             self.star_indices[clean_name] = len(self.stars) - 1
@@ -248,13 +325,26 @@ class CelestialImporter:
 
             count += 1
             
-        print(f"Added {count} nearby stars around the Sun.")
+        msg = f"Added {count} nearby stars around the Sun."
+        if faint_filtered > 0 or unmeasured_filtered > 0:
+            msg += f" (Filtered {faint_filtered} faint stars with mag > {cutoff}"
+            if unmeasured_filtered > 0:
+                msg += f", {unmeasured_filtered} unmeasured"
+            msg += ")"
+        print(msg)
 
-    def add_stars_in_region(self, center_name, radius_degrees, limit=100, default_distance_pc=None, mass_kg_default=1.989e30, radius_m_default=696340000):
+    def add_stars_in_region(self, center_name, radius_degrees, limit=100, default_distance_pc=None,
+                            mass_kg_default=1.989e30, radius_m_default=696340000,
+                            max_apparent_magnitude=None, keep_unmeasured=None):
         """
         Fetches a batch of stars/objects around a specific celestial region (cone in the sky) and adds them.
         Ideal for extra-solar targets such as galaxies (e.g. 'M31'), nebulae, or clusters.
+        `max_apparent_magnitude`: Apparent magnitude cutoff (drops objects fainter than this).
+        `keep_unmeasured`: Whether to keep objects without catalog magnitude measurement.
         """
+        cutoff = self.max_apparent_magnitude if max_apparent_magnitude is None else max_apparent_magnitude
+        keep_unm = self.keep_unmeasured if keep_unmeasured is None else keep_unmeasured
+
         if default_distance_pc is not None and default_distance_pc > 50000:
             # We are querying an external galaxy: ignore foreground Milky Way stars
             dist_pc = default_distance_pc
@@ -262,10 +352,15 @@ class CelestialImporter:
         if center_name.strip().lower() == "sun":
             print(f"Notice: 'Sun' is our local star (origin of coordinates) and does not exist as an extra-solar target in SIMBAD's sky catalog.")
             print(f"Redirecting query to fetch nearby stars by 3D distance ({radius_degrees} ly) from the Sun...")
-            return self.add_nearby_stars(max_distance_ly=radius_degrees, limit=limit, mass_kg_default=mass_kg_default, radius_m_default=radius_m_default)
+            return self.add_nearby_stars(
+                max_distance_ly=radius_degrees, limit=limit,
+                mass_kg_default=mass_kg_default, radius_m_default=radius_m_default,
+                max_apparent_magnitude=cutoff, keep_unmeasured=keep_unm
+            )
 
         limit_desc = f"up to {limit}" if (limit is not None and limit > 0) else "all"
-        print(f"Fetching {limit_desc} objects around {center_name} (radius {radius_degrees} deg)...")
+        mag_desc = f" with mag <= {cutoff}" if cutoff is not None else ""
+        print(f"Fetching {limit_desc} objects around {center_name} (radius {radius_degrees} deg){mag_desc}...")
         
         prev_limit = self.simbad.ROW_LIMIT
         self.simbad.ROW_LIMIT = limit if (limit is not None and limit > 0) else -1
@@ -279,6 +374,8 @@ class CelestialImporter:
             return
             
         count = 0
+        faint_filtered = 0
+        unmeasured_filtered = 0
         total = len(result) if result is not None else 0
         for row in result:
             name = row['main_id']
@@ -289,6 +386,15 @@ class CelestialImporter:
             clean_name = re.sub(r'[*]+', '', name).strip()
             if clean_name in self.star_indices or name in self.star_indices:
                 continue
+
+            mag, band = self._get_apparent_magnitude(row)
+            if cutoff is not None:
+                if mag is not None and mag > cutoff:
+                    faint_filtered += 1
+                    continue
+                if mag is None and not keep_unm:
+                    unmeasured_filtered += 1
+                    continue
                 
             body_id = re.sub(r'[^A-Za-z0-9_]', '_', clean_name).strip('_')[:31].upper()
             
@@ -320,6 +426,9 @@ class CelestialImporter:
                 "mass_kg": mass_kg_default,
                 "radius_m": radius_m_default
             }
+            if mag is not None:
+                star["apparent_magnitude"] = round(mag, 4)
+
             self.stars.append(star)
             self.star_indices[name] = len(self.stars) - 1
             self.star_indices[clean_name] = len(self.stars) - 1
@@ -330,10 +439,17 @@ class CelestialImporter:
                 star["spectral_type"] = stype
                 star["spectral_subtype"] = ssubtype
             
-            print(f"DEBUG | {count + 1}/{total} | Added star {name}")
             count += 1
+            if count % 1000 == 0:
+                print(f"Progress: added {count} stars (checked {count + faint_filtered + unmeasured_filtered}/{total})...")
             
-        print(f"Added {count} objects from {center_name} region.")
+        msg = f"Added {count} objects from {center_name} region."
+        if faint_filtered > 0 or unmeasured_filtered > 0:
+            msg += f" (Filtered {faint_filtered} faint objects with mag > {cutoff}"
+            if unmeasured_filtered > 0:
+                msg += f", {unmeasured_filtered} unmeasured"
+            msg += ")"
+        print(msg)
 
     def add_planet(self, name, body_id, jpl_id, center_id, host_star_name, **kwargs):
         """Fetches orbital data from JPL Horizons and adds a planet."""
@@ -838,10 +954,27 @@ class CelestialImporter:
 
 
 def main():
-    # 1. Initialize the importer with your simulation date
-    SEARCH_DEGREES = 22.5
+    parser = argparse.ArgumentParser(description="Celestial Body Engine Data Importer with Apparent Magnitude Filter")
+    parser.add_argument("--degrees", type=float, default=1.0, help="Search radius degrees around target (default: 1.0)")
+    parser.add_argument("--target", type=str, default="M31", help="Target celestial object or galaxy (default: 'M31')")
+    parser.add_argument("--limit", type=int, default=-1, help="Max stars to fetch (-1 for unlimited, default: -1)")
+    parser.add_argument("--max-mag", type=float, default=18.0, help="Apparent magnitude cutoff: drops objects fainter than this (default: 18.0; pass -1 to disable)")
+    parser.add_argument("--drop-unmeasured", action="store_true", default=False, help="Drop stars that lack photometric measurement in catalog")
+    parser.add_argument("--distance-pc", type=float, default=780000.0, help="Default distance in parsecs for region objects (default: 780000 for M31)")
+    parser.add_argument("--output", type=str, default=None, help="Output JSON path (default: real_world_data_<degrees>deg.json)")
+    parser.add_argument("--date", type=str, default="2024-10-05T12:30:00", help="Simulation epoch date (default: 2024-10-05T12:30:00)")
+    args = parser.parse_args()
 
-    importer = CelestialImporter(Time("2024-10-05T12:30:00"))
+    max_mag = None if (args.max_mag is not None and args.max_mag < 0) else args.max_mag
+    keep_unmeasured = not args.drop_unmeasured
+
+    print("=== Celestial Body Engine Importer ===")
+    print(f"Epoch Date: {args.date}")
+    print(f"Target Region: {args.target} (Radius: {args.degrees} deg)")
+    print(f"Apparent Magnitude Cutoff: {f'm <= {max_mag}' if max_mag is not None else 'Disabled (all magnitudes)'}")
+    print(f"Keep Unmeasured Photometry: {keep_unmeasured}")
+
+    importer = CelestialImporter(Time(args.date), max_apparent_magnitude=max_mag, keep_unmeasured=keep_unmeasured)
     
     # -------------------------------------------------------------------------
     # SOLAR SYSTEM (Sun, All 8 Planets, Dwarf Planet Pluto, and Major Moons)
@@ -849,7 +982,7 @@ def main():
     importer.add_solar_system(include_moons=True, include_dwarf_planets=True)
 
     # -------------------------------------------------------------------------
-    # EXTRA-SOLAR STARS & GALAXIES (Optional demonstration)
+    # EXTRA-SOLAR STARS & GALAXIES
     # -------------------------------------------------------------------------
     # Add Sirius dynamically via SIMBAD (requires providing mass/radius manually)
     importer.add_star_simbad("Sirius", "SIRIUS", mass_kg=4.01e30, radius_m=1190000000)
@@ -858,16 +991,29 @@ def main():
     importer.add_star_simbad("Alpha Centauri", "ALPHA_CENTAURI", mass_kg=2.2e30, radius_m=1.2e9)
 
     # Fetch nearby stars within 15 lightyears of the Sun (e.g. Proxima Centauri, Barnard's Star, etc.)
-    # Use max_distance_ly for 3D distance sphere around the Sun, limit=-1 for unlimited
     importer.add_nearby_stars(max_distance_ly=15.0, limit=50)
     
-    # Fetch stars within the Andromeda Galaxy (M31) sky region (angular cone)
-    importer.add_stars_in_region("M31", radius_degrees=SEARCH_DEGREES, limit=-1, default_distance_pc=780000)
+    # Fetch stars within the target region (e.g. Andromeda Galaxy M31)
+    importer.add_stars_in_region(args.target, radius_degrees=args.degrees, limit=args.limit, default_distance_pc=args.distance_pc)
 
     # -------------------------------------------------------------------------
     # Save the file
     # -------------------------------------------------------------------------
-    importer.save(f'real_world_data_{SEARCH_DEGREES}deg.json')
+    out_file = args.output if args.output else f'real_world_data_target_{args.target.replace(" ", "-")}_maxmag_{"disabled" if max_mag is None else int(max_mag)}_{args.degrees:g}deg.json'
+    importer.save(out_file)
 
 if __name__ == "__main__":
     main()
+
+# NEXT STEP:
+# CONVERTING THE IMPORTER TO A MORE FULLY FLEDGED
+# PYTHON APP
+# USING ASTROQUERY FOR:
+# - GAIADR3
+# - BAILER-JONES
+# - STARHORSE
+# - VIZIER
+
+# IF POSSIBLE
+# IMPORT TO PYTHON C HEADERS SO THAT PYTHON CAN USE
+# THE CELESTIAL BODY STAR/PLANET/MOON/ORBIT STRUCTS

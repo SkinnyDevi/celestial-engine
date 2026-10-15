@@ -177,6 +177,9 @@
                 },
                 "magnetic_field_gauss": {
                     "type": "number"
+                },
+                "apparent_magnitude": {
+                    "type": "number"
                 }
             },
             "required": [

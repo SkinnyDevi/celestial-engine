@@ -22,4 +22,4 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 import-data:
-	@bash ./data/import_data.sh
+	@bash ./data/import_data.sh $(ARGS)
