@@ -37,17 +37,21 @@ Test(json_loader_suite, test_invalid_types) {
   LoadedSimulationBodies *bodies = json_load(filename);
   cr_assert_not_null(bodies,
                      "Syntactically valid JSON should parse successfully");
-  cr_assert_eq(bodies->num_planets, 1, "Should parse 1 planet");
+  cr_assert_eq(DynamicArray_length(&bodies->planets), 1, "Should parse 1 planet");
+
+  CelestialBody_Planet *planet = NULL;
+  DynamicArray_get(&bodies->planets, 0, &planet);
+  cr_assert_not_null(planet);
 
   // Assert fallback logic kicks in
   cr_assert_str_empty(
-      bodies->planets[0].name,
+      planet->name,
       "Name should fallback to empty string if it's not a string in JSON");
   cr_assert_float_eq(
-      bodies->planets[0].eccentricity, 0.0, 1e-5,
+      planet->eccentricity, 0.0, 1e-5,
       "Eccentricity should fallback to 0.0 if not a number in JSON");
 
-  free(bodies->planets);
+  loaded_simulation_bodies_free(bodies);
   free(bodies);
   remove(filename);
 }
@@ -55,32 +59,39 @@ Test(json_loader_suite, test_invalid_types) {
 Test(json_loader_suite, test_save_and_load_state) {
   const char *filename = "test_save_load.json";
 
-  LoadedSimulationBodies original = {0};
-  original.num_planets = 1;
-  original.planets = calloc(1, sizeof(CelestialBody_Planet));
-  strcpy(original.planets[0].name, "Mars");
-  strcpy(original.planets[0].body_id, "mars_1");
-  original.planets[0].mass_kg = 6.39e23;
-  original.planets[0].position.x = 1.5;
-  original.planets[0].position.y = 0.0;
-  original.planets[0].position.z = -0.5;
+  LoadedSimulationBodies original;
+  loaded_simulation_bodies_init(&original);
+
+  CelestialBody_Planet *p = calloc(1, sizeof(CelestialBody_Planet));
+  strcpy(p->name, "Mars");
+  strcpy(p->body_id, "mars_1");
+  p->mass_kg = 6.39e23;
+  p->position.x = 1.5;
+  p->position.y = 0.0;
+  p->position.z = -0.5;
+  DynamicArray_push(&original.planets, &p);
 
   bool saved = json_save(filename, &original);
   cr_assert(saved, "Failed to serialize and save valid simulation state");
 
   LoadedSimulationBodies *loaded = json_load(filename);
   cr_assert_not_null(loaded, "Failed to load saved state");
-  cr_assert_eq(loaded->num_planets, 1);
-  cr_assert_str_eq(loaded->planets[0].name, "Mars");
-  cr_assert_str_eq(loaded->planets[0].body_id, "mars_1");
+  cr_assert_eq(DynamicArray_length(&loaded->planets), 1);
+
+  CelestialBody_Planet *loaded_planet = NULL;
+  DynamicArray_get(&loaded->planets, 0, &loaded_planet);
+  cr_assert_not_null(loaded_planet);
+
+  cr_assert_str_eq(loaded_planet->name, "Mars");
+  cr_assert_str_eq(loaded_planet->body_id, "mars_1");
   // Using a large epsilon for mass because of floating point imprecision at
   // such large exponents
-  cr_assert_float_eq(loaded->planets[0].mass_kg, 6.39e23, 1e18);
-  cr_assert_float_eq(loaded->planets[0].position.x, 1.5, 1e-5);
-  cr_assert_float_eq(loaded->planets[0].position.z, -0.5, 1e-5);
+  cr_assert_float_eq(loaded_planet->mass_kg, 6.39e23, 1e18);
+  cr_assert_float_eq(loaded_planet->position.x, 1.5, 1e-5);
+  cr_assert_float_eq(loaded_planet->position.z, -0.5, 1e-5);
 
-  free(original.planets);
-  free(loaded->planets);
+  loaded_simulation_bodies_free(&original);
+  loaded_simulation_bodies_free(loaded);
   free(loaded);
   remove(filename);
 }

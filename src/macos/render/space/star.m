@@ -533,16 +533,18 @@ void init_celestial_body_stars(RenderState *render_state) {
 void load_celestial_body_stars_from_file(RenderState *render_state,
                                          LoadedSimulationBodies *bodies) {
   DynamicArray *stars = RenderState_GetStars(render_state);
+  size_t count = DynamicArray_length(&bodies->stars);
 
-  for (size_t i = 0; i < bodies->num_stars; i++) {
-    CelestialBody_Star *star = &bodies->stars[i];
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Star *star;
+    DynamicArray_get(&bodies->stars, i, &star);
     MTLStarGraphicsClass *mtl_star = MTLStarGraphics_Create(star);
     MTLStarGraphicsClass_init(mtl_star, render_state);
     DynamicArray_push(stars, &mtl_star);
 
-    if (i < 5 || (i + 1) % 10000 == 0 || i == bodies->num_stars - 1) {
-      LOG_DEBUG("Registered star (%lu / %lu): %s (%s)", i + 1,
-                bodies->num_stars, ((CelestialBody_Star *)mtl_star->body)->name,
+    if (i < 5 || (i + 1) % 10000 == 0 || i == count - 1) {
+      LOG_DEBUG("Registered star (%lu / %lu): %s (%s)", i + 1, count,
+                ((CelestialBody_Star *)mtl_star->body)->name,
                 ((CelestialBody_Star *)mtl_star->body)->body_id);
     }
   }

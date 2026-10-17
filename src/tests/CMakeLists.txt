@@ -34,7 +34,7 @@ if (CRITERION_LIBRARY AND CRITERION_INCLUDE_DIR)
     target_link_libraries(test_dyn_array PRIVATE ${CRITERION_LIBRARY})
     add_test(NAME test_dyn_array COMMAND test_dyn_array)
     # test_json_loader
-    add_executable(test_json_loader test_json_loader.c ../core/data/loader/json/json_data_loader.c)
+    add_executable(test_json_loader test_json_loader.c ../core/data/dyn_array.c ../core/data/hash_table.c ../core/cli/instance_data.c ../core/data/loader/data_loader.c ../core/data/loader/loader_registry.c ../core/data/loader/json/json_data_loader.c)
     target_include_directories(test_json_loader PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CRITERION_INCLUDE_DIR} ${cjson_SOURCE_DIR})
     target_link_libraries(test_json_loader PRIVATE ${CRITERION_LIBRARY} cjson)
     add_test(NAME test_json_loader COMMAND test_json_loader)
@@ -45,7 +45,7 @@ if (CRITERION_LIBRARY AND CRITERION_INCLUDE_DIR)
         "../core/cli/instance_data.c"
         "../core/cli/args/*.c"
     )
-    add_executable(test_cli_args test_cli_args.c ${CLI_SOURCES} ../core/data/dyn_array.c ../core/data/loader/data_loader.c ../core/data/loader/loader_registry.c ../core/data/loader/json/json_data_loader.c)
+    add_executable(test_cli_args test_cli_args.c ${CLI_SOURCES} ../core/data/dyn_array.c ../core/data/hash_table.c ../core/data/loader/data_loader.c ../core/data/loader/loader_registry.c ../core/data/loader/json/json_data_loader.c)
     target_include_directories(test_cli_args PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${CRITERION_INCLUDE_DIR} ${cjson_SOURCE_DIR})
     target_link_libraries(test_cli_args PRIVATE ${CRITERION_LIBRARY} cjson)
     add_test(NAME test_cli_args COMMAND test_cli_args)

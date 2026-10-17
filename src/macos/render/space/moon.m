@@ -255,9 +255,11 @@ void init_celestial_body_moons(RenderState *render_state) {
 void load_celestial_body_moons_from_file(RenderState *render_state,
                                          LoadedSimulationBodies *bodies) {
   DynamicArray *moons = RenderState_GetMoons(render_state);
+  size_t count = DynamicArray_length(&bodies->moons);
 
-  for (size_t i = 0; i < bodies->num_moons; i++) {
-    CelestialBody_Moon *moon = &bodies->moons[i];
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Moon *moon;
+    DynamicArray_get(&bodies->moons, i, &moon);
     MTLMoonGraphicsClass *mtl_moon = MTLMoonGraphics_Create(moon);
     MTLMoonGraphicsClass_init(mtl_moon, render_state);
     DynamicArray_push(moons, &mtl_moon);

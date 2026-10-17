@@ -11,14 +11,11 @@ static const char *DATA_FILE_PATH = NULL;
 static const char *SAVE_STATE_FILE_PATH = NULL;
 
 static LoadedSimulationBodies LOADED_SIM_BODIES = {
-    .num_orbits = 0,
-    .orbits = NULL,
-    .num_planets = 0,
-    .planets = NULL,
-    .num_moons = 0,
-    .moons = NULL,
-    .num_stars = 0,
-    .stars = NULL,
+    .sim_date = {0},
+    .orbits = {0},
+    .planets = {0},
+    .moons = {0},
+    .stars = {0},
 };
 
 static CLIArgSimDate SIM_DATE = {.time = {.tm_sec = 0,

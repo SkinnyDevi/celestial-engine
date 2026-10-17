@@ -1,4 +1,5 @@
 #include "json_data_loader.h"
+#include "core/log/log.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,18 +80,16 @@ static Quaternion parse_quaternion(cJSON *parent, const char *key) {
 // Parsing Entities
 // -----------------------------------------------------------------------------
 
-static void parse_orbits(cJSON *root, LoadedSimulationBodies *bodies) {
+static void parse_orbits(cJSON *root, LoadedSimulationBodies *bodies,
+                         DynamicArray *file_orbits) {
+  LOG_DEBUG("Parsing orbits...", NULL);
   cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "orbits");
-  bodies->num_orbits = cJSON_GetArraySize(arr);
-  if (bodies->num_orbits == 0)
+  if (!cJSON_IsArray(arr) || cJSON_GetArraySize(arr) == 0)
     return;
 
-  bodies->orbits = calloc(bodies->num_orbits, sizeof(CelestialBody_Orbit));
-
   cJSON *item;
-  size_t i = 0;
   cJSON_ArrayForEach(item, arr) {
-    CelestialBody_Orbit *cb_orbit = &bodies->orbits[i++];
+    CelestialBody_Orbit *cb_orbit = calloc(1, sizeof(CelestialBody_Orbit));
     cb_orbit->semimajor_axis = get_double(item, "semimajor_axis", 0);
     cb_orbit->eccentricity = get_double(item, "eccentricity", 0);
     cb_orbit->inclination = get_double(item, "inclination", 0);
@@ -104,23 +103,28 @@ static void parse_orbits(cJSON *root, LoadedSimulationBodies *bodies) {
     cb_orbit->mean_anomaly = get_double(item, "mean_anomaly", 0);
     cb_orbit->true_anomaly = get_double(item, "true_anomaly", 0);
     cb_orbit->center_position = parse_vector3(item, "center_position");
+
+    DynamicArray_push(&bodies->orbits, &cb_orbit);
+    if (file_orbits)
+      DynamicArray_push(file_orbits, &cb_orbit);
   }
+  LOG_DEBUG("Parsed %zu orbits", DynamicArray_length(&bodies->orbits));
 }
 
 static void parse_stars(cJSON *root, LoadedSimulationBodies *bodies) {
+  LOG_DEBUG("Parsing stars...", NULL);
   cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "stars");
-  bodies->num_stars = cJSON_GetArraySize(arr);
-  if (bodies->num_stars == 0)
+  if (!cJSON_IsArray(arr) || cJSON_GetArraySize(arr) == 0)
     return;
 
-  bodies->stars = calloc(bodies->num_stars, sizeof(CelestialBody_Star));
-
   cJSON *item;
-  size_t i = 0;
   cJSON_ArrayForEach(item, arr) {
-    CelestialBody_Star *cb_star = &bodies->stars[i++];
+    char body_id[32] = {0};
+    get_string(item, "body_id", body_id, sizeof(body_id));
+
+    CelestialBody_Star *cb_star = calloc(1, sizeof(CelestialBody_Star));
     get_string(item, "name", cb_star->name, sizeof(cb_star->name));
-    get_string(item, "body_id", cb_star->body_id, sizeof(cb_star->body_id));
+    strncpy(cb_star->body_id, body_id, sizeof(cb_star->body_id) - 1);
 
     cb_star->spectral_type = get_int(item, "spectral_type", 0);
     cb_star->spectral_subtype = get_int(item, "spectral_subtype", 0);
@@ -139,40 +143,53 @@ static void parse_stars(cJSON *root, LoadedSimulationBodies *bodies) {
         get_double(item, "bolometric_luminosity_w", 0);
     cb_star->rotation_period_days = get_double(item, "rotation_period_days", 0);
     cb_star->magnetic_field_gauss = get_double(item, "magnetic_field_gauss", 0);
+
+    DynamicArray_push(&bodies->stars, &cb_star);
   }
+  LOG_DEBUG("Parsed %zu stars", DynamicArray_length(&bodies->stars));
 }
 
-static void parse_planets(cJSON *root, LoadedSimulationBodies *bodies) {
+static void parse_planets(cJSON *root, LoadedSimulationBodies *bodies,
+                          DynamicArray *file_orbits) {
+  LOG_DEBUG("Parsing planets...", NULL);
   cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "planets");
-  bodies->num_planets = cJSON_GetArraySize(arr);
-  if (bodies->num_planets == 0)
+  if (!cJSON_IsArray(arr) || cJSON_GetArraySize(arr) == 0)
     return;
 
-  bodies->planets = calloc(bodies->num_planets, sizeof(CelestialBody_Planet));
-
   cJSON *item;
-  size_t i = 0;
   cJSON_ArrayForEach(item, arr) {
-    CelestialBody_Planet *cb_planet = &bodies->planets[i++];
-    get_string(item, "name", cb_planet->name, sizeof(cb_planet->name));
-    get_string(item, "body_id", cb_planet->body_id, sizeof(cb_planet->body_id));
+    char body_id[32] = {0};
+    get_string(item, "body_id", body_id, sizeof(body_id));
 
-    // Resolve host star by index
+    CelestialBody_Planet *cb_planet = calloc(1, sizeof(CelestialBody_Planet));
+    get_string(item, "name", cb_planet->name, sizeof(cb_planet->name));
+    strncpy(cb_planet->body_id, body_id, sizeof(cb_planet->body_id) - 1);
+
+    // Resolve host star by index within current stars array
     int host_star_idx = get_int(item, "host_star_index", -1);
-    if (host_star_idx >= 0 && host_star_idx < (int)bodies->num_stars) {
-      strncpy(cb_planet->host_star_id, bodies->stars[host_star_idx].body_id,
-              sizeof(cb_planet->host_star_id) - 1);
-      cb_planet->host_star_id[sizeof(cb_planet->host_star_id) - 1] = '\0';
+    if (host_star_idx >= 0 &&
+        host_star_idx < (int)DynamicArray_length(&bodies->stars)) {
+      CelestialBody_Star *star;
+      DynamicArray_get(&bodies->stars, host_star_idx, &star);
+      if (star) {
+        strncpy(cb_planet->host_star_id, star->body_id,
+                sizeof(cb_planet->host_star_id) - 1);
+        cb_planet->host_star_id[sizeof(cb_planet->host_star_id) - 1] = '\0';
+      }
     } else {
       cb_planet->host_star_id[0] = '\0';
     }
 
-    // Resolve orbit by index
+    // Resolve orbit by index within file_orbits
     int orbit_idx = get_int(item, "orbit_index", -1);
-    if (orbit_idx >= 0 && orbit_idx < (int)bodies->num_orbits)
-      cb_planet->orbit = &bodies->orbits[orbit_idx];
-    else
+    if (file_orbits && orbit_idx >= 0 &&
+        orbit_idx < (int)DynamicArray_length(file_orbits)) {
+      CelestialBody_Orbit *orb;
+      DynamicArray_get(file_orbits, orbit_idx, &orb);
+      cb_planet->orbit = orb;
+    } else {
       cb_planet->orbit = NULL;
+    }
 
     cb_planet->planet_class = get_int(item, "planet_class", 0);
     cb_planet->position = parse_vector3(item, "position");
@@ -207,40 +224,53 @@ static void parse_planets(cJSON *root, LoadedSimulationBodies *bodies) {
     cb_planet->has_rings = get_int(item, "has_rings", 0);
     cb_planet->ring_inner_radius_m = get_double(item, "ring_inner_radius_m", 0);
     cb_planet->ring_outer_radius_m = get_double(item, "ring_outer_radius_m", 0);
+
+    DynamicArray_push(&bodies->planets, &cb_planet);
   }
+  LOG_DEBUG("Parsed %zu planets", DynamicArray_length(&bodies->planets));
 }
 
-static void parse_moons(cJSON *root, LoadedSimulationBodies *bodies) {
+static void parse_moons(cJSON *root, LoadedSimulationBodies *bodies,
+                        DynamicArray *file_orbits) {
+  LOG_DEBUG("Parsing moons...", NULL);
   cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "moons");
-  bodies->num_moons = cJSON_GetArraySize(arr);
-  if (bodies->num_moons == 0)
+  if (!cJSON_IsArray(arr) || cJSON_GetArraySize(arr) == 0)
     return;
 
-  bodies->moons = calloc(bodies->num_moons, sizeof(CelestialBody_Moon));
-
   cJSON *item;
-  size_t i = 0;
   cJSON_ArrayForEach(item, arr) {
-    CelestialBody_Moon *cb_moon = &bodies->moons[i++];
-    get_string(item, "name", cb_moon->name, sizeof(cb_moon->name));
-    get_string(item, "body_id", cb_moon->body_id, sizeof(cb_moon->body_id));
+    char body_id[32] = {0};
+    get_string(item, "body_id", body_id, sizeof(body_id));
 
-    // Resolve host planet by index
+    CelestialBody_Moon *cb_moon = calloc(1, sizeof(CelestialBody_Moon));
+    get_string(item, "name", cb_moon->name, sizeof(cb_moon->name));
+    strncpy(cb_moon->body_id, body_id, sizeof(cb_moon->body_id) - 1);
+
+    // Resolve host planet by index within current planets array
     int host_planet_idx = get_int(item, "host_planet_index", -1);
-    if (host_planet_idx >= 0 && host_planet_idx < (int)bodies->num_planets) {
-      strncpy(cb_moon->host_planet_id, bodies->planets[host_planet_idx].body_id,
-              sizeof(cb_moon->host_planet_id) - 1);
-      cb_moon->host_planet_id[sizeof(cb_moon->host_planet_id) - 1] = '\0';
+    if (host_planet_idx >= 0 &&
+        host_planet_idx < (int)DynamicArray_length(&bodies->planets)) {
+      CelestialBody_Planet *planet;
+      DynamicArray_get(&bodies->planets, host_planet_idx, &planet);
+      if (planet) {
+        strncpy(cb_moon->host_planet_id, planet->body_id,
+                sizeof(cb_moon->host_planet_id) - 1);
+        cb_moon->host_planet_id[sizeof(cb_moon->host_planet_id) - 1] = '\0';
+      }
     } else {
       cb_moon->host_planet_id[0] = '\0';
     }
 
-    // Resolve orbit by index
+    // Resolve orbit by index within file_orbits
     int orbit_idx = get_int(item, "orbit_index", -1);
-    if (orbit_idx >= 0 && orbit_idx < (int)bodies->num_orbits)
-      cb_moon->orbit = &bodies->orbits[orbit_idx];
-    else
+    if (file_orbits && orbit_idx >= 0 &&
+        orbit_idx < (int)DynamicArray_length(file_orbits)) {
+      CelestialBody_Orbit *orb;
+      DynamicArray_get(file_orbits, orbit_idx, &orb);
+      cb_moon->orbit = orb;
+    } else {
       cb_moon->orbit = NULL;
+    }
 
     cb_moon->moon_class = get_int(item, "moon_class", 0);
     cb_moon->position = parse_vector3(item, "position");
@@ -265,10 +295,14 @@ static void parse_moons(cJSON *root, LoadedSimulationBodies *bodies) {
         get_double(item, "surface_temperature_k", 0);
     cb_moon->atmosphere_type = get_int(item, "atmosphere_type", 0);
     cb_moon->surface_pressure_pa = get_double(item, "surface_pressure_pa", 0);
+
+    DynamicArray_push(&bodies->moons, &cb_moon);
   }
+  LOG_DEBUG("Parsed %zu moons", DynamicArray_length(&bodies->moons));
 }
 
 static void parse_sim_date(cJSON *root, LoadedSimulationBodies *bodies) {
+  LOG_DEBUG("Parsing sim_date...", NULL);
   cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "sim_date");
   if (cJSON_IsObject(item)) {
     bodies->sim_date.time.tm_year = get_int(item, "year", 2000) - 1900;
@@ -281,6 +315,7 @@ static void parse_sim_date(cJSON *root, LoadedSimulationBodies *bodies) {
   } else {
     bodies->sim_date.has_set_date = false;
   }
+  LOG_DEBUG("Parsed sim_date", NULL);
 }
 
 LoadedSimulationBodies *json_load(const char *filename) {
@@ -298,14 +333,19 @@ LoadedSimulationBodies *json_load(const char *filename) {
     cJSON_Delete(root);
     return NULL;
   }
+  loaded_simulation_bodies_init(bodies);
+
+  DynamicArray file_orbits;
+  DynamicArray_init(&file_orbits, sizeof(CelestialBody_Orbit *));
 
   // Parse in dependency order
   parse_sim_date(root, bodies);
-  parse_orbits(root, bodies);
+  parse_orbits(root, bodies, &file_orbits);
   parse_stars(root, bodies);
-  parse_planets(root, bodies);
-  parse_moons(root, bodies);
+  parse_planets(root, bodies, &file_orbits);
+  parse_moons(root, bodies, &file_orbits);
 
+  DynamicArray_free(&file_orbits);
   cJSON_Delete(root);
   return bodies;
 }
@@ -333,31 +373,48 @@ static void add_quaternion(cJSON *parent, const char *key, Quaternion q) {
 
 static int find_star_index(const LoadedSimulationBodies *bodies,
                            const char *body_id) {
-  for (size_t i = 0; i < bodies->num_stars; i++)
-    if (strcmp(bodies->stars[i].body_id, body_id) == 0)
+  if (!body_id || body_id[0] == '\0')
+    return -1;
+
+  size_t count = DynamicArray_length((DynamicArray *)&bodies->stars);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Star *star;
+    DynamicArray_get((DynamicArray *)&bodies->stars, i, &star);
+    if (star && strcmp(star->body_id, body_id) == 0)
       return (int)i;
+  }
 
   return -1;
 }
 
 static int find_planet_index(const LoadedSimulationBodies *bodies,
                              const char *body_id) {
-  for (size_t i = 0; i < bodies->num_planets; i++)
-    if (strcmp(bodies->planets[i].body_id, body_id) == 0)
+  if (!body_id || body_id[0] == '\0')
+    return -1;
+
+  size_t count = DynamicArray_length((DynamicArray *)&bodies->planets);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Planet *planet;
+    DynamicArray_get((DynamicArray *)&bodies->planets, i, &planet);
+    if (planet && strcmp(planet->body_id, body_id) == 0)
       return (int)i;
+  }
 
   return -1;
 }
 
 static int find_orbit_index(const LoadedSimulationBodies *bodies,
                             const CelestialBody_Orbit *orbit) {
-  if (!orbit || !bodies->orbits)
+  if (!orbit)
     return -1;
 
-  // Calculate index by pointer difference
-  ptrdiff_t diff = orbit - bodies->orbits;
-  if (diff >= 0 && diff < (ptrdiff_t)bodies->num_orbits)
-    return (int)diff;
+  size_t count = DynamicArray_length((DynamicArray *)&bodies->orbits);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Orbit *o;
+    DynamicArray_get((DynamicArray *)&bodies->orbits, i, &o);
+    if (o == orbit)
+      return (int)i;
+  }
 
   return -1;
 }
@@ -369,9 +426,14 @@ static int find_orbit_index(const LoadedSimulationBodies *bodies,
 static void json_save_orbits(cJSON *root,
                              const LoadedSimulationBodies *bodies) {
   cJSON *orbits_arr = cJSON_CreateArray();
-  for (size_t i = 0; i < bodies->num_orbits; i++) {
+  size_t count = DynamicArray_length((DynamicArray *)&bodies->orbits);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Orbit *cb_orbit;
+    DynamicArray_get((DynamicArray *)&bodies->orbits, i, &cb_orbit);
+    if (!cb_orbit)
+      continue;
+
     cJSON *item = cJSON_CreateObject();
-    CelestialBody_Orbit *cb_orbit = &bodies->orbits[i];
     cJSON_AddNumberToObject(item, "semimajor_axis", cb_orbit->semimajor_axis);
     cJSON_AddNumberToObject(item, "eccentricity", cb_orbit->eccentricity);
     cJSON_AddNumberToObject(item, "inclination", cb_orbit->inclination);
@@ -395,9 +457,14 @@ static void json_save_orbits(cJSON *root,
 
 void json_save_stars(cJSON *root, const LoadedSimulationBodies *bodies) {
   cJSON *stars_arr = cJSON_CreateArray();
-  for (size_t i = 0; i < bodies->num_stars; i++) {
+  size_t count = DynamicArray_length((DynamicArray *)&bodies->stars);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Star *cb_star;
+    DynamicArray_get((DynamicArray *)&bodies->stars, i, &cb_star);
+    if (!cb_star)
+      continue;
+
     cJSON *item = cJSON_CreateObject();
-    CelestialBody_Star *cb_star = &bodies->stars[i];
     cJSON_AddStringToObject(item, "name", cb_star->name);
     cJSON_AddStringToObject(item, "body_id", cb_star->body_id);
     cJSON_AddNumberToObject(item, "spectral_type", cb_star->spectral_type);
@@ -430,9 +497,14 @@ void json_save_stars(cJSON *root, const LoadedSimulationBodies *bodies) {
 
 void json_save_planets(cJSON *root, const LoadedSimulationBodies *bodies) {
   cJSON *planets_arr = cJSON_CreateArray();
-  for (size_t i = 0; i < bodies->num_planets; i++) {
+  size_t count = DynamicArray_length((DynamicArray *)&bodies->planets);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Planet *cb_planet;
+    DynamicArray_get((DynamicArray *)&bodies->planets, i, &cb_planet);
+    if (!cb_planet)
+      continue;
+
     cJSON *item = cJSON_CreateObject();
-    CelestialBody_Planet *cb_planet = &bodies->planets[i];
     cJSON_AddStringToObject(item, "name", cb_planet->name);
     cJSON_AddStringToObject(item, "body_id", cb_planet->body_id);
     cJSON_AddNumberToObject(item, "host_star_index",
@@ -491,9 +563,14 @@ void json_save_planets(cJSON *root, const LoadedSimulationBodies *bodies) {
 
 void json_save_moons(cJSON *root, const LoadedSimulationBodies *bodies) {
   cJSON *moons_arr = cJSON_CreateArray();
-  for (size_t i = 0; i < bodies->num_moons; i++) {
+  size_t count = DynamicArray_length((DynamicArray *)&bodies->moons);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Moon *cb_moon;
+    DynamicArray_get((DynamicArray *)&bodies->moons, i, &cb_moon);
+    if (!cb_moon)
+      continue;
+
     cJSON *item = cJSON_CreateObject();
-    CelestialBody_Moon *cb_moon = &bodies->moons[i];
     cJSON_AddStringToObject(item, "name", cb_moon->name);
     cJSON_AddStringToObject(item, "body_id", cb_moon->body_id);
     cJSON_AddNumberToObject(item, "host_planet_index",
@@ -541,8 +618,10 @@ void json_save_sim_date(cJSON *root, const LoadedSimulationBodies *bodies) {
     return;
 
   cJSON *sim_date_obj = cJSON_CreateObject();
-  cJSON_AddNumberToObject(sim_date_obj, "year", bodies->sim_date.time.tm_year + 1900);
-  cJSON_AddNumberToObject(sim_date_obj, "month", bodies->sim_date.time.tm_mon + 1);
+  cJSON_AddNumberToObject(sim_date_obj, "year",
+                          bodies->sim_date.time.tm_year + 1900);
+  cJSON_AddNumberToObject(sim_date_obj, "month",
+                          bodies->sim_date.time.tm_mon + 1);
   cJSON_AddNumberToObject(sim_date_obj, "day", bodies->sim_date.time.tm_mday);
   cJSON_AddNumberToObject(sim_date_obj, "hour", bodies->sim_date.time.tm_hour);
   cJSON_AddNumberToObject(sim_date_obj, "minute", bodies->sim_date.time.tm_min);

@@ -245,9 +245,11 @@ void init_celestial_body_planets(RenderState *render_state) {
 void load_celestial_body_planets_from_file(RenderState *render_state,
                                            LoadedSimulationBodies *bodies) {
   DynamicArray *planets = RenderState_GetPlanets(render_state);
+  size_t count = DynamicArray_length(&bodies->planets);
 
-  for (size_t i = 0; i < bodies->num_planets; i++) {
-    CelestialBody_Planet *planet = &bodies->planets[i];
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Planet *planet;
+    DynamicArray_get(&bodies->planets, i, &planet);
     MTLPlanetGraphicsClass *mtl_planet = MTLPlanetGraphics_Create(planet);
     MTLPlanetGraphicsClass_init(mtl_planet, render_state);
     DynamicArray_push(planets, &mtl_planet);

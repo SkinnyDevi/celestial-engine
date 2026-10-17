@@ -576,28 +576,26 @@ void renderer_save_orbits_state(RenderState *state, DynamicArray *planets,
     add_orbit(m->body->orbit);
   }
 
-  bodies->num_orbits = DynamicArray_length(orbits_arr);
-  if (bodies->num_orbits > 0) {
-    bodies->orbits = calloc(bodies->num_orbits, sizeof(CelestialBody_Orbit));
-    for (size_t i = 0; i < bodies->num_orbits; i++) {
-      CelestialBody_Orbit *o;
-      DynamicArray_get(orbits_arr, i, &o);
-      bodies->orbits[i] = *o;
-    }
+  size_t count = DynamicArray_length(orbits_arr);
+  for (size_t i = 0; i < count; i++) {
+    CelestialBody_Orbit *o;
+    DynamicArray_get(orbits_arr, i, &o);
+    CelestialBody_Orbit *orb_copy = calloc(1, sizeof(CelestialBody_Orbit));
+    *orb_copy = *o;
+    DynamicArray_push(&bodies->orbits, &orb_copy);
   }
 }
 
 void renderer_save_stars_state(RenderState *state,
                                LoadedSimulationBodies *bodies,
                                DynamicArray *stars) {
-  bodies->num_stars = DynamicArray_length(stars);
-  if (bodies->num_stars > 0) {
-    bodies->stars = calloc(bodies->num_stars, sizeof(CelestialBody_Star));
-    for (size_t i = 0; i < bodies->num_stars; i++) {
-      MTLStarGraphicsClass *s;
-      DynamicArray_get(stars, i, &s);
-      bodies->stars[i] = *(s->body);
-    }
+  size_t count = DynamicArray_length(stars);
+  for (size_t i = 0; i < count; i++) {
+    MTLStarGraphicsClass *s;
+    DynamicArray_get(stars, i, &s);
+    CelestialBody_Star *star_copy = calloc(1, sizeof(CelestialBody_Star));
+    *star_copy = *(s->body);
+    DynamicArray_push(&bodies->stars, &star_copy);
   }
 }
 
@@ -605,52 +603,54 @@ void renderer_save_planets_state(RenderState *state,
                                  LoadedSimulationBodies *bodies,
                                  DynamicArray *orbits_arr,
                                  DynamicArray *planets) {
-  bodies->num_planets = DynamicArray_length(planets);
-  if (bodies->num_planets > 0) {
-    bodies->planets = calloc(bodies->num_planets, sizeof(CelestialBody_Planet));
-    for (size_t i = 0; i < bodies->num_planets; i++) {
-      MTLPlanetGraphicsClass *p;
-      DynamicArray_get(planets, i, &p);
-      bodies->planets[i] = *(p->body);
+  size_t count = DynamicArray_length(planets);
+  for (size_t i = 0; i < count; i++) {
+    MTLPlanetGraphicsClass *p;
+    DynamicArray_get(planets, i, &p);
+    CelestialBody_Planet *planet_copy = calloc(1, sizeof(CelestialBody_Planet));
+    *planet_copy = *(p->body);
 
-      if (p->body->orbit) {
-        for (size_t j = 0; j < DynamicArray_length(orbits_arr); j++) {
-          CelestialBody_Orbit *o;
-          DynamicArray_get(orbits_arr, j, &o);
+    if (p->body->orbit) {
+      for (size_t j = 0; j < DynamicArray_length(orbits_arr); j++) {
+        CelestialBody_Orbit *o;
+        DynamicArray_get(orbits_arr, j, &o);
 
-          if (o == p->body->orbit) {
-            bodies->planets[i].orbit = &bodies->orbits[j];
-            break;
-          }
+        if (o == p->body->orbit) {
+          CelestialBody_Orbit *body_orb;
+          DynamicArray_get(&bodies->orbits, j, &body_orb);
+          planet_copy->orbit = body_orb;
+          break;
         }
       }
     }
+    DynamicArray_push(&bodies->planets, &planet_copy);
   }
 }
 
 void renderer_save_moons_state(RenderState *state,
                                LoadedSimulationBodies *bodies,
                                DynamicArray *orbits_arr, DynamicArray *moons) {
-  bodies->num_moons = DynamicArray_length(moons);
-  if (bodies->num_moons > 0) {
-    bodies->moons = calloc(bodies->num_moons, sizeof(CelestialBody_Moon));
-    for (size_t i = 0; i < bodies->num_moons; i++) {
-      MTLMoonGraphicsClass *m;
-      DynamicArray_get(moons, i, &m);
-      bodies->moons[i] = *(m->body);
+  size_t count = DynamicArray_length(moons);
+  for (size_t i = 0; i < count; i++) {
+    MTLMoonGraphicsClass *m;
+    DynamicArray_get(moons, i, &m);
+    CelestialBody_Moon *moon_copy = calloc(1, sizeof(CelestialBody_Moon));
+    *moon_copy = *(m->body);
 
-      if (m->body->orbit) {
-        for (size_t j = 0; j < DynamicArray_length(orbits_arr); j++) {
-          CelestialBody_Orbit *o;
-          DynamicArray_get(orbits_arr, j, &o);
+    if (m->body->orbit) {
+      for (size_t j = 0; j < DynamicArray_length(orbits_arr); j++) {
+        CelestialBody_Orbit *o;
+        DynamicArray_get(orbits_arr, j, &o);
 
-          if (o == m->body->orbit) {
-            bodies->moons[i].orbit = &bodies->orbits[j];
-            break;
-          }
+        if (o == m->body->orbit) {
+          CelestialBody_Orbit *body_orb;
+          DynamicArray_get(&bodies->orbits, j, &body_orb);
+          moon_copy->orbit = body_orb;
+          break;
         }
       }
     }
+    DynamicArray_push(&bodies->moons, &moon_copy);
   }
 }
 
@@ -679,7 +679,8 @@ void RenderHandler_SaveStateToInstanceData(RendererHandle handle) {
   DynamicArray *planets = RenderState_GetPlanets(state);
   DynamicArray *moons = RenderState_GetMoons(state);
 
-  LoadedSimulationBodies bodies = {0};
+  LoadedSimulationBodies bodies;
+  loaded_simulation_bodies_init(&bodies);
   renderer_save_astro_time_state(state, &bodies);
 
   __block DynamicArray orbits_arr;

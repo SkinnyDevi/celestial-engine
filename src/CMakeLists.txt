@@ -9,6 +9,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "26.5" CACHE STRING "Minimum macOS version")
 add_executable(celengine
   main.c
   core/data/dyn_array.c
+  core/data/hash_table.c
   core/data/raycast.c
   core/data/math.c
   core/data/loader/data_loader.c

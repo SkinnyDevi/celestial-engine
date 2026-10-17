@@ -15,15 +15,14 @@
 
 typedef struct {
   CLIArgSimDate sim_date;
-  size_t num_orbits;
-  CelestialBody_Orbit *orbits;
-  size_t num_planets;
-  CelestialBody_Planet *planets;
-  size_t num_moons;
-  CelestialBody_Moon *moons;
-  size_t num_stars;
-  CelestialBody_Star *stars;
+  DynamicArray orbits;
+  DynamicArray planets;
+  DynamicArray moons;
+  DynamicArray stars;
 } LoadedSimulationBodies;
+
+void loaded_simulation_bodies_init(LoadedSimulationBodies *bodies);
+void loaded_simulation_bodies_free(LoadedSimulationBodies *bodies);
 
 typedef struct {
   const char *format_ext;
