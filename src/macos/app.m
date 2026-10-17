@@ -9,6 +9,7 @@
 #import "core/log/log.h"
 
 #import "macos/menu/menu.h"
+#import "macos/render/body_label/body_label.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/renderer.h"
 
@@ -29,8 +30,18 @@ static RendererHandle handler;
   toggle_grid_visibility(handler);
 }
 
+- (void)toggleBodyLabels:(id)sender {
+  NSMenuItem *item = (NSMenuItem *)sender;
+  if (item.state == NSControlStateValueOn) {
+    item.state = NSControlStateValueOff;
+  } else {
+    item.state = NSControlStateValueOn;
+  }
+  toggle_body_labels_visibility(handler);
+}
+
 - (void)applicationWillTerminate:(NSNotification *)notification {
-  LOG_INFO("Application will terminate. Running cleanup / save-state...", NULL);
+  LOG_INFO("Application will terminating.", NULL);
   if (cli_wants_save_state()) {
     RenderHandler_SaveStateToInstanceData(handler);
     exec_flag_save_state();
@@ -62,6 +73,7 @@ int run_macos_app(void) {
 
   NSMenu *viewMenu = [[NSMenu alloc] initWithTitle:@"View"];
   view_menu_hide_grid_entry(viewMenu);
+  view_menu_hide_body_labels_entry(viewMenu);
 
   [appMenuItem setSubmenu:appMenu];
   [viewMenuItem setSubmenu:viewMenu];

@@ -9,6 +9,7 @@ NSMenuItem *add_view_menu(NSMenu *menuBar);
 
 void app_menu_quit_entry(NSMenu *menu);
 void view_menu_hide_grid_entry(NSMenu *menu);
+void view_menu_hide_body_labels_entry(NSMenu *menu);
 #endif
 
 #endif

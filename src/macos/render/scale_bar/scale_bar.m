@@ -14,6 +14,10 @@
 @end
 
 @implementation ScaleBarView
+- (NSView *)hitTest:(NSPoint)point {
+  return nil;
+}
+
 - (void)drawRect:(NSRect)dirtyRect {
   [super drawRect:dirtyRect];
 

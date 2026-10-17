@@ -81,6 +81,8 @@ void RenderState_SetLastMouse(RenderState *state, double x, double y);
 void RenderState_GetLastMouse(const RenderState *state, double *x, double *y);
 void RenderState_SetGridVisible(RenderState *state, bool visible);
 bool RenderState_IsGridVisible(const RenderState *state);
+void RenderState_SetBodyLabelsVisible(RenderState *state, bool visible);
+bool RenderState_AreBodyLabelsVisible(const RenderState *state);
 
 void RenderState_SetFollowedBody(RenderState *state, FollowType type,
                                  void *body);

@@ -43,6 +43,7 @@ typedef struct {
   DynamicArray moons;
   InputRegistry *input_registry;
   bool gridVisible;
+  bool bodyLabelsVisible;
   AstronomicalTime sim_time;
   FollowType followed_type;
   void *followed_body;
@@ -59,6 +60,7 @@ RenderState *RenderState_Create(void) {
   impl->lastMouse = NSZeroPoint;
   impl->gridVertexCount = 0;
   impl->gridVisible = true;
+  impl->bodyLabelsVisible = true;
   impl->window = nil;
   impl->metalLayer = nil;
   impl->commandQueue = nil;
@@ -457,6 +459,18 @@ bool RenderState_IsGridVisible(const RenderState *state) {
   if (!state)
     return false;
   return ((const RenderStateImpl *)state)->gridVisible;
+}
+
+void RenderState_SetBodyLabelsVisible(RenderState *state, bool visible) {
+  if (!state)
+    return;
+  ((RenderStateImpl *)state)->bodyLabelsVisible = visible;
+}
+
+bool RenderState_AreBodyLabelsVisible(const RenderState *state) {
+  if (!state)
+    return false;
+  return ((const RenderStateImpl *)state)->bodyLabelsVisible;
 }
 
 void RenderState_SetFollowedBody(RenderState *state, FollowType type,

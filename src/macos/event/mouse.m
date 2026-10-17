@@ -3,12 +3,15 @@
 #import "core/data/raycast.h"
 #import "core/space/units.h"
 
+#import "macos/render/body_label/body_label.h"
 #import "macos/render/camera/camera.h"
 #import "macos/render/space/moon.h"
 #import "macos/render/space/planet.h"
 #import "macos/render/space/star.h"
 
 #import <QuartzCore/QuartzCore.h>
+
+#define AUTO_ZOOM_HITBOX_SIZE 0.045f // Multiplier
 
 static inline float safe_distance(simd_float3 a, simd_float3 b) {
   double dx = (double)a.x - (double)b.x;
@@ -26,15 +29,19 @@ void check_intersect_stars(RenderState *state, MousePoint mouse,
   for (size_t i = 0; i < DynamicArray_length(stars); i++) {
     MTLStarGraphicsClass *star;
     DynamicArray_get(stars, i, &star);
-    double rel_x = star->body->position.x * METERS_TO_RENDER_UNITS - camera->center.x;
-    double rel_y = star->body->position.y * METERS_TO_RENDER_UNITS - camera->center.y;
-    double rel_z = star->body->position.z * METERS_TO_RENDER_UNITS - camera->center.z;
-    simd_float3 pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
+    double rel_x =
+        star->body->position.x * METERS_TO_RENDER_UNITS - camera->center.x;
+    double rel_y =
+        star->body->position.y * METERS_TO_RENDER_UNITS - camera->center.y;
+    double rel_z =
+        star->body->position.z * METERS_TO_RENDER_UNITS - camera->center.z;
+    simd_float3 pos =
+        simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
     float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = safe_distance(ray_origin, pos);
-    float click_radius = dist * 0.02f; // Enlarge hitbox for easier clicking
-    check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), star,
-                    FOLLOW_STAR);
+    float click_radius = dist * AUTO_ZOOM_HITBOX_SIZE;
+    check_intersect(pos, base_radius, fmaxf(base_radius * 1.3f, click_radius),
+                    star, FOLLOW_STAR);
   }
 }
 
@@ -59,12 +66,13 @@ void check_intersect_planets(RenderState *state, MousePoint mouse,
     double rel_x = ax * METERS_TO_RENDER_UNITS - camera->center.x;
     double rel_y = ay * METERS_TO_RENDER_UNITS - camera->center.y;
     double rel_z = az * METERS_TO_RENDER_UNITS - camera->center.z;
-    simd_float3 pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
+    simd_float3 pos =
+        simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
     float base_radius = planet->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = safe_distance(ray_origin, pos);
-    float click_radius = dist * 0.02f;
-    check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), planet,
-                    FOLLOW_PLANET);
+    float click_radius = dist * AUTO_ZOOM_HITBOX_SIZE;
+    check_intersect(pos, base_radius, fmaxf(base_radius * 1.3f, click_radius),
+                    planet, FOLLOW_PLANET);
   }
 }
 
@@ -94,18 +102,23 @@ void check_intersect_moons(RenderState *state, MousePoint mouse,
     double rel_x = ax * METERS_TO_RENDER_UNITS - camera->center.x;
     double rel_y = ay * METERS_TO_RENDER_UNITS - camera->center.y;
     double rel_z = az * METERS_TO_RENDER_UNITS - camera->center.z;
-    simd_float3 pos = simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
+    simd_float3 pos =
+        simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
     float base_radius = moon->body->radius_m * METERS_TO_RENDER_UNITS;
     float dist = safe_distance(ray_origin, pos);
-    float click_radius = dist * 0.02f;
-    check_intersect(pos, base_radius, fmaxf(base_radius, click_radius), moon,
-                    FOLLOW_MOON);
+    float click_radius = dist * AUTO_ZOOM_HITBOX_SIZE;
+    check_intersect(pos, base_radius, fmaxf(base_radius * 1.3f, click_radius),
+                    moon, FOLLOW_MOON);
   }
 }
 
 bool raycast_find_body(RenderState *state, MousePoint mouse, void **out_obj,
                        FollowType *out_type, float *out_radius,
                        simd_float3 *out_center) {
+  if (body_label_find_at_point(mouse, out_obj, out_type, out_radius,
+                               out_center))
+    return true;
+
   CAMetalLayer *metal_layer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
   CGSize size = metal_layer.bounds.size;

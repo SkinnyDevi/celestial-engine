@@ -34,3 +34,14 @@ void view_menu_hide_grid_entry(NSMenu *menu) {
   [hideGridItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
   [menu addItem:hideGridItem];
 }
+
+void view_menu_hide_body_labels_entry(NSMenu *menu) {
+  NSMenuItem *hideLabelsItem =
+      [[NSMenuItem alloc] initWithTitle:@"Hide Celestial Body Names"
+                                 action:@selector(toggleBodyLabels:)
+                          keyEquivalent:@"l"];
+
+  [hideLabelsItem setState:NSControlStateValueOn];
+  [hideLabelsItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
+  [menu addItem:hideLabelsItem];
+}

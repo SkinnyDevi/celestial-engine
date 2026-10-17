@@ -26,6 +26,7 @@
 #import "macos/event/mouse.h"
 
 #import "macos/render/camera/camera.h"
+#import "macos/render/body_label/body_label.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/scale_bar/scale_bar.h"
 #import "macos/render/space/graphics.h"
@@ -205,6 +206,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   generate_debug_graphics(state);
   init_celestial_bodies(state);
   create_scale_bar((__bridge void *)window);
+  create_body_labels((__bridge void *)window);
 
   AstronomicalTime *sim_time = RenderState_GetSimTime(state);
   astro_time_from_cli_args(sim_time, cli_get_sim_date());
@@ -331,6 +333,7 @@ void draw_frame(RendererHandle handle) {
     update_scale_bar(RenderState_GetCamera(state),
                      metal_layer.drawableSize.width,
                      metal_layer.drawableSize.height);
+    update_body_labels(state);
 
     [encoder endEncoding];
 
@@ -370,7 +373,27 @@ void pump_os_events(void) {
         MousePoint point = {mouse.x, mouse.y};
         bool shiftHeld =
             ([event modifierFlags] & NSEventModifierFlagShift) != 0;
-        if ([event clickCount] == 2)
+
+        static uint64_t s_last_click_mach = 0;
+        static MousePoint s_last_click_point = {0, 0};
+
+        uint64_t now_mach = mach_absolute_time();
+        mach_timebase_info_data_t tb;
+        mach_timebase_info(&tb);
+        double dt_click = (double)(now_mach - s_last_click_mach) *
+                          (double)tb.numer / (double)tb.denom / 1e9;
+        double dist_sq =
+            (point.x - s_last_click_point.x) * (point.x - s_last_click_point.x) +
+            (point.y - s_last_click_point.y) * (point.y - s_last_click_point.y);
+
+        bool is_double_click =
+            ([event clickCount] >= 2) ||
+            (dt_click > 0.02 && dt_click < 0.45 && dist_sq < 64.0);
+
+        s_last_click_mach = now_mach;
+        s_last_click_point = point;
+
+        if (is_double_click)
           event_mouse_double_click(state, point);
         else
           event_left_mouse_down(state, point, shiftHeld);
