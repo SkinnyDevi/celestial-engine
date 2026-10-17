@@ -50,10 +50,10 @@ void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
   }
 }
 
-void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
+bool MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
                                  RenderState *render_state, void *encoder_ptr) {
   if (!planet)
-    return;
+    return false;
 
   Camera *camera = RenderState_GetCamera(render_state);
   CAMetalLayer *metal_layer =
@@ -125,7 +125,7 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
 
   // Frustum test on planet sphere
   if (!camera_frustum_test_sphere(&frustum, body_pos, render_scale))
-    return; // Off-screen! Culled.
+    return false; // Off-screen! Culled.
 
   simd_float4 color = get_planet_color(planet->body->planet_class);
 
@@ -175,6 +175,7 @@ void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
                        indexBuffer:ibuf
                  indexBufferOffset:0];
   }
+  return true;
 }
 
 MTLPlanetGraphicsClass *MTLPlanetGraphics_Create(CelestialBody_Planet *body) {

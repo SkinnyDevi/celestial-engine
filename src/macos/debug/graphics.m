@@ -6,6 +6,7 @@
 #import "core/space/units.h"
 
 #import "macos/debug/camera_properties.h"
+#import "macos/debug/celestial_bodies_culling_count.h"
 #import "macos/debug/flags.h"
 #import "macos/debug/fps_counter.h"
 #import "macos/debug/sphere_wireframe.h"
@@ -51,6 +52,10 @@ void generate_debug_graphics(RenderState *state) {
 #endif
 
   debug_create_time_overlay(state);
+
+#if DEBUG_CELESTIAL_BODIES_CULLING_VISIBLE
+  debug_create_celestial_bodies_culling_overlay(state);
+#endif
 
   CAMetalLayer *metal_layer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
@@ -132,12 +137,23 @@ void update_debug_time_overlay(RenderState *state) {
   }
 }
 
+void update_debug_celestial_bodies_overlay(RenderState *state) {
+#if DEBUG_CELESTIAL_BODIES_CULLING_VISIBLE
+  DebugOverlay *overlay = RenderState_GetCelestialBodiesOverlay(state);
+  if (overlay) {
+    debug_overlay_clear(overlay);
+    debug_overlay_update_celestial_bodies_culling(overlay, state);
+  }
+#endif
+}
+
 void update_camera_path_wireframe(Camera *cam, simd_float4x4 vp,
                                   id<MTLRenderCommandEncoder> encoder) {
 #if DEBUG_CAMERA_PATH_WIREFRAME_VISIBLE
   {
-    simd_float4x4 model = simd_mul(make_translation_matrix(simd_make_float3(0.0f, 0.0f, 0.0f)),
-                                   make_scale_matrix(cam->zoom));
+    simd_float4x4 model =
+        simd_mul(make_translation_matrix(simd_make_float3(0.0f, 0.0f, 0.0f)),
+                 make_scale_matrix(cam->zoom));
     DisplacedMeshUniforms mesh_uniforms;
     mesh_uniforms.mvpMatrix = simd_mul(vp, model);
     mesh_uniforms.gridColor = (simd_float4){1.0f, 0.41f, 0.71f, 0.7f}; // Pink
@@ -163,8 +179,9 @@ void update_debug_camera_fixation_point(Camera *cam, simd_float4x4 vp,
 #if DEBUG_CAMERA_FIXATION_POINT_VISIBLE
   {
     float fixation_radius = 0.15f;
-    simd_float4x4 model = simd_mul(make_translation_matrix(simd_make_float3(0.0f, 0.0f, 0.0f)),
-                                   make_scale_matrix(fixation_radius));
+    simd_float4x4 model =
+        simd_mul(make_translation_matrix(simd_make_float3(0.0f, 0.0f, 0.0f)),
+                 make_scale_matrix(fixation_radius));
     DisplacedMeshUniforms mesh_uniforms;
     mesh_uniforms.mvpMatrix = simd_mul(vp, model);
     mesh_uniforms.gridColor = (simd_float4){1.0f, 0.15f, 0.15f, 1.0f}; // Red
@@ -331,12 +348,13 @@ void draw_debug_graphics(RenderState *state, void *encoder_void) {
   simd_float4x4 view = camera_view_matrix(cam);
   float near_plane, far_plane;
   camera_get_clipping_planes(cam, &near_plane, &far_plane);
-  simd_float4x4 proj =
-      camera_perspective(70.0f * (float)M_PI / 180.0f, aspect, near_plane, far_plane);
+  simd_float4x4 proj = camera_perspective(70.0f * (float)M_PI / 180.0f, aspect,
+                                          near_plane, far_plane);
   simd_float4x4 vp = simd_mul(proj, view);
 
   update_camera_debug_properties(cam);
   update_debug_time_overlay(state);
+  update_debug_celestial_bodies_overlay(state);
   update_camera_path_wireframe(cam, vp, encoder);
   update_debug_camera_fixation_point(cam, vp, encoder);
   draw_debug_hitbox_wireframe(state, cam, encoder, vp);

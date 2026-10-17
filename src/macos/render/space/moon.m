@@ -52,10 +52,10 @@ void MTLMoonGraphicsClass_init(MTLMoonGraphicsClass *moon,
   }
 }
 
-void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
+bool MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
                                RenderState *render_state, void *encoder_ptr) {
   if (!moon)
-    return;
+    return false;
 
   Camera *camera = RenderState_GetCamera(render_state);
   CAMetalLayer *metal_layer =
@@ -139,7 +139,7 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
 
   // Frustum test on moon sphere
   if (!camera_frustum_test_sphere(&frustum, body_pos, render_scale))
-    return; // Off-screen! Culled.
+    return false; // Off-screen! Culled.
 
   simd_float4 color = get_moon_color(moon->body->moon_class);
 
@@ -189,6 +189,7 @@ void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
                        indexBuffer:ibuf
                  indexBufferOffset:0];
   }
+  return true;
 }
 
 MTLMoonGraphicsClass *MTLMoonGraphics_Create(CelestialBody_Moon *body) {

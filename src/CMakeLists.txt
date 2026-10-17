@@ -51,6 +51,7 @@ add_executable(celengine
   macos/debug/camera_properties.m
   macos/debug/fps_counter.m
   macos/debug/time_overlay.m
+  macos/debug/celestial_bodies_culling_count.m
 )
 
 # External Libraries
@@ -106,6 +107,7 @@ set_source_files_properties(
     macos/debug/camera_properties.m
     macos/debug/fps_counter.m
     macos/debug/time_overlay.m
+    macos/debug/celestial_bodies_culling_count.m
     PROPERTIES
     COMPILE_OPTIONS "-fobjc-arc"
 )

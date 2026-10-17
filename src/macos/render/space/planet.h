@@ -22,8 +22,10 @@ typedef struct MTLPlanetGraphicsClass {
   int orbit_vertex_count;
 } MTLPlanetGraphicsClass;
 
+#include <stdbool.h>
+
 MTLPlanetGraphicsClass *MTLPlanetGraphics_Create(CelestialBody_Planet *body);
-void MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
+bool MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,
                                  RenderState *render_state, void *encoder_ptr);
 void MTLPlanetGraphicsClass_init(MTLPlanetGraphicsClass *planet,
                                  RenderState *render_state);

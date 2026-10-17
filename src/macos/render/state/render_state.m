@@ -30,6 +30,10 @@ typedef struct {
   DebugOverlay *camera_debug_overlay;
   DebugOverlay *fps_counter_overlay;
   DebugOverlay *time_overlay;
+  DebugOverlay *celestial_bodies_overlay;
+  size_t rendered_star_count;
+  size_t rendered_planet_count;
+  size_t rendered_moon_count;
   Camera camera;
   bool dragging;
   NSPoint lastMouse;
@@ -77,6 +81,10 @@ RenderState *RenderState_Create(void) {
   impl->camera_debug_overlay = nil;
   impl->fps_counter_overlay = nil;
   impl->time_overlay = nil;
+  impl->celestial_bodies_overlay = nil;
+  impl->rendered_star_count = 0;
+  impl->rendered_planet_count = 0;
+  impl->rendered_moon_count = 0;
   impl->input_registry = nil;
   impl->sim_time = (AstronomicalTime){0, 0, 0};
   impl->followed_type = FOLLOW_NONE;
@@ -105,6 +113,10 @@ void RenderState_Init(RenderState *state, void *window) {
   impl->camera_debug_overlay = NULL;
   impl->fps_counter_overlay = NULL;
   impl->time_overlay = NULL;
+  impl->celestial_bodies_overlay = NULL;
+  impl->rendered_star_count = 0;
+  impl->rendered_planet_count = 0;
+  impl->rendered_moon_count = 0;
   camera_init(&impl->camera);
   impl->dragging = false;
   impl->lastMouse = NSZeroPoint;
@@ -138,6 +150,8 @@ void RenderState_Destroy(RenderState *state) {
   impl->fps_counter_overlay = nil;
   debug_overlay_destroy(impl->time_overlay);
   impl->time_overlay = nil;
+  debug_overlay_destroy(impl->celestial_bodies_overlay);
+  impl->celestial_bodies_overlay = nil;
   DynamicArray_free(&impl->stars);
   DynamicArray_free(&impl->planets);
   DynamicArray_free(&impl->moons);
@@ -323,6 +337,49 @@ DebugOverlay *RenderState_GetTimeOverlay(RenderState *state) {
   return ((RenderStateImpl *)state)->time_overlay;
 }
 
+DebugOverlay *RenderState_GetCelestialBodiesOverlay(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return ((RenderStateImpl *)state)->celestial_bodies_overlay;
+}
+
+size_t RenderState_GetRenderedStarCount(const RenderState *state) {
+  if (!state)
+    return 0;
+  return ((const RenderStateImpl *)state)->rendered_star_count;
+}
+
+void RenderState_SetRenderedStarCount(RenderState *state, size_t count) {
+  if (!state)
+    return;
+  ((RenderStateImpl *)state)->rendered_star_count = count;
+}
+
+size_t RenderState_GetRenderedPlanetCount(const RenderState *state) {
+  if (!state)
+    return 0;
+  return ((const RenderStateImpl *)state)->rendered_planet_count;
+}
+
+void RenderState_SetRenderedPlanetCount(RenderState *state, size_t count) {
+  if (!state)
+    return;
+  ((RenderStateImpl *)state)->rendered_planet_count = count;
+}
+
+size_t RenderState_GetRenderedMoonCount(const RenderState *state) {
+  if (!state)
+    return 0;
+  return ((const RenderStateImpl *)state)->rendered_moon_count;
+}
+
+void RenderState_SetRenderedMoonCount(RenderState *state, size_t count) {
+  if (!state)
+    return;
+  ((RenderStateImpl *)state)->rendered_moon_count = count;
+}
+
 Camera *RenderState_GetCamera(RenderState *state) {
   if (!state)
     return NULL;
@@ -404,6 +461,14 @@ void RenderState_SetTimeOverlay(RenderState *state, DebugOverlay *overlay) {
     return;
 
   ((RenderStateImpl *)state)->time_overlay = overlay;
+}
+
+void RenderState_SetCelestialBodiesOverlay(RenderState *state,
+                                           DebugOverlay *overlay) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->celestial_bodies_overlay = overlay;
 }
 
 void RenderState_SetVertexCount(RenderState *state, unsigned long count) {

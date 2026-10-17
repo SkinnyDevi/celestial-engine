@@ -485,6 +485,8 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
     last_cull_valid = true;
   }
 
+  RenderState_SetRenderedStarCount(state, last_visible_count);
+
   if (last_visible_count == 0)
     return;
 
@@ -508,6 +510,8 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
               vertexCount:6
             instanceCount:last_visible_count];
 }
+
+uint32_t get_rendered_stars_count(void) { return last_visible_count; }
 
 void init_celestial_body_stars(RenderState *render_state) {
   DynamicArray *stars = RenderState_GetStars(render_state);

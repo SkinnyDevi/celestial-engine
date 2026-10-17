@@ -22,8 +22,10 @@ typedef struct MTLMoonGraphicsClass {
   int orbit_vertex_count;
 } MTLMoonGraphicsClass;
 
+#include <stdbool.h>
+
 MTLMoonGraphicsClass *MTLMoonGraphics_Create(CelestialBody_Moon *body);
-void MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
+bool MTLMoonGraphicsClass_draw(MTLMoonGraphicsClass *moon,
                                RenderState *render_state, void *encoder_ptr);
 void MTLMoonGraphicsClass_init(MTLMoonGraphicsClass *moon,
                                RenderState *render_state);

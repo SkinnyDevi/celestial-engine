@@ -46,5 +46,6 @@ void load_celestial_body_stars_from_file(RenderState *render_state,
 void create_star_render_pipeline(RenderState *state);
 void init_star_instance_buffer(RenderState *state);
 void draw_stars_instanced(RenderState *state, void *encoder_ptr);
+uint32_t get_rendered_stars_count(void);
 
 #endif

@@ -65,6 +65,16 @@ void RenderState_SetSimTime(RenderState *state, AstronomicalTime *time);
 DebugOverlay *RenderState_GetCameraDebugOverlay(RenderState *state);
 DebugOverlay *RenderState_GetFPSCounterOverlay(RenderState *state);
 DebugOverlay *RenderState_GetTimeOverlay(RenderState *state);
+DebugOverlay *RenderState_GetCelestialBodiesOverlay(RenderState *state);
+
+size_t RenderState_GetRenderedStarCount(const RenderState *state);
+void RenderState_SetRenderedStarCount(RenderState *state, size_t count);
+
+size_t RenderState_GetRenderedPlanetCount(const RenderState *state);
+void RenderState_SetRenderedPlanetCount(RenderState *state, size_t count);
+
+size_t RenderState_GetRenderedMoonCount(const RenderState *state);
+void RenderState_SetRenderedMoonCount(RenderState *state, size_t count);
 
 void RenderState_SetVec3Buffer(RenderState *state, void *buffer);
 void RenderState_SetUniformBuffer(RenderState *state, void *buffer);
@@ -102,6 +112,8 @@ void RenderState_SetCameraDebugOverlay(RenderState *state,
 void RenderState_SetFPSCounterOverlay(RenderState *state,
                                       DebugOverlay *overlay);
 void RenderState_SetTimeOverlay(RenderState *state, DebugOverlay *overlay);
+void RenderState_SetCelestialBodiesOverlay(RenderState *state,
+                                           DebugOverlay *overlay);
 
 void RenderHandler_SaveStateToInstanceData(RendererHandle handler);
 

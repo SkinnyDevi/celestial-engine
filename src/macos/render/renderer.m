@@ -25,8 +25,8 @@
 #import "macos/event/input_registry.h"
 #import "macos/event/mouse.h"
 
-#import "macos/render/camera/camera.h"
 #import "macos/render/body_label/body_label.h"
+#import "macos/render/camera/camera.h"
 #import "macos/render/grid/displaced_mesh.h"
 #import "macos/render/scale_bar/scale_bar.h"
 #import "macos/render/space/graphics.h"
@@ -234,7 +234,8 @@ void draw_celestial_bodies(RenderState *state,
   id<MTLRenderPipelineState> mesh_pipeline =
       (__bridge id<MTLRenderPipelineState>)RenderState_GetPipelineState(state);
   id<MTLDepthStencilState> mesh_depth =
-      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(state);
+      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(
+          state);
   if (mesh_pipeline)
     [encoder setRenderPipelineState:mesh_pipeline];
   if (mesh_depth)
@@ -242,19 +243,25 @@ void draw_celestial_bodies(RenderState *state,
 
   DynamicArray *planets = RenderState_GetPlanets(state);
   size_t planet_count = DynamicArray_length(planets);
+  size_t rendered_planets = 0;
   for (size_t i = 0; i < planet_count; i++) {
     MTLPlanetGraphicsClass *planet;
     DynamicArray_get(planets, i, &planet);
-    MTLPlanetGraphicsClass_draw(planet, state, (__bridge void *)encoder);
+    if (MTLPlanetGraphicsClass_draw(planet, state, (__bridge void *)encoder))
+      rendered_planets++;
   }
+  RenderState_SetRenderedPlanetCount(state, rendered_planets);
 
   DynamicArray *moons = RenderState_GetMoons(state);
   size_t moon_count = DynamicArray_length(moons);
+  size_t rendered_moons = 0;
   for (size_t i = 0; i < moon_count; i++) {
     MTLMoonGraphicsClass *moon;
     DynamicArray_get(moons, i, &moon);
-    MTLMoonGraphicsClass_draw(moon, state, (__bridge void *)encoder);
+    if (MTLMoonGraphicsClass_draw(moon, state, (__bridge void *)encoder))
+      rendered_moons++;
   }
+  RenderState_SetRenderedMoonCount(state, rendered_moons);
 }
 
 void draw_frame(RendererHandle handle) {
@@ -383,7 +390,8 @@ void pump_os_events(void) {
         double dt_click = (double)(now_mach - s_last_click_mach) *
                           (double)tb.numer / (double)tb.denom / 1e9;
         double dist_sq =
-            (point.x - s_last_click_point.x) * (point.x - s_last_click_point.x) +
+            (point.x - s_last_click_point.x) *
+                (point.x - s_last_click_point.x) +
             (point.y - s_last_click_point.y) * (point.y - s_last_click_point.y);
 
         bool is_double_click =
