@@ -34,7 +34,8 @@ typedef struct {
 
 static StarStaticData *cached_star_data = NULL;
 static size_t cached_star_count = 0;
-static uint32_t *cull_scratch_indices = NULL;
+static StarSortItem *cull_scratch_items = NULL;
+static StarSortItem *sort_temp_items = NULL;
 
 static StarCluster star_clusters[MAX_STAR_CLUSTERS];
 static size_t star_cluster_count = 0;
@@ -251,13 +252,19 @@ void init_star_instance_buffer(RenderState *state) {
     cached_star_data = NULL;
   }
 
-  if (cull_scratch_indices) {
-    free(cull_scratch_indices);
-    cull_scratch_indices = NULL;
+  if (cull_scratch_items) {
+    free(cull_scratch_items);
+    cull_scratch_items = NULL;
+  }
+
+  if (sort_temp_items) {
+    free(sort_temp_items);
+    sort_temp_items = NULL;
   }
 
   cached_star_data = malloc(sizeof(StarStaticData) * count);
-  cull_scratch_indices = malloc(sizeof(uint32_t) * count);
+  cull_scratch_items = malloc(sizeof(StarSortItem) * count);
+  sort_temp_items = malloc(sizeof(StarSortItem) * count);
   cached_star_count = count;
   last_cull_valid = false;
   last_visible_count = 0;
@@ -470,6 +477,7 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
     simd_float4 p0 = planes[0], p1 = planes[1], p2 = planes[2], p3 = planes[3],
                 p4 = planes[4];
     uint32_t frustum_mask = cluster_frustum_mask;
+    simd_float3 cam_orbit_pos = camera_orbit_position(camera);
 
     dispatch_apply(num_blocks,
                    dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
@@ -480,7 +488,7 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
                        end_idx = star_count;
 
                      uint32_t count = 0;
-                     uint32_t *out_indices = cull_scratch_indices + start_idx;
+                     StarSortItem *out_items = cull_scratch_items + start_idx;
 
                      for (size_t i = start_idx; i < end_idx; i++) {
                        uint8_t cid = cached_star_data[i].cluster_id;
@@ -507,7 +515,14 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
                        if (p4.x * rx + p4.y * ry + p4.z * rz + p4.w < 0.0f)
                          continue;
 
-                       out_indices[count++] = (uint32_t)i;
+                       float dx = rx - cam_orbit_pos.x;
+                       float dy = ry - cam_orbit_pos.y;
+                       float dz = rz - cam_orbit_pos.z;
+                       float dist_sq = dx * dx + dy * dy + dz * dz;
+
+                       out_items[count].index = (uint32_t)i;
+                       out_items[count].dist_sq = dist_sq;
+                       count++;
                      }
                      block_counts[b] = count;
                    });
@@ -519,29 +534,45 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
       total_visible += block_counts[b];
     }
 
-    // Pass 2: Pack visible StarInstances directly into the Metal instance
-    // buffer
-    StarInstance *instances = (StarInstance *)[instance_buffer contents];
-    dispatch_apply(
-        num_blocks, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
-        ^(size_t b) {
-          uint32_t b_count = block_counts[b];
-          if (b_count == 0)
-            return;
+    if (total_visible > 0) {
+      // Compact blocks into sort_temp_items
+      dispatch_apply(num_blocks,
+                     dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
+                     ^(size_t b) {
+                       if (block_counts[b] > 0) {
+                         memcpy(sort_temp_items + block_offsets[b],
+                                cull_scratch_items + b * block_size,
+                                block_counts[b] * sizeof(StarSortItem));
+                       }
+                     });
 
-          uint32_t *src_indices = cull_scratch_indices + b * block_size;
-          StarInstance *dst = instances + block_offsets[b];
+      // Radix sort descending: furthest stars first, closest stars last
+      radix_sort_descending(sort_temp_items, cull_scratch_items, total_visible);
 
-          for (uint32_t j = 0; j < b_count; j++) {
-            uint32_t idx = src_indices[j];
-            dst[j].position =
-                (PackedFloat3){(float)(cached_star_data[idx].x - cx),
-                               (float)(cached_star_data[idx].y - cy),
-                               (float)(cached_star_data[idx].z - cz)};
-            dst[j].radius = cached_star_data[idx].radius;
-            dst[j].color = cached_star_data[idx].color;
-          }
-        });
+      // Pass 2: Pack sorted visible StarInstances directly into the Metal
+      // instance buffer
+      StarInstance *instances = (StarInstance *)[instance_buffer contents];
+      dispatch_apply(
+          num_blocks,
+          dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
+          ^(size_t b) {
+            size_t start = b * (total_visible + num_blocks - 1) / num_blocks;
+            size_t end =
+                (b + 1) * (total_visible + num_blocks - 1) / num_blocks;
+            if (end > total_visible)
+              end = total_visible;
+
+            for (size_t j = start; j < end; j++) {
+              uint32_t idx = sort_temp_items[j].index;
+              instances[j].position =
+                  (PackedFloat3){(float)(cached_star_data[idx].x - cx),
+                                 (float)(cached_star_data[idx].y - cy),
+                                 (float)(cached_star_data[idx].z - cz)};
+              instances[j].radius = cached_star_data[idx].radius;
+              instances[j].color = cached_star_data[idx].color;
+            }
+          });
+    }
 
     free(block_counts);
     free(block_offsets);

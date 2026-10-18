@@ -2,6 +2,7 @@
 #define MACOS_RENDER_SPACE_STAR_H
 
 #include "core/data/loader/data_loader.h"
+#include "core/data/math.h"
 #include "core/space/star.h"
 
 #include "macos/render/state/render_state.h"

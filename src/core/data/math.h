@@ -18,4 +18,11 @@ bool project_sphere_top(simd_float3 body_pos, float sphere_radius,
                         float *out_screen_x, float *out_screen_y_top,
                         float *out_depth);
 
+typedef struct {
+  uint32_t index;
+  float dist_sq;
+} StarSortItem;
+
+void radix_sort_descending(StarSortItem *src, StarSortItem *dst, size_t n);
+
 #endif // CORE_DATA_MATH_H

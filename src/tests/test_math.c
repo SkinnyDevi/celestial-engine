@@ -87,3 +87,91 @@ Test(math_suite, test_project_sphere_top) {
                                       &screen_x, &screen_y_top, &depth);
   cr_assert_not(behind_ok, "Sphere behind camera should be rejected");
 }
+
+Test(math_suite, test_radix_sort_empty_and_single) {
+  StarSortItem item = {42, 100.0f};
+  StarSortItem temp = {0, 0.0f};
+
+  // 0 elements
+  radix_sort_descending(&item, &temp, 0);
+
+  // 1 element
+  radix_sort_descending(&item, &temp, 1);
+  cr_assert_eq(item.index, 42);
+  cr_assert_float_eq(item.dist_sq, 100.0f, 1e-5);
+}
+
+Test(math_suite, test_radix_sort_small_array_descending) {
+  StarSortItem items[5] = {
+      {0, 10.0f},
+      {1, 50.0f},
+      {2, 5.0f},
+      {3, 100.0f},
+      {4, 25.0f}
+  };
+  StarSortItem temp[5];
+
+  radix_sort_descending(items, temp, 5);
+
+  // Expected order: 100, 50, 25, 10, 5
+  cr_assert_float_eq(items[0].dist_sq, 100.0f, 1e-5);
+  cr_assert_eq(items[0].index, 3);
+
+  cr_assert_float_eq(items[1].dist_sq, 50.0f, 1e-5);
+  cr_assert_eq(items[1].index, 1);
+
+  cr_assert_float_eq(items[2].dist_sq, 25.0f, 1e-5);
+  cr_assert_eq(items[2].index, 4);
+
+  cr_assert_float_eq(items[3].dist_sq, 10.0f, 1e-5);
+  cr_assert_eq(items[3].index, 0);
+
+  cr_assert_float_eq(items[4].dist_sq, 5.0f, 1e-5);
+  cr_assert_eq(items[4].index, 2);
+}
+
+Test(math_suite, test_radix_sort_astronomical_scales) {
+  // Test across astronomical scales: from 10^-4 to 10^30
+  StarSortItem items[6] = {
+      {0, 1e-4f},
+      {1, 1e25f},
+      {2, 1.0f},
+      {3, 1e12f},
+      {4, 1e30f},
+      {5, 1e6f}
+  };
+  StarSortItem temp[6];
+
+  radix_sort_descending(items, temp, 6);
+
+  cr_assert_eq(items[0].index, 4); // 1e30
+  cr_assert_eq(items[1].index, 1); // 1e25
+  cr_assert_eq(items[2].index, 3); // 1e12
+  cr_assert_eq(items[3].index, 5); // 1e6
+  cr_assert_eq(items[4].index, 2); // 1.0
+  cr_assert_eq(items[5].index, 0); // 1e-4
+}
+
+Test(math_suite, test_radix_sort_large_random_array) {
+  size_t n = 50000;
+  StarSortItem *items = malloc(sizeof(StarSortItem) * n);
+  StarSortItem *temp = malloc(sizeof(StarSortItem) * n);
+
+  srand(12345);
+  for (size_t i = 0; i < n; i++) {
+    items[i].index = (uint32_t)i;
+    items[i].dist_sq = (float)rand() / (float)RAND_MAX * 1e10f;
+  }
+
+  radix_sort_descending(items, temp, n);
+
+  for (size_t i = 1; i < n; i++) {
+    cr_assert(items[i].dist_sq <= items[i - 1].dist_sq,
+              "Ordering violation at %zu: %f > %f", i, items[i].dist_sq,
+              items[i - 1].dist_sq);
+  }
+
+  free(items);
+  free(temp);
+}
+

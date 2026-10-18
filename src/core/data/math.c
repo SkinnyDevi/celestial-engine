@@ -1,4 +1,5 @@
 #include "core/data/math.h"
+#include <string.h>
 
 simd_float4x4 make_scale_matrix(float s) {
   simd_float4x4 m = {0};
@@ -96,4 +97,48 @@ bool project_sphere_top(simd_float3 body_pos, float sphere_radius,
     *out_depth = -view_pos.z;
 
   return true;
+}
+
+static uint32_t radix_counts[65536];
+static uint32_t radix_offsets[65536];
+
+void radix_sort_descending(StarSortItem *src, StarSortItem *dst, size_t n) {
+  if (n <= 1)
+    return;
+
+  // Pass 1: lower 16 bits (read src, write dst)
+  memset(radix_counts, 0, sizeof(radix_counts));
+  for (size_t i = 0; i < n; i++) {
+    uint32_t u = *(uint32_t *)&src[i].dist_sq;
+    uint16_t b = (~u) & 0xFFFF;
+    radix_counts[b]++;
+  }
+
+  radix_offsets[0] = 0;
+  for (int i = 1; i < 65536; i++)
+    radix_offsets[i] = radix_offsets[i - 1] + radix_counts[i - 1];
+
+  for (size_t i = 0; i < n; i++) {
+    uint32_t u = *(uint32_t *)&src[i].dist_sq;
+    uint16_t b = (~u) & 0xFFFF;
+    dst[radix_offsets[b]++] = src[i];
+  }
+
+  // Pass 2: upper 16 bits (read dst, write back to src)
+  memset(radix_counts, 0, sizeof(radix_counts));
+  for (size_t i = 0; i < n; i++) {
+    uint32_t u = *(uint32_t *)&dst[i].dist_sq;
+    uint16_t b = ((~u) >> 16) & 0xFFFF;
+    radix_counts[b]++;
+  }
+
+  radix_offsets[0] = 0;
+  for (int i = 1; i < 65536; i++)
+    radix_offsets[i] = radix_offsets[i - 1] + radix_counts[i - 1];
+
+  for (size_t i = 0; i < n; i++) {
+    uint32_t u = *(uint32_t *)&dst[i].dist_sq;
+    uint16_t b = ((~u) >> 16) & 0xFFFF;
+    src[radix_offsets[b]++] = dst[i];
+  }
 }
