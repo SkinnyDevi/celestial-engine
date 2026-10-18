@@ -24,25 +24,7 @@ void check_intersect_stars(RenderState *state, MousePoint mouse,
                            simd_float3 ray_origin,
                            void (^check_intersect)(simd_float3, float, float,
                                                    void *, FollowType)) {
-  Camera *camera = RenderState_GetCamera(state);
-  DynamicArray *stars = RenderState_GetStars(state);
-  for (size_t i = 0; i < DynamicArray_length(stars); i++) {
-    MTLStarGraphicsClass *star;
-    DynamicArray_get(stars, i, &star);
-    double rel_x =
-        star->body->position.x * METERS_TO_RENDER_UNITS - camera->center.x;
-    double rel_y =
-        star->body->position.y * METERS_TO_RENDER_UNITS - camera->center.y;
-    double rel_z =
-        star->body->position.z * METERS_TO_RENDER_UNITS - camera->center.z;
-    simd_float3 pos =
-        simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
-    float base_radius = star->body->radius_m * METERS_TO_RENDER_UNITS;
-    float dist = safe_distance(ray_origin, pos);
-    float click_radius = dist * AUTO_ZOOM_HITBOX_SIZE;
-    check_intersect(pos, base_radius, fmaxf(base_radius * 1.3f, click_radius),
-                    star, FOLLOW_STAR);
-  }
+  star_check_intersect(state, ray_origin, check_intersect);
 }
 
 void check_intersect_planets(RenderState *state, MousePoint mouse,

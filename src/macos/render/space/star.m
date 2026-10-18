@@ -13,23 +13,31 @@
 
 #import <dispatch/dispatch.h>
 
+#define MAX_STAR_CLUSTERS 64
+
 typedef struct {
   double x, y, z;
   float radius;
   simd_float4 color;
+  uint8_t cluster_id;
+  MTLStarGraphicsClass *star_gfx;
 } StarStaticData;
 
 typedef struct {
+  char name[64];
   simd_double3 center;
   double radius;
+  size_t count;
   bool active;
-} StarClusterBounds;
+  bool in_frustum;
+} StarCluster;
 
 static StarStaticData *cached_star_data = NULL;
 static size_t cached_star_count = 0;
 static uint32_t *cull_scratch_indices = NULL;
 
-static StarClusterBounds m31_cluster = {0};
+static StarCluster star_clusters[MAX_STAR_CLUSTERS];
+static size_t star_cluster_count = 0;
 
 static size_t last_visible_count = 0;
 static struct {
@@ -259,9 +267,28 @@ void init_star_instance_buffer(RenderState *state) {
       [metal_layer.device newBufferWithLength:buffer_size
                                       options:MTLResourceStorageModeShared];
 
-  simd_double3 m31_min = {1e30, 1e30, 1e30};
-  simd_double3 m31_max = {-1e30, -1e30, -1e30};
-  size_t m31_count = 0;
+  memset(star_clusters, 0, sizeof(star_clusters));
+  star_cluster_count = 0;
+
+  // Cluster 0 is reserved for local stars (Solar Neighborhood, distance <=
+  // 10^10 render units)
+  star_clusters[0].center = simd_make_double3(0.0, 0.0, 0.0);
+  star_clusters[0].radius = 1e10; // ~1000 light years
+  star_clusters[0].active = true;
+  star_clusters[0].in_frustum = true;
+  strncpy(star_clusters[0].name, "Solar Neighborhood",
+          sizeof(star_clusters[0].name) - 1);
+  star_cluster_count = 1;
+
+  // Deep-sky clustering helpers
+  simd_double3 cluster_min[MAX_STAR_CLUSTERS];
+  simd_double3 cluster_max[MAX_STAR_CLUSTERS];
+  simd_double3 cluster_dir[MAX_STAR_CLUSTERS];
+  for (size_t c = 0; c < MAX_STAR_CLUSTERS; c++) {
+    cluster_min[c] = simd_make_double3(1e30, 1e30, 1e30);
+    cluster_max[c] = simd_make_double3(-1e30, -1e30, -1e30);
+    cluster_dir[c] = simd_make_double3(0.0, 0.0, 0.0);
+  }
 
   for (size_t i = 0; i < count; i++) {
     MTLStarGraphicsClass *star_gfx;
@@ -278,51 +305,84 @@ void init_star_instance_buffer(RenderState *state) {
     cached_star_data[i].radius =
         (float)(star->radius_m * METERS_TO_RENDER_UNITS);
     cached_star_data[i].color = get_star_color(star->spectral_type);
+    cached_star_data[i].star_gfx = star_gfx;
 
-    // M31 stars are external galaxy stars with distance from origin > 10^10
-    // render units (> 1000 light years)
+    // Local stars: within origin radius 10^10 render units
     double dist_sq = wx * wx + wy * wy + wz * wz;
-    if (dist_sq > 1e20) {
-      if (wx < m31_min.x)
-        m31_min.x = wx;
-      if (wy < m31_min.y)
-        m31_min.y = wy;
-      if (wz < m31_min.z)
-        m31_min.z = wz;
-      if (wx > m31_max.x)
-        m31_max.x = wx;
-      if (wy > m31_max.y)
-        m31_max.y = wy;
-      if (wz > m31_max.z)
-        m31_max.z = wz;
-      m31_count++;
+    if (dist_sq <= 1e20) {
+      cached_star_data[i].cluster_id = 0;
+      star_clusters[0].count++;
+    } else {
+      // Deep-sky star: group by directional cone from origin
+      double inv_len = 1.0 / sqrt(dist_sq);
+      simd_double3 s_dir =
+          simd_make_double3(wx * inv_len, wy * inv_len, wz * inv_len);
+
+      int matched_cluster = -1;
+      for (size_t c = 1; c < star_cluster_count; c++) {
+        double dot = simd_dot(s_dir, cluster_dir[c]);
+        if (dot > 0.8) {
+          matched_cluster = (int)c;
+          break;
+        }
+      }
+
+      if (matched_cluster < 0) {
+        if (star_cluster_count < MAX_STAR_CLUSTERS) {
+          matched_cluster = (int)star_cluster_count++;
+          star_clusters[matched_cluster].active = true;
+          star_clusters[matched_cluster].in_frustum = true;
+          cluster_dir[matched_cluster] = s_dir;
+          snprintf(star_clusters[matched_cluster].name,
+                   sizeof(star_clusters[matched_cluster].name),
+                   "Deep-Sky Cluster %d", matched_cluster);
+        } else {
+          matched_cluster = 1;
+        }
+      }
+
+      uint8_t cid = (uint8_t)matched_cluster;
+      cached_star_data[i].cluster_id = cid;
+      star_clusters[cid].count++;
+
+      if (wx < cluster_min[cid].x)
+        cluster_min[cid].x = wx;
+      if (wy < cluster_min[cid].y)
+        cluster_min[cid].y = wy;
+      if (wz < cluster_min[cid].z)
+        cluster_min[cid].z = wz;
+      if (wx > cluster_max[cid].x)
+        cluster_max[cid].x = wx;
+      if (wy > cluster_max[cid].y)
+        cluster_max[cid].y = wy;
+      if (wz > cluster_max[cid].z)
+        cluster_max[cid].z = wz;
     }
   }
 
-  if (m31_count > 100) {
-    m31_cluster.center = (m31_min + m31_max) * 0.5;
+  // Finalize cluster centers and bounding radii
+  for (size_t c = 1; c < star_cluster_count; c++) {
+    if (!star_clusters[c].active || star_clusters[c].count == 0)
+      continue;
+
+    star_clusters[c].center = (cluster_min[c] + cluster_max[c]) * 0.5;
     double max_r_sq = 0.0;
     for (size_t i = 0; i < count; i++) {
-      double wx = cached_star_data[i].x;
-      double wy = cached_star_data[i].y;
-      double wz = cached_star_data[i].z;
-      if (wx * wx + wy * wy + wz * wz > 1e20) {
-        simd_double3 diff = simd_make_double3(wx - m31_cluster.center.x,
-                                              wy - m31_cluster.center.y,
-                                              wz - m31_cluster.center.z);
-        double r_sq = simd_length_squared(diff);
-        if (r_sq > max_r_sq)
-          max_r_sq = r_sq;
-      }
+      if (cached_star_data[i].cluster_id != c)
+        continue;
+      simd_double3 diff =
+          simd_make_double3(cached_star_data[i].x - star_clusters[c].center.x,
+                            cached_star_data[i].y - star_clusters[c].center.y,
+                            cached_star_data[i].z - star_clusters[c].center.z);
+      double r_sq = simd_length_squared(diff);
+      if (r_sq > max_r_sq)
+        max_r_sq = r_sq;
     }
-
-    m31_cluster.radius = sqrt(max_r_sq);
-    m31_cluster.active = true;
-    LOG_INFO("Configured M31 cluster bounding sphere: %lu stars, radius %.2e "
-             "render units",
-             m31_count, m31_cluster.radius);
-  } else {
-    m31_cluster.active = false;
+    star_clusters[c].radius = sqrt(max_r_sq);
+    LOG_INFO(
+        "Configured star cluster %zu (%s): %lu stars, radius %.2e render units",
+        c, star_clusters[c].name, star_clusters[c].count,
+        star_clusters[c].radius);
   }
 
   RenderState_SetStarInstanceBuffer(state, (__bridge void *)buffer);
@@ -375,17 +435,27 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
     double cy = camera->center.y;
     double cz = camera->center.z;
 
-    // Test M31 cluster bounding sphere in 5 nanoseconds
-    bool m31_in_frustum = true;
-    if (m31_cluster.active) {
-      simd_double3 c_rel = m31_cluster.center - camera->center;
+    // Test each star cluster bounding sphere against camera frustum
+    uint32_t cluster_frustum_mask = 1; // Bit 0 is local stars (always tested)
+
+    for (size_t c = 1; c < star_cluster_count; c++) {
+      if (!star_clusters[c].active) {
+        star_clusters[c].in_frustum = false;
+        continue;
+      }
+      bool in_f = true;
+      simd_double3 c_rel = star_clusters[c].center - camera->center;
       for (int p = 0; p < 5; p++) {
         double dist = planes[p].x * c_rel.x + planes[p].y * c_rel.y +
                       planes[p].z * c_rel.z + planes[p].w;
-        if (dist < -m31_cluster.radius) {
-          m31_in_frustum = false;
+        if (dist < -star_clusters[c].radius) {
+          in_f = false;
           break;
         }
+      }
+      star_clusters[c].in_frustum = in_f;
+      if (in_f) {
+        cluster_frustum_mask |= (1u << c);
       }
     }
 
@@ -399,48 +469,48 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
 
     simd_float4 p0 = planes[0], p1 = planes[1], p2 = planes[2], p3 = planes[3],
                 p4 = planes[4];
+    uint32_t frustum_mask = cluster_frustum_mask;
 
-    dispatch_apply(
-        num_blocks, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
-        ^(size_t b) {
-          size_t start_idx = b * block_size;
-          size_t end_idx = start_idx + block_size;
-          if (end_idx > star_count)
-            end_idx = star_count;
+    dispatch_apply(num_blocks,
+                   dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0),
+                   ^(size_t b) {
+                     size_t start_idx = b * block_size;
+                     size_t end_idx = start_idx + block_size;
+                     if (end_idx > star_count)
+                       end_idx = star_count;
 
-          uint32_t count = 0;
-          uint32_t *out_indices = cull_scratch_indices + start_idx;
+                     uint32_t count = 0;
+                     uint32_t *out_indices = cull_scratch_indices + start_idx;
 
-          for (size_t i = start_idx; i < end_idx; i++) {
-            double wx = cached_star_data[i].x;
-            double wy = cached_star_data[i].y;
-            double wz = cached_star_data[i].z;
+                     for (size_t i = start_idx; i < end_idx; i++) {
+                       uint8_t cid = cached_star_data[i].cluster_id;
+                       if (!(frustum_mask & (1u << cid)))
+                         continue;
 
-            // If M31 cluster is outside frustum, skip all external
-            // stars (> 10^10 render units)
-            if (!m31_in_frustum && (wx * wx + wy * wy + wz * wz > 1e20))
-              continue;
+                       double wx = cached_star_data[i].x;
+                       double wy = cached_star_data[i].y;
+                       double wz = cached_star_data[i].z;
 
-            float rx = (float)(wx - cx);
-            float ry = (float)(wy - cy);
-            float rz = (float)(wz - cz);
+                       float rx = (float)(wx - cx);
+                       float ry = (float)(wy - cy);
+                       float rz = (float)(wz - cz);
 
-            // Early-exit 5-plane test against camera frustum
-            if (p0.x * rx + p0.y * ry + p0.z * rz + p0.w < 0.0f)
-              continue;
-            if (p1.x * rx + p1.y * ry + p1.z * rz + p1.w < 0.0f)
-              continue;
-            if (p2.x * rx + p2.y * ry + p2.z * rz + p2.w < 0.0f)
-              continue;
-            if (p3.x * rx + p3.y * ry + p3.z * rz + p3.w < 0.0f)
-              continue;
-            if (p4.x * rx + p4.y * ry + p4.z * rz + p4.w < 0.0f)
-              continue;
+                       // Early-exit 5-plane test against camera frustum
+                       if (p0.x * rx + p0.y * ry + p0.z * rz + p0.w < 0.0f)
+                         continue;
+                       if (p1.x * rx + p1.y * ry + p1.z * rz + p1.w < 0.0f)
+                         continue;
+                       if (p2.x * rx + p2.y * ry + p2.z * rz + p2.w < 0.0f)
+                         continue;
+                       if (p3.x * rx + p3.y * ry + p3.z * rz + p3.w < 0.0f)
+                         continue;
+                       if (p4.x * rx + p4.y * ry + p4.z * rz + p4.w < 0.0f)
+                         continue;
 
-            out_indices[count++] = (uint32_t)i;
-          }
-          block_counts[b] = count;
-        });
+                       out_indices[count++] = (uint32_t)i;
+                     }
+                     block_counts[b] = count;
+                   });
 
     // Compute prefix sum offsets
     uint32_t total_visible = 0;
@@ -554,4 +624,114 @@ void load_celestial_body_stars_from_file(RenderState *render_state,
   }
 
   init_star_instance_buffer(render_state);
+}
+
+void star_get_candidate_labels(
+    RenderState *state, simd_double3 cam_world_pos,
+    void (^callback)(MTLStarGraphicsClass *star, simd_double3 world_pos,
+                     float radius_m, const char *name, simd_float4 color)) {
+  if (!cached_star_data || cached_star_count == 0)
+    return;
+
+  void *followed_body = RenderState_GetFollowedBody(state);
+  FollowType followed_type = RenderState_GetFollowedType(state);
+  MTLStarGraphicsClass *followed_star =
+      (followed_type == FOLLOW_STAR) ? (MTLStarGraphicsClass *)followed_body
+                                     : NULL;
+
+  // 1. If a star is followed, always process it immediately
+  if (followed_star && followed_star->body) {
+    simd_double3 world_pos = simd_make_double3(
+        followed_star->body->position.x * METERS_TO_RENDER_UNITS,
+        followed_star->body->position.y * METERS_TO_RENDER_UNITS,
+        followed_star->body->position.z * METERS_TO_RENDER_UNITS);
+    simd_float4 color = get_star_color(followed_star->body->spectral_type);
+    callback(followed_star, world_pos, (float)followed_star->body->radius_m,
+             followed_star->body->name, color);
+  }
+
+  // 2. Check which clusters are near the camera
+  const double max_label_dist = 1e7; // ~10 million render units (~1 light year)
+  bool cluster_near[MAX_STAR_CLUSTERS];
+  memset(cluster_near, 0, sizeof(cluster_near));
+
+  // Local stars (cluster 0) are centered around (0,0,0)
+  double dist_origin = simd_length(cam_world_pos);
+  if (dist_origin <= 1e10 + max_label_dist)
+    cluster_near[0] = true;
+
+  bool any_cluster_near = cluster_near[0];
+  for (size_t c = 1; c < star_cluster_count; c++) {
+    if (!star_clusters[c].active)
+      continue;
+
+    double dist_to_cluster =
+        simd_distance(cam_world_pos, star_clusters[c].center);
+    if (dist_to_cluster <= star_clusters[c].radius + max_label_dist) {
+      cluster_near[c] = true;
+      any_cluster_near = true;
+    }
+  }
+
+  if (!any_cluster_near)
+    return;
+
+  // 3. Scan only stars belonging to near clusters
+  for (size_t i = 0; i < cached_star_count; i++) {
+    uint8_t cid = cached_star_data[i].cluster_id;
+    if (!cluster_near[cid])
+      continue;
+
+    // Fast distance rejection against camera
+    double dx = cached_star_data[i].x - cam_world_pos.x;
+    double dy = cached_star_data[i].y - cam_world_pos.y;
+    double dz = cached_star_data[i].z - cam_world_pos.z;
+    double dist_sq = dx * dx + dy * dy + dz * dz;
+
+    double max_d = (double)cached_star_data[i].radius * 10000.0;
+    if (dist_sq > max_d * max_d)
+      continue;
+
+    MTLStarGraphicsClass *star = cached_star_data[i].star_gfx;
+    if (!star || !star->body || star == followed_star)
+      continue;
+
+    simd_double3 world_pos = simd_make_double3(
+        cached_star_data[i].x, cached_star_data[i].y, cached_star_data[i].z);
+    callback(star, world_pos, (float)star->body->radius_m, star->body->name,
+             cached_star_data[i].color);
+  }
+}
+
+void star_check_intersect(
+    RenderState *state, simd_float3 ray_origin,
+    void (^check_intersect)(simd_float3 pos, float base_radius,
+                            float click_radius, void *star, FollowType type)) {
+  if (!cached_star_data || cached_star_count == 0)
+    return;
+
+  Camera *camera = RenderState_GetCamera(state);
+  double cx = camera->center.x;
+  double cy = camera->center.y;
+  double cz = camera->center.z;
+
+  for (size_t i = 0; i < cached_star_count; i++) {
+    uint8_t cid = cached_star_data[i].cluster_id;
+    if (cid > 0 && cid < star_cluster_count && !star_clusters[cid].in_frustum)
+      continue;
+
+    double rel_x = cached_star_data[i].x - cx;
+    double rel_y = cached_star_data[i].y - cy;
+    double rel_z = cached_star_data[i].z - cz;
+    simd_float3 pos =
+        simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
+    float base_radius = cached_star_data[i].radius;
+    double dx = (double)ray_origin.x - (double)pos.x;
+    double dy = (double)ray_origin.y - (double)pos.y;
+    double dz = (double)ray_origin.z - (double)pos.z;
+    float dist = (float)sqrt(dx * dx + dy * dy + dz * dz);
+    float click_radius = dist * 0.045f;
+    check_intersect(pos, base_radius, fmaxf(base_radius * 1.3f, click_radius),
+                    cached_star_data[i].star_gfx, FOLLOW_STAR);
+  }
 }

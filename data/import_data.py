@@ -1,7 +1,30 @@
+from pathlib import Path
 import argparse
 
 from core.celestial_importer import CelestialImporter, Time
-from core.catalogs import CatalogSource
+
+def file_name_builder(args: argparse.Namespace):
+    file_name = "real_world_data"
+    file_name += "_target_" + args.target.replace(" ", "-")
+    file_name += "_" + args.source
+    if args.max_mag is not None:
+        file_name += "_maxmag_" + str(args.max_mag)
+    if args.limit is not None and args.limit != -1:
+        file_name += "_limit_" + str(args.limit)
+    if args.drop_unmeasured is not None:
+        file_name += "_drop_unmeasured_" + str(args.drop_unmeasured)
+    if args.distance_pc is not None:
+        file_name += "_distance_pc_" + str(args.distance_pc)
+    if args.bj_mode is not None:
+        file_name += "_bj_mode_" + args.bj_mode
+    if args.enrich_simbad is not None:
+        file_name += "_enrich_simbad"
+    file_name += "_" + str(args.degrees) + "deg.json"
+    return file_name
+
+def create_data_folder(path: Path):
+    if not path.exists():
+        path.mkdir()
 
 def main():
     parser = argparse.ArgumentParser(
@@ -82,8 +105,13 @@ def main():
             default_distance_pc=args.distance_pc,
         )
 
-    out_file = args.output if args.output else f'real_world_data_{args.target.replace(" ", "-")}_{args.source}_maxmag_{"disabled" if max_mag is None else int(max_mag)}_{args.degrees:g}deg.json'
-    importer.save(out_file)
+    out_file = file_name_builder(args)
+    out_folder = "data-files/"
+    create_data_folder(Path(out_folder))
+    out_path = Path(out_folder, out_file).resolve()
+    
+    importer.save(out_path)
+    print(f"Saved to {out_path}")
 
 if __name__ == "__main__":
     main()

@@ -377,30 +377,24 @@ void update_body_labels(RenderState *state) {
   simd_float3 cam_pos = camera_orbit_position(camera);
 
   BodyLabelItem items[MAX_ACTIVE_LABELS];
-  size_t item_count = 0;
+  __block size_t item_count = 0;
+  BodyLabelItem *items_ptr = items;
 
-  // Process Stars
-  DynamicArray *stars = RenderState_GetStars(state);
-  if (stars) {
-    size_t star_count = DynamicArray_length(stars);
-    for (size_t i = 0; i < star_count; i++) {
-      MTLStarGraphicsClass *star;
-      DynamicArray_get(stars, i, &star);
-      if (!star || !star->body)
-        continue;
+  // Process Stars (fast candidate querying with cluster & distance pruning)
+  simd_double3 cam_world_pos = simd_make_double3(
+      camera->center.x + (double)cam_pos.x,
+      camera->center.y + (double)cam_pos.y,
+      camera->center.z + (double)cam_pos.z);
 
-      simd_double3 world_pos =
-          simd_make_double3(star->body->position.x * METERS_TO_RENDER_UNITS,
-                            star->body->position.y * METERS_TO_RENDER_UNITS,
-                            star->body->position.z * METERS_TO_RENDER_UNITS);
-
-      simd_float4 color = get_star_color(star->body->spectral_type);
-      process_body(state, camera, cam_pos, view, projection, near_plane,
-                   (float)view_width, (float)view_height, world_pos,
-                   (float)star->body->radius_m, star->body->name, color, star,
-                   FOLLOW_STAR, items, &item_count, MAX_ACTIVE_LABELS);
-    }
-  }
+  star_get_candidate_labels(
+      state, cam_world_pos,
+      ^(MTLStarGraphicsClass *star, simd_double3 world_pos, float radius_m,
+        const char *name, simd_float4 color) {
+        process_body(state, camera, cam_pos, view, projection, near_plane,
+                     (float)view_width, (float)view_height, world_pos, radius_m,
+                     name, color, star, FOLLOW_STAR, items_ptr, &item_count,
+                     MAX_ACTIVE_LABELS);
+      });
 
   // Process Planets
   DynamicArray *planets = RenderState_GetPlanets(state);

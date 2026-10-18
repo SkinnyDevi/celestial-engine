@@ -27,7 +27,7 @@ void app_menu_quit_entry(NSMenu *menu) {
 
 void view_menu_hide_grid_entry(NSMenu *menu) {
   NSMenuItem *hideGridItem =
-      [[NSMenuItem alloc] initWithTitle:@"Hide Grid"
+      [[NSMenuItem alloc] initWithTitle:@"Show Grid"
                                  action:@selector(hideGrid:)
                           keyEquivalent:@"g"];
   [hideGridItem setState:NSControlStateValueOn];
@@ -37,7 +37,7 @@ void view_menu_hide_grid_entry(NSMenu *menu) {
 
 void view_menu_hide_body_labels_entry(NSMenu *menu) {
   NSMenuItem *hideLabelsItem =
-      [[NSMenuItem alloc] initWithTitle:@"Hide Celestial Body Names"
+      [[NSMenuItem alloc] initWithTitle:@"Show Celestial Body Names"
                                  action:@selector(toggleBodyLabels:)
                           keyEquivalent:@"l"];
 

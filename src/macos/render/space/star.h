@@ -48,4 +48,13 @@ void init_star_instance_buffer(RenderState *state);
 void draw_stars_instanced(RenderState *state, void *encoder_ptr);
 uint32_t get_rendered_stars_count(void);
 
+void star_get_candidate_labels(
+    RenderState *state, simd_double3 cam_world_pos,
+    void (^callback)(MTLStarGraphicsClass *star, simd_double3 world_pos,
+                     float radius_m, const char *name, simd_float4 color));
+void star_check_intersect(
+    RenderState *state, simd_float3 ray_origin,
+    void (^check_intersect)(simd_float3 pos, float base_radius,
+                            float click_radius, void *star, FollowType type));
+
 #endif

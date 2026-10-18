@@ -27,6 +27,8 @@ bool debug_celestial_bodies_culling_register_type(
     const char *name, CelestialBodyCountGetter get_rendered,
     CelestialBodyCountGetter get_loaded);
 void debug_celestial_bodies_culling_init_registry(void);
+void debug_overlay_celestial_bodies_culling_log_count(DebugOverlay *overlay,
+                                                      RenderState *state);
 
 #ifdef __cplusplus
 }

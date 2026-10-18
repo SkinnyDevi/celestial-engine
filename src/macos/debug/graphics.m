@@ -140,10 +140,17 @@ void update_debug_time_overlay(RenderState *state) {
 void update_debug_celestial_bodies_overlay(RenderState *state) {
 #if DEBUG_CELESTIAL_BODIES_CULLING_VISIBLE
   DebugOverlay *overlay = RenderState_GetCelestialBodiesOverlay(state);
+  unsigned long long debug_frame_counter = fps_data.frame_count;
   if (overlay) {
     debug_overlay_clear(overlay);
     debug_overlay_update_celestial_bodies_culling(overlay, state);
   }
+
+  if (debug_frame_counter % 24 == 0) {
+    debug_overlay_celestial_bodies_culling_log_count(overlay, state);
+    LOG_DEBUG("[FPS] Current FPS: %.2f", fps_data.fps_avg);
+  }
+
 #endif
 }
 

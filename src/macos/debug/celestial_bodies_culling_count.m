@@ -172,3 +172,14 @@ void debug_overlay_update_celestial_bodies_culling(DebugOverlay *overlay,
     fields[i].value = NULL;
   }
 }
+
+void debug_overlay_celestial_bodies_culling_log_count(DebugOverlay *overlay,
+                                                      RenderState *state) {
+  for (size_t i = 0; i < g_registered_type_count; i++) {
+    const CelestialBodyTypeEntry *entry = &g_registered_types[i];
+    size_t rendered = entry->get_rendered ? entry->get_rendered(state) : 0;
+    size_t loaded = entry->get_loaded ? entry->get_loaded(state) : 0;
+    LOG_DEBUG("[CULLING] - Visible %s: %zu / %zu", entry->name, rendered,
+              loaded);
+  }
+}
