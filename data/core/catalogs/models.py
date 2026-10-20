@@ -4,7 +4,7 @@ from enum import Enum
 import re
 from typing import Any
 
-import astropy.units as u
+import astropy.units as astrounits
 from astropy.coordinates import Distance, SkyCoord
 
 from core.space import SpectralType, OpticalMagBands
@@ -61,19 +61,19 @@ class DistanceResult:
     @property
     def distance_m(self) -> float:
         if self.astropy_distance is not None:
-            return float(self.astropy_distance.to_value(u.m))
+            return float(self.astropy_distance.to_value(astrounits.m))
         return self.distance_pc * PC_TO_METERS
 
     @property
     def distance_ly(self) -> float:
         if self.astropy_distance is not None:
-            return float(self.astropy_distance.to_value(u.lyr))
+            return float(self.astropy_distance.to_value(astrounits.lyr))
         return self.distance_pc * 3.261563777
 
     @property
     def distance_kpc(self) -> float:
         if self.astropy_distance is not None:
-            return float(self.astropy_distance.to_value(u.kpc))
+            return float(self.astropy_distance.to_value(astrounits.kpc))
         return self.distance_pc / 1000.0
 
 @dataclass
@@ -105,7 +105,7 @@ class StarRecord:
         if pos is None:
             dist_m = self.distance.distance_m
             pos = {
-                "x": dist_m * u.Quantity(self.dec_deg, u.deg).to(u.rad).value,
+                "x": dist_m * astrounits.Quantity(self.dec_deg, astrounits.deg).to(astrounits.rad).value,
                 "y": 0.0,
                 "z": 0.0
             }
@@ -266,7 +266,7 @@ def classify_spectral_type(
 
 def parse_spectral_type_str(sp_str: str | bytes | Any | None) -> tuple[SpectralType, int] | tuple[None, None]:
     """Helper to parse a spectral type string (e.g. 'G2V', 'M2Ib') into SpectralType enum and subtype."""
-    if sp_str is None or (isinstance(sp_str, float) and u.isnan(sp_str)):
+    if sp_str is None or (isinstance(sp_str, float) and astrounits.isnan(sp_str)):
         return None, None
     if isinstance(sp_str, bytes):
         sp_str = sp_str.decode('utf-8', errors='ignore')

@@ -1,9 +1,16 @@
 import math
-from enum import Enum
 
 AU_TO_METERS = 149597870700.0
 DEG_TO_RAD = math.pi / 180.0
+RAD_TO_DEG = 180.0 / math.pi
 LY_TO_PC = 1.0 / 3.261563777
 PC_TO_METERS = 3.085677581e16
 G_CONST = 6.67430e-11  # Gravitational constant in m^3 kg^-1 s^-2
-    
+
+# Planetary and Stellar constants
+EARTH_MASS_KG = 5.97237e24
+EARTH_RADIUS_M = 6371000.0
+JUPITER_MASS_KG = 1.8982e27
+JUPITER_RADIUS_M = 69911000.0
+SOLAR_MASS_KG = 1.98847e30
+SOLAR_RADIUS_M = 696340000.0

@@ -68,8 +68,17 @@ class BailerJonesProvider(BaseCatalogProvider):
         limit_desc = f"limit: {limit}" if (limit is not None and limit > 0) else "unlimited"
         print(f"[BailerJonesProvider] Submitting cone query to VizieR {self.CATALOG_ID} (radius: {radius_degrees}°, {limit_desc})...")
         t0 = time.time()
+        results = None
         try:
-            results = self._vizier.query_region(coord, radius=radius_degrees * u.deg)
+            for attempt in range(3):
+                try:
+                    results = self._vizier.query_region(coord, radius=radius_degrees * u.deg)
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        print(f"Warning: VizieR query failed after 3 attempts ({e}).")
+                    else:
+                        time.sleep(1.0)
         finally:
             self._vizier.ROW_LIMIT = prev_limit
         elapsed = time.time() - t0

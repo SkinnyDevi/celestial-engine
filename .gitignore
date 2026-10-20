@@ -48,4 +48,4 @@ DerivedData/
 Package.resolved
 .venv/
 
-data-files/*.json
+data-files/**/*.json

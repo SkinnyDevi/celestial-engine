@@ -19,6 +19,10 @@ def file_name_builder(args: argparse.Namespace):
         file_name += "_bj_mode_" + args.bj_mode
     if args.enrich_simbad is not None:
         file_name += "_enrich_simbad"
+    if getattr(args, "include_exoplanets", False):
+        file_name += "_exoplanets"
+    if getattr(args, "include_rogue_planets", False):
+        file_name += "_rogue"
     file_name += "_" + str(args.degrees) + "deg.json"
     return file_name
 
@@ -57,6 +61,9 @@ def main():
         help="Enrich Simbad stars with precision distance measurements from Gaia/Bailer-Jones/StarHorse/Hipparcos"
     )
     parser.add_argument("--skip-solar-system", action="store_true", default=False, help="Skip adding Sun, planets and moons")
+    parser.add_argument("--include-exoplanets", action="store_true", default=False, help="Import confirmed exoplanets orbiting stars in the region")
+    parser.add_argument("--include-rogue-planets", action="store_true", default=False, help="Import free-floating rogue planets")
+    parser.add_argument("--exoplanet-host", type=str, default=None, help="Target a specific exoplanet host star (e.g., 'TRAPPIST-1', 'Proxima Centauri')")
     parser.add_argument("--output", type=str, default=None, help="Output JSON path (default: real_world_data_<target>_<source>_<degrees>deg.json)")
     parser.add_argument("--date", type=str, default="2024-10-05T12:30:00", help="Simulation epoch date (default: 2024-10-05T12:30:00)")
     args = parser.parse_args()
@@ -71,6 +78,8 @@ def main():
     print(f"Catalog Source: {args.source} (Bailer-Jones mode: {args.bj_mode})")
     print(f"Apparent Magnitude Cutoff: {f'm <= {max_mag}' if max_mag is not None else 'Disabled (all magnitudes)'}")
     print(f"Keep Unmeasured Photometry: {keep_unmeasured}")
+    print(f"Include Exoplanets: {args.include_exoplanets}")
+    print(f"Include Rogue Planets: {args.include_rogue_planets}")
 
     importer = CelestialImporter(
         Time(args.date),
@@ -86,6 +95,12 @@ def main():
         importer.add_solar_system(include_moons=True, include_dwarf_planets=True)
     
     # -------------------------------------------------------------------------
+    # SPECIFIC EXOPLANET HOST STAR (if explicitly requested)
+    # -------------------------------------------------------------------------
+    if args.exoplanet_host:
+        importer.add_exoplanets_for_star(args.exoplanet_host)
+
+    # -------------------------------------------------------------------------
     # STELLAR OBJECTS & 3D PRECISION MAPPING
     # -------------------------------------------------------------------------
     if args.source == "simbad":
@@ -94,7 +109,8 @@ def main():
             radius_degrees=args.degrees,
             limit=args.limit,
             default_distance_pc=args.distance_pc,
-            use_precise_distances=args.enrich_simbad
+            use_precise_distances=args.enrich_simbad,
+            include_exoplanets=args.include_exoplanets
         )
     else:
         importer.add_stars_from_catalog(
@@ -103,12 +119,22 @@ def main():
             source=args.source,
             limit=args.limit,
             default_distance_pc=args.distance_pc,
+            include_exoplanets=args.include_exoplanets
         )
 
-    out_file = file_name_builder(args)
-    out_folder = "data-files/"
-    create_data_folder(Path(out_folder))
-    out_path = Path(out_folder, out_file).resolve()
+    # -------------------------------------------------------------------------
+    # ROGUE PLANETS (Interstellar free-floating planets)
+    # -------------------------------------------------------------------------
+    if args.include_rogue_planets:
+        importer.add_rogue_planets(args.target, radius_degrees=args.degrees)
+
+    if args.output:
+        out_path = Path(args.output).resolve()
+    else:
+        out_file = file_name_builder(args)
+        out_folder = "data-files/"
+        create_data_folder(Path(out_folder))
+        out_path = Path(out_folder, out_file).resolve()
     
     importer.save(out_path)
     print(f"Saved to {out_path}")

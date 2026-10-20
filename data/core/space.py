@@ -1,4 +1,3 @@
-from os import stat
 from enum import Enum
 
 class SpectralType(Enum):

@@ -7,7 +7,7 @@ import math
 from typing import Any, TextIO
 
 import numpy as np
-import astropy.units as astrounit
+import astropy.units as astrounits
 from astroquery.jplhorizons import Horizons, HorizonsClass
 from astroquery.simbad import Simbad, SimbadClass
 from astropy.time import Time
@@ -24,14 +24,20 @@ from core.space import (
 from core.math import *
 from core.catalogs import (
     CatalogSource,
-    DistanceMethod,
-    DistanceResult,
     StarRecord,
     PreciseDistanceResolver,
     create_skycoord_3d,
     skycoord_to_cartesian_meters,
     distance_from_parallax,
     classify_spectral_type,
+)
+from core.planets import (
+    PlanetRecord,
+    OrbitRecord,
+    PlanetResolver,
+    NasaExoplanetProvider,
+    SolarSystemPlanetProvider,
+    RoguePlanetProvider,
 )
 
 class CelestialImporter:
@@ -46,6 +52,7 @@ class CelestialImporter:
     planet_indices: dict[str, int]
     simbad: SimbadClass
     distance_resolver: PreciseDistanceResolver
+    planet_resolver: PlanetResolver
 
     def __init__(
         self,
@@ -53,6 +60,7 @@ class CelestialImporter:
         max_apparent_magnitude: float | None = None,
         keep_unmeasured: bool = True,
         distance_resolver: PreciseDistanceResolver | None = None,
+        planet_resolver: PlanetResolver | None = None,
         prefer_photogeometric: bool = True,
     ) -> None:
         self.sim_time: Time = sim_time
@@ -74,6 +82,11 @@ class CelestialImporter:
         # Configure Precise Distance Resolver
         self.distance_resolver: PreciseDistanceResolver = (
             distance_resolver if distance_resolver is not None else PreciseDistanceResolver(prefer_photogeometric=prefer_photogeometric)
+        )
+
+        # Configure Planet Resolver
+        self.planet_resolver: PlanetResolver = (
+            planet_resolver if planet_resolver is not None else PlanetResolver()
         )
 
     def _init_simbad_fields(self) -> None:
@@ -414,6 +427,7 @@ class CelestialImporter:
         keep_unmeasured: bool | None = None,
         use_precise_distances: bool = False,
         precise_source: CatalogSource | str = CatalogSource.AUTO,
+        include_exoplanets: bool = False,
     ) -> None:
         """
         Fetches a batch of stars/objects around a specific celestial region (cone in the sky) and adds them.
@@ -421,6 +435,7 @@ class CelestialImporter:
         `max_apparent_magnitude`: Apparent magnitude cutoff (drops objects fainter than this).
         `keep_unmeasured`: Whether to keep objects without catalog magnitude measurement.
         `use_precise_distances`: Enrich stars with precise distances from Gaia DR3, Bailer-Jones, StarHorse, or Hipparcos.
+        `include_exoplanets`: Automatically discover and import confirmed exoplanets orbiting stars in the region.
         """
         cutoff: float | None = self.max_apparent_magnitude if max_apparent_magnitude is None else max_apparent_magnitude
         keep_unm: bool = self.keep_unmeasured if keep_unmeasured is None else keep_unmeasured
@@ -433,11 +448,14 @@ class CelestialImporter:
         if center_name.strip().lower() == "sun":
             print(f"Notice: 'Sun' is our local star (origin of coordinates) and does not exist as an extra-solar target in SIMBAD's sky catalog.")
             print(f"Redirecting query to fetch nearby stars by 3D distance ({radius_degrees} ly) from the Sun...")
-            return self.add_nearby_stars(
+            added = self.add_nearby_stars(
                 max_distance_ly=radius_degrees, limit=limit,
                 mass_kg_default=mass_kg_default, radius_m_default=radius_m_default,
                 max_apparent_magnitude=cutoff, keep_unmeasured=keep_unm
             )
+            if include_exoplanets:
+                self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=True)
+            return added
 
         limit_desc: str = f"up to {limit}" if (limit is not None and limit > 0) else "all"
         mag_desc: str = f" with mag <= {cutoff}" if cutoff is not None else ""
@@ -447,7 +465,7 @@ class CelestialImporter:
         self.simbad.ROW_LIMIT = limit if (limit is not None and limit > 0) else -1
         result: Table | None
         try:
-            result = self.simbad.query_region(center_name, radius=radius_degrees * astrounit.deg)
+            result = self.simbad.query_region(center_name, radius=radius_degrees * astrounits.deg)
         finally:
             self.simbad.ROW_LIMIT = prev_limit
         
@@ -543,6 +561,9 @@ class CelestialImporter:
             msg += ")"
         print(msg)
 
+        if include_exoplanets:
+            self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=False)
+
     def add_stars_from_catalog(
         self,
         center_name: str,
@@ -554,6 +575,7 @@ class CelestialImporter:
         radius_m_default: float = 696340000.0,
         max_apparent_magnitude: float | None = None,
         keep_unmeasured: bool | None = None,
+        include_exoplanets: bool = False,
     ) -> int:
         """
         Fetches stars around a center region using precision distance catalogs:
@@ -561,6 +583,7 @@ class CelestialImporter:
         - Bailer-Jones (Bayesian geometric & photogeometric, prevents line-of-sight stretching/errors)
         - StarHorse (multi-band optical/IR + stellar models for dust/dense fields)
         - Hipparcos (trigonometric parallax for bright foreground stars m < 6)
+        - include_exoplanets: Automatically discover and import confirmed exoplanets orbiting stars in the region.
         """
         cutoff: float | None = self.max_apparent_magnitude if max_apparent_magnitude is None else max_apparent_magnitude
         keep_unm: bool = self.keep_unmeasured if keep_unmeasured is None else keep_unmeasured
@@ -568,7 +591,7 @@ class CelestialImporter:
         if center_name.strip().lower() in ("sun", "sol"):
             print(f"Notice: 'Sun' is our local star (origin of coordinates) and does not exist as an extra-solar target in sky catalogs.")
             print(f"Redirecting query to fetch nearby stars by 3D distance ({radius_degrees} ly) from the Sun...")
-            return self.add_nearby_stars(
+            added = self.add_nearby_stars(
                 max_distance_ly=radius_degrees,
                 limit=limit,
                 mass_kg_default=mass_kg_default,
@@ -578,6 +601,9 @@ class CelestialImporter:
                 use_precise_distances=False,
                 precise_source=source,
             )
+            if include_exoplanets:
+                self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=True)
+            return added
 
         records: list[StarRecord] = self.distance_resolver.query_region(
             center=center_name,
@@ -642,6 +668,10 @@ class CelestialImporter:
         if filters:
             msg += f" (Filtered: {', '.join(filters)})"
         print(msg)
+
+        if include_exoplanets:
+            self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=False)
+
         return added_count
 
     def add_star_precise(
@@ -700,7 +730,7 @@ class CelestialImporter:
             if sim_res is None or len(sim_res) == 0:
                 print(f"Could not resolve celestial position for {clean_name}.")
                 return False
-            sc = SkyCoord(ra=float(sim_res['ra'][0]) * astrounit.deg, dec=float(sim_res['dec'][0]) * astrounit.deg, frame='icrs')
+            sc = SkyCoord(ra=float(sim_res['ra'][0]) * astrounits.deg, dec=float(sim_res['dec'][0]) * astrounits.deg, frame='icrs')
 
         dist_res = self.distance_resolver.resolve_precise_distance(
             coord=sc,
@@ -709,7 +739,7 @@ class CelestialImporter:
 
         if dist_res is None or not dist_res.is_valid:
             print(f"Could not determine precise distance for {clean_name}. Using Simbad fallback...")
-            self.add_star_simbad(name=clean_name, body_id=bid, mass_kg=mass_kg, radius_m=radius_m, **kwargs)
+            self.add_star_simbad(name=clean_name, body_id=bid, mass_kg=mass_kg, radius_m=radius_m, max_apparent_magnitude=max_apparent_magnitude, **kwargs)
             return True
 
         sc_3d = create_skycoord_3d(float(sc.ra.deg), float(sc.dec.deg), dist_res.distance_pc)
@@ -781,6 +811,193 @@ class CelestialImporter:
         self.planet_indices[name] = len(self.planets) - 1
         self.planet_indices[body_id] = len(self.planets) - 1
         print(f"Added planet {name}")
+
+    def add_planet_record(self, planet: PlanetRecord, orbit: OrbitRecord | None = None) -> None:
+        """
+        Adds a decoupled PlanetRecord (and optional OrbitRecord) to the simulation,
+        resolving host star indices and orbit indices.
+        """
+        host_idx = -1
+        if planet.planet_class != PlanetClass.ROGUE:
+            if planet.host_star_name and planet.host_star_name in self.star_indices:
+                host_idx = self.star_indices[planet.host_star_name]
+            elif planet.host_star_id and planet.host_star_id in self.star_indices:
+                host_idx = self.star_indices[planet.host_star_id]
+            elif planet.host_star_name:
+                for s_name, s_idx in self.star_indices.items():
+                    if s_name.upper() in ("SUN", "SOL"):
+                        continue
+                    if planet.host_star_name.upper() in s_name.upper() or s_name.upper() in planet.host_star_name.upper():
+                        host_idx = s_idx
+                        break
+
+        planet.host_star_index = host_idx
+
+        # Orbit
+        orb = orbit if orbit is not None else planet.orbit
+        if orb is not None:
+            self.orbits.append(orb.to_engine_dict())
+            planet.orbit_index = len(self.orbits) - 1
+        else:
+            planet.orbit_index = -1
+
+        p_dict = planet.to_engine_dict()
+        self.planets.append(p_dict)
+        idx = len(self.planets) - 1
+        self.planet_indices[planet.name] = idx
+        self.planet_indices[planet.body_id] = idx
+        p_class_name = planet.planet_class.name if hasattr(planet.planet_class, 'name') else str(planet.planet_class)
+        print(f"Added planet {planet.name} ({p_class_name})")
+
+    def add_exoplanets_for_star(self, host_star_name: str, add_host_if_missing: bool = True) -> list[PlanetRecord]:
+        """
+        Queries and imports all confirmed exoplanets orbiting a given host star.
+        If host star is missing and add_host_if_missing is True, attempts to resolve it first.
+        """
+        clean_host = host_star_name.strip()
+        has_host = clean_host in self.star_indices or clean_host.upper() in self.star_indices
+        if not has_host and add_host_if_missing:
+            added = self.add_star_precise(clean_host, max_apparent_magnitude=float("inf"))
+            if not added:
+                self.add_star_simbad(
+                    clean_host,
+                    body_id=clean_host,
+                    mass_kg=1.989e30,
+                    radius_m=696340000.0,
+                    max_apparent_magnitude=float("inf")
+                )
+
+        planets = self.planet_resolver.resolve_planets_for_star(clean_host)
+        if not planets:
+            print(f"No exoplanets found for host star '{clean_host}'.")
+            return []
+
+        added_planets: list[PlanetRecord] = []
+        for p in planets:
+            if p.name in self.planet_indices or p.body_id in self.planet_indices:
+                continue
+            self.add_planet_record(p)
+            added_planets.append(p)
+
+        print(f"Successfully imported {len(added_planets)} exoplanet(s) for host '{clean_host}'.")
+        return added_planets
+
+    def add_exoplanets_in_region(
+        self,
+        center: str | SkyCoord,
+        radius_degrees: float,
+        auto_add_host_stars: bool = True
+    ) -> list[PlanetRecord]:
+        """
+        Discovers and imports exoplanets within a sky cone around center.
+        Automatically links them to known or newly created host stars.
+        """
+        if isinstance(center, str) and center.strip().lower() in ("sun", "sol"):
+            max_dist_pc = (radius_degrees / 3.26156) if radius_degrees > 0 else 30.0
+            print(f"Querying confirmed exoplanets within {max_dist_pc:.1f} pc ({radius_degrees:.1f} ly) of the Sun...")
+            planets = self.planet_resolver.resolve_exoplanets_by_distance(max_dist_pc)
+        else:
+            if isinstance(center, str):
+                from core.catalogs import resolve_center_coord
+                center_coord = resolve_center_coord(center)
+            else:
+                center_coord = center
+
+            planets = self.planet_resolver.resolve_planets_in_region(
+                center_coord=center_coord,
+                radius_deg=radius_degrees,
+                include_exoplanets=True,
+                include_rogue=False
+            )
+
+        added_planets: list[PlanetRecord] = []
+        for p in planets:
+            if p.name in self.planet_indices or p.body_id in self.planet_indices:
+                continue
+
+            # Ensure host star is added
+            if p.host_star_name and p.host_star_name not in self.star_indices and auto_add_host_stars:
+                from core.catalogs import sanitize_name_and_id
+                host_clean, host_bid = sanitize_name_and_id(p.host_star_name)
+                if host_clean not in self.star_indices and host_bid not in self.star_indices:
+                    # Calculate true 3D interstellar position from RA, Dec, and Distance
+                    effective_dist_pc = p.distance_pc if p.distance_pc > 0.0 else 30.0
+                    ra_deg = p.right_ascension_rad * (180.0 / math.pi)
+                    dec_deg = p.declination_rad * (180.0 / math.pi)
+
+                    sc = create_skycoord_3d(ra_deg, dec_deg, effective_dist_pc)
+                    cart_pos = skycoord_to_cartesian_meters(sc)
+
+                    st_mass_kg = p.extra_metadata.get("st_mass_kg", SOLAR_MASS_KG)
+                    st_rad_m = p.extra_metadata.get("st_radius_m", SOLAR_RADIUS_M)
+                    st_teff_k = p.extra_metadata.get("st_teff_k", 5778.0)
+                    st_spectype = p.extra_metadata.get("st_spectype")
+                    s_type, s_sub = self.parse_spectral_type(st_spectype)
+                    if s_type is None:
+                        s_type = SpectralType.G
+                        s_sub = 2
+
+                    host_dict = {
+                        "name": host_clean,
+                        "body_id": host_bid,
+                        "spectral_type": s_type.value,
+                        "spectral_subtype": s_sub,
+                        "position": cart_pos,
+                        "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                        "right_ascension_rad": p.right_ascension_rad,
+                        "declination_rad": p.declination_rad,
+                        "distance_pc": effective_dist_pc,
+                        "mass_kg": st_mass_kg,
+                        "radius_m": st_rad_m,
+                        "surface_temperature_k": st_teff_k,
+                    }
+                    self.stars.append(host_dict)
+                    self.star_indices[host_clean] = len(self.stars) - 1
+                    self.star_indices[host_bid] = len(self.stars) - 1
+
+            self.add_planet_record(p)
+            added_planets.append(p)
+
+        print(f"Imported {len(added_planets)} exoplanet(s) in region around target.")
+        return added_planets
+
+    def add_rogue_planets(
+        self,
+        center: str | SkyCoord | None = None,
+        radius_degrees: float | None = None
+    ) -> list[PlanetRecord]:
+        """Imports rogue / free-floating interstellar planets."""
+        center_coord = None
+        is_sun = False
+        if center is not None:
+            if isinstance(center, str):
+                if center.strip().lower() in ("sun", "sol"):
+                    is_sun = True
+                    center_coord = None
+                else:
+                    from core.catalogs import resolve_center_coord
+                    center_coord = resolve_center_coord(center)
+            else:
+                center_coord = center
+
+        rogues = self.planet_resolver.resolve_rogue_planets(
+            center_coord=center_coord,
+            radius_deg=radius_degrees
+        )
+
+        if is_sun and radius_degrees is not None and radius_degrees > 10.0:
+            max_dist_pc = radius_degrees / 3.26156
+            rogues = [r for r in rogues if r.distance_pc <= max_dist_pc]
+
+        added: list[PlanetRecord] = []
+        for r in rogues:
+            if r.name in self.planet_indices or r.body_id in self.planet_indices:
+                continue
+            self.add_planet_record(r)
+            added.append(r)
+
+        print(f"Imported {len(added)} rogue planet(s).")
+        return added
 
     def add_moon(self, name: str, body_id: str, jpl_id: str, center_id: str, host_planet_name: str, **kwargs: Any) -> None:
         """Fetches orbital data from JPL Horizons and adds a moon."""

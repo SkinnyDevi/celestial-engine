@@ -2,7 +2,7 @@ import math
 import time
 from typing import Any
 
-import astropy.units as u
+import astropy.units as astrounits
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 from astroquery.gaia import Gaia
@@ -139,8 +139,8 @@ class GaiaDR3Provider(BaseCatalogProvider):
         """Fast indexed cone query against VizieR I/355/gaiadr3."""
         try:
             v = Vizier(catalog='I/355/gaiadr3', columns=['Source', 'RA_ICRS', 'DE_ICRS', 'Plx', 'e_Plx', 'Gmag'], row_limit=limit)
-            sc = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame='icrs')
-            res = v.query_region(sc, radius=radius_deg * u.deg)
+            sc = SkyCoord(ra=ra_deg * astrounits.deg, dec=dec_deg * astrounits.deg, frame='icrs')
+            res = v.query_region(sc, radius=radius_deg * astrounits.deg)
             if res and len(res) > 0:
                 t = res[0]
                 t.rename_column('Source', 'source_id')
@@ -193,8 +193,8 @@ class GaiaDR3Provider(BaseCatalogProvider):
                 columns=['Source', 'RA_ICRS', 'DE_ICRS', 'Plx', 'e_Plx', 'Gmag', 'BPmag', 'RPmag', 'BP-RP', 'Teff'],
                 row_limit=limit if (limit is not None and limit > 0) else -1
             )
-            sc = SkyCoord(ra=ra_deg * u.deg, dec=dec_deg * u.deg, frame='icrs')
-            results = v.query_region(sc, radius=radius_deg * u.deg)
+            sc = SkyCoord(ra=ra_deg * astrounits.deg, dec=dec_deg * astrounits.deg, frame='icrs')
+            results = v.query_region(sc, radius=radius_deg * astrounits.deg)
             if results and len(results) > 0:
                 t = results[0]
                 # Normalize column names to match Gaia DR3 TAP output

@@ -1,17 +1,12 @@
 import unittest
 import math
-import astropy.units as u
+import astropy.units as astrounits
 from astropy.coordinates import SkyCoord, Distance
 
 from core.catalogs import (
     CatalogSource,
     DistanceMethod,
-    DistanceResult,
     StarRecord,
-    GaiaDR3Provider,
-    BailerJonesProvider,
-    StarHorseProvider,
-    HipparcosProvider,
     PreciseDistanceResolver,
     create_skycoord_3d,
     skycoord_to_cartesian_meters,
@@ -20,13 +15,11 @@ from core.catalogs import (
     distance_from_kpc,
     is_dusty_or_dense_region,
     classify_spectral_type,
-    temperature_to_spectral_type,
-    temperature_from_color,
 )
-from core.space import SpectralType, OpticalMagBands
+from core.space import SpectralType
 from core.constants import PC_TO_METERS, DEG_TO_RAD
 
-class TestAstropyCoordinatesAndDistances(unittest.TestCase):
+class TestPreciseDistances(unittest.TestCase):
     def test_cartesian_mapping_accuracy(self):
         """Verifies that Astropy SkyCoord cartesian coordinates match mathematical spherical projections."""
         ra_deg = 45.0
@@ -95,11 +88,11 @@ class TestAstropyCoordinatesAndDistances(unittest.TestCase):
     def test_galactic_plane_detection(self):
         """Verifies detection of dense/dusty galactic plane regions (|b| <= 10 deg)."""
         # Galactic center (Sgr A*) is in the galactic plane
-        coord_gc = SkyCoord(ra=266.4168 * u.deg, dec=-29.0078 * u.deg, frame='icrs')
+        coord_gc = SkyCoord(ra=266.4168 * astrounits.deg, dec=-29.0078 * astrounits.deg, frame='icrs')
         self.assertTrue(is_dusty_or_dense_region(coord_gc, latitude_threshold_deg=10.0))
 
         # North Galactic Pole (b ~ 90 deg) is outside galactic plane
-        coord_ngp = SkyCoord(ra=192.859 * u.deg, dec=27.128 * u.deg, frame='icrs')
+        coord_ngp = SkyCoord(ra=192.859 * astrounits.deg, dec=27.128 * astrounits.deg, frame='icrs')
         self.assertFalse(is_dusty_or_dense_region(coord_ngp, latitude_threshold_deg=10.0))
 
 class TestPreciseDistanceResolver(unittest.TestCase):
@@ -108,19 +101,19 @@ class TestPreciseDistanceResolver(unittest.TestCase):
 
     def test_auto_routing_bright_star(self):
         """Bright stars (m < 6.0) should route to Hipparcos to avoid Gaia saturation."""
-        coord = SkyCoord(ra=10.0 * u.deg, dec=20.0 * u.deg, frame='icrs')
+        coord = SkyCoord(ra=10.0 * astrounits.deg, dec=20.0 * astrounits.deg, frame='icrs')
         chosen_source = self.resolver.select_best_source(coord, apparent_mag=4.5)
         self.assertEqual(chosen_source, CatalogSource.HIPPARCOS)
 
     def test_auto_routing_dusty_dense_region(self):
         """Objects in the dusty Galactic plane (|b| <= 10 deg) should route to StarHorse."""
-        coord_plane = SkyCoord(ra=266.4168 * u.deg, dec=-29.0078 * u.deg, frame='icrs')
+        coord_plane = SkyCoord(ra=266.4168 * astrounits.deg, dec=-29.0078 * astrounits.deg, frame='icrs')
         chosen_source = self.resolver.select_best_source(coord_plane, apparent_mag=12.0)
         self.assertEqual(chosen_source, CatalogSource.STARHORSE)
 
     def test_auto_routing_general_stars(self):
         """General stars outside the plane should route to Bailer-Jones to prevent line-of-sight stretching."""
-        coord_high_b = SkyCoord(ra=192.859 * u.deg, dec=27.128 * u.deg, frame='icrs')
+        coord_high_b = SkyCoord(ra=192.859 * astrounits.deg, dec=27.128 * astrounits.deg, frame='icrs')
         chosen_source = self.resolver.select_best_source(coord_high_b, apparent_mag=12.0)
         self.assertEqual(chosen_source, CatalogSource.BAILER_JONES)
 

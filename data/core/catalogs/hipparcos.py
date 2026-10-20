@@ -2,7 +2,7 @@ from typing import Any
 import re
 import time
 
-import astropy.units as u
+import astropy.units as astrounits
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 from astroquery.vizier import Vizier
@@ -73,7 +73,7 @@ class HipparcosProvider(BaseCatalogProvider):
         print(f"[HipparcosProvider] Submitting cone query to VizieR {self.CATALOG_ID} (radius: {radius_degrees}°, {limit_desc}{mag_desc})...")
         t0 = time.time()
         try:
-            results = self._vizier.query_region(coord, radius=radius_degrees * u.deg)
+            results = self._vizier.query_region(coord, radius=radius_degrees * astrounits.deg)
         finally:
             self._vizier.ROW_LIMIT = prev_limit
         elapsed = time.time() - t0
@@ -113,7 +113,7 @@ class HipparcosProvider(BaseCatalogProvider):
 
         # Target name search
         coord = SkyCoord.from_name(str(name_or_hip))
-        res = self._vizier.query_region(coord, radius=10.0 * u.arcsec)
+        res = self._vizier.query_region(coord, radius=10.0 * astrounits.arcsec)
         if res and len(res) > 0:
             rec = self._row_to_star_record(res[0][0])
             if rec:
@@ -139,7 +139,7 @@ class HipparcosProvider(BaseCatalogProvider):
             if res and len(res) > 0:
                 table = res[0]
         else:
-            res = self._vizier.query_region(coord, radius=(search_radius_arcsec / 3600.0) * u.deg)
+            res = self._vizier.query_region(coord, radius=(search_radius_arcsec / 3600.0) * astrounits.deg)
             if res and len(res) > 0:
                 table = res[0]
 

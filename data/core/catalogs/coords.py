@@ -1,7 +1,7 @@
 import math
 from typing import Any
 
-import astropy.units as u
+import astropy.units as astrounits
 from astropy.coordinates import Distance, SkyCoord
 
 from .models import DistanceMethod, DistanceResult, CatalogSource
@@ -20,7 +20,7 @@ def distance_from_parallax(
     """
     if parallax_mas is None or math.isnan(parallax_mas) or parallax_mas <= 0:
         dist_pc = fallback_pc if fallback_pc is not None else 0.0
-        astropy_dist = Distance(value=dist_pc, unit=u.pc) if dist_pc > 0 else None
+        astropy_dist = Distance(value=dist_pc, unit=astrounits.pc) if dist_pc > 0 else None
         return DistanceResult(
             distance_pc=dist_pc,
             method=DistanceMethod.GEOMETRIC_PARALLAX,
@@ -33,7 +33,7 @@ def distance_from_parallax(
         )
 
     # Standard parallax inversion using Astropy Distance
-    astropy_dist = Distance(parallax=parallax_mas * u.mas)
+    astropy_dist = Distance(parallax=parallax_mas * astrounits.mas)
     dist_pc = float(astropy_dist.pc)
 
     lower_pc: float | None = None
@@ -42,12 +42,12 @@ def distance_from_parallax(
     if parallax_error_mas is not None and not math.isnan(parallax_error_mas) and parallax_error_mas > 0:
         # Distance lower bound corresponds to parallax + error
         p_max = parallax_mas + parallax_error_mas
-        lower_pc = float(Distance(parallax=p_max * u.mas).pc)
+        lower_pc = float(Distance(parallax=p_max * astrounits.mas).pc)
 
         # Distance upper bound corresponds to parallax - error (if still positive)
         p_min = parallax_mas - parallax_error_mas
         if p_min > 0:
-            upper_pc = float(Distance(parallax=p_min * u.mas).pc)
+            upper_pc = float(Distance(parallax=p_min * astrounits.mas).pc)
         else:
             # Significant line-of-sight stretching/unbounded parallax error
             upper_pc = None
@@ -82,7 +82,7 @@ def distance_from_pc(
             metadata=metadata or {}
         )
 
-    astropy_dist = Distance(value=dist_pc, unit=u.pc)
+    astropy_dist = Distance(value=dist_pc, unit=astrounits.pc)
     return DistanceResult(
         distance_pc=dist_pc,
         distance_error_lower_pc=lower_pc,
@@ -112,10 +112,10 @@ def distance_from_kpc(
             metadata=metadata or {}
         )
 
-    astropy_dist = Distance(value=dist_kpc, unit=u.kpc)
-    dist_pc = float(astropy_dist.to_value(u.pc))
-    lower_pc = float(Distance(value=lower_kpc, unit=u.kpc).to_value(u.pc)) if lower_kpc is not None else None
-    upper_pc = float(Distance(value=upper_kpc, unit=u.kpc).to_value(u.pc)) if upper_kpc is not None else None
+    astropy_dist = Distance(value=dist_kpc, unit=astrounits.kpc)
+    dist_pc = float(astropy_dist.to_value(astrounits.pc))
+    lower_pc = float(Distance(value=lower_kpc, unit=astrounits.kpc).to_value(astrounits.pc)) if lower_kpc is not None else None
+    upper_pc = float(Distance(value=upper_kpc, unit=astrounits.kpc).to_value(astrounits.pc)) if upper_kpc is not None else None
 
     return DistanceResult(
         distance_pc=dist_pc,
@@ -139,11 +139,11 @@ def create_skycoord_3d(
     if isinstance(distance_or_pc, Distance):
         dist = distance_or_pc
     else:
-        dist = Distance(value=max(0.0, distance_or_pc), unit=u.pc)
+        dist = Distance(value=max(0.0, distance_or_pc), unit=astrounits.pc)
 
     return SkyCoord(
-        ra=ra_deg * u.deg,
-        dec=dec_deg * u.deg,
+        ra=ra_deg * astrounits.deg,
+        dec=dec_deg * astrounits.deg,
         distance=dist,
         frame='icrs'
     )
@@ -155,9 +155,9 @@ def skycoord_to_cartesian_meters(coord: SkyCoord) -> dict[str, float]:
     """
     cart = coord.cartesian
     return {
-        "x": float(cart.x.to_value(u.m)),
-        "y": float(cart.y.to_value(u.m)),
-        "z": float(cart.z.to_value(u.m))
+        "x": float(cart.x.to_value(astrounits.m)),
+        "y": float(cart.y.to_value(astrounits.m)),
+        "z": float(cart.z.to_value(astrounits.m))
     }
 
 def is_dusty_or_dense_region(coord: SkyCoord, latitude_threshold_deg: float = 10.0) -> bool:

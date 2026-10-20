@@ -1,6 +1,6 @@
 from typing import Any
 
-import astropy.units as u
+import astropy.units as astrounits
 from astropy.coordinates import SkyCoord
 
 from .models import (
@@ -186,7 +186,7 @@ class PreciseDistanceResolver:
         if ra_rad is None or dec_rad is None:
             return False
 
-        coord = SkyCoord(ra=ra_rad * u.rad, dec=dec_rad * u.rad, frame='icrs')
+        coord = SkyCoord(ra=ra_rad * astrounits.rad, dec=dec_rad * astrounits.rad, frame='icrs')
         mag = star_dict.get("apparent_magnitude")
 
         dist_res = self.resolve_precise_distance(
