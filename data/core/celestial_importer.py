@@ -39,6 +39,13 @@ from core.planets import (
     SolarSystemPlanetProvider,
     RoguePlanetProvider,
 )
+from core.moons import (
+    MoonRecord,
+    MoonResolver,
+    SolarSystemMoonProvider,
+    ExomoonProvider,
+    JPLHorizonsMoonProvider,
+)
 
 class CelestialImporter:
     sim_time: Time
@@ -50,9 +57,11 @@ class CelestialImporter:
     moons: list[dict[str, Any]]
     star_indices: dict[str, int]
     planet_indices: dict[str, int]
+    moon_indices: dict[str, int]
     simbad: SimbadClass
     distance_resolver: PreciseDistanceResolver
     planet_resolver: PlanetResolver
+    moon_resolver: MoonResolver
 
     def __init__(
         self,
@@ -61,6 +70,7 @@ class CelestialImporter:
         keep_unmeasured: bool = True,
         distance_resolver: PreciseDistanceResolver | None = None,
         planet_resolver: PlanetResolver | None = None,
+        moon_resolver: MoonResolver | None = None,
         prefer_photogeometric: bool = True,
     ) -> None:
         self.sim_time: Time = sim_time
@@ -73,6 +83,7 @@ class CelestialImporter:
         
         self.star_indices: dict[str, int] = {}
         self.planet_indices: dict[str, int] = {}
+        self.moon_indices: dict[str, int] = {}
         
         # Configure Simbad
         self.simbad: SimbadClass = Simbad()
@@ -87,6 +98,11 @@ class CelestialImporter:
         # Configure Planet Resolver
         self.planet_resolver: PlanetResolver = (
             planet_resolver if planet_resolver is not None else PlanetResolver()
+        )
+
+        # Configure Moon Resolver
+        self.moon_resolver: MoonResolver = (
+            moon_resolver if moon_resolver is not None else MoonResolver()
         )
 
     def _init_simbad_fields(self) -> None:
@@ -428,6 +444,7 @@ class CelestialImporter:
         use_precise_distances: bool = False,
         precise_source: CatalogSource | str = CatalogSource.AUTO,
         include_exoplanets: bool = False,
+        include_moons: bool = False,
     ) -> None:
         """
         Fetches a batch of stars/objects around a specific celestial region (cone in the sky) and adds them.
@@ -436,6 +453,7 @@ class CelestialImporter:
         `keep_unmeasured`: Whether to keep objects without catalog magnitude measurement.
         `use_precise_distances`: Enrich stars with precise distances from Gaia DR3, Bailer-Jones, StarHorse, or Hipparcos.
         `include_exoplanets`: Automatically discover and import confirmed exoplanets orbiting stars in the region.
+        `include_moons`: Automatically discover and import natural satellites/moons in the region.
         """
         cutoff: float | None = self.max_apparent_magnitude if max_apparent_magnitude is None else max_apparent_magnitude
         keep_unm: bool = self.keep_unmeasured if keep_unmeasured is None else keep_unmeasured
@@ -455,6 +473,8 @@ class CelestialImporter:
             )
             if include_exoplanets:
                 self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=True)
+            if include_moons:
+                self.add_moons_in_region(center_name, radius_degrees=radius_degrees)
             return added
 
         limit_desc: str = f"up to {limit}" if (limit is not None and limit > 0) else "all"
@@ -562,7 +582,9 @@ class CelestialImporter:
         print(msg)
 
         if include_exoplanets:
-            self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=False)
+            self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=True)
+        if include_moons:
+            self.add_moons_in_region(center_name, radius_degrees=radius_degrees)
 
     def add_stars_from_catalog(
         self,
@@ -576,6 +598,7 @@ class CelestialImporter:
         max_apparent_magnitude: float | None = None,
         keep_unmeasured: bool | None = None,
         include_exoplanets: bool = False,
+        include_moons: bool = False,
     ) -> int:
         """
         Fetches stars around a center region using precision distance catalogs:
@@ -584,6 +607,7 @@ class CelestialImporter:
         - StarHorse (multi-band optical/IR + stellar models for dust/dense fields)
         - Hipparcos (trigonometric parallax for bright foreground stars m < 6)
         - include_exoplanets: Automatically discover and import confirmed exoplanets orbiting stars in the region.
+        - include_moons: Automatically discover and import natural satellites/moons in the region.
         """
         cutoff: float | None = self.max_apparent_magnitude if max_apparent_magnitude is None else max_apparent_magnitude
         keep_unm: bool = self.keep_unmeasured if keep_unmeasured is None else keep_unmeasured
@@ -603,6 +627,8 @@ class CelestialImporter:
             )
             if include_exoplanets:
                 self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=True)
+            if include_moons:
+                self.add_moons_in_region(center_name, radius_degrees=radius_degrees)
             return added
 
         records: list[StarRecord] = self.distance_resolver.query_region(
@@ -670,7 +696,9 @@ class CelestialImporter:
         print(msg)
 
         if include_exoplanets:
-            self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=False)
+            self.add_exoplanets_in_region(center_name, radius_degrees=radius_degrees, auto_add_host_stars=True)
+        if include_moons:
+            self.add_moons_in_region(center_name, radius_degrees=radius_degrees)
 
         return added_count
 
@@ -831,6 +859,53 @@ class CelestialImporter:
                         host_idx = s_idx
                         break
 
+            # If still not found and host star name is known, auto-create host star so the planet
+            # never unintentionally falls back to the heliocentric origin (Sun) at (0, 0, 0)
+            if host_idx < 0 and planet.host_star_name:
+                from core.catalogs import sanitize_name_and_id
+                host_clean, host_bid = sanitize_name_and_id(planet.host_star_name)
+                if host_clean in self.star_indices:
+                    host_idx = self.star_indices[host_clean]
+                elif host_bid in self.star_indices:
+                    host_idx = self.star_indices[host_bid]
+                else:
+                    effective_dist_pc = planet.distance_pc if planet.distance_pc > 0.0 else 30.0
+                    ra_deg = planet.right_ascension_rad * (180.0 / math.pi)
+                    dec_deg = planet.declination_rad * (180.0 / math.pi)
+
+                    sc = create_skycoord_3d(ra_deg, dec_deg, effective_dist_pc)
+                    cart_pos = skycoord_to_cartesian_meters(sc)
+
+                    st_mass_kg = planet.extra_metadata.get("st_mass_kg", SOLAR_MASS_KG)
+                    st_rad_m = planet.extra_metadata.get("st_radius_m", SOLAR_RADIUS_M)
+                    st_teff_k = planet.extra_metadata.get("st_teff_k", 5778.0)
+                    st_spectype = planet.extra_metadata.get("st_spectype")
+                    s_type, s_sub = self.parse_spectral_type(st_spectype)
+                    if s_type is None:
+                        s_type = SpectralType.G
+                        s_sub = 2
+
+                    host_dict = {
+                        "name": host_clean,
+                        "body_id": host_bid,
+                        "spectral_type": s_type.value,
+                        "spectral_subtype": s_sub,
+                        "position": cart_pos,
+                        "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                        "right_ascension_rad": planet.right_ascension_rad,
+                        "declination_rad": planet.declination_rad,
+                        "distance_pc": effective_dist_pc,
+                        "mass_kg": st_mass_kg,
+                        "radius_m": st_rad_m,
+                        "surface_temperature_k": st_teff_k,
+                    }
+                    self.stars.append(host_dict)
+                    host_idx = len(self.stars) - 1
+                    self.star_indices[host_clean] = host_idx
+                    self.star_indices[host_bid] = host_idx
+                    if planet.host_star_name != host_clean:
+                        self.star_indices[planet.host_star_name] = host_idx
+
         planet.host_star_index = host_idx
 
         # Orbit
@@ -849,10 +924,16 @@ class CelestialImporter:
         p_class_name = planet.planet_class.name if hasattr(planet.planet_class, 'name') else str(planet.planet_class)
         print(f"Added planet {planet.name} ({p_class_name})")
 
-    def add_exoplanets_for_star(self, host_star_name: str, add_host_if_missing: bool = True) -> list[PlanetRecord]:
+    def add_exoplanets_for_star(
+        self,
+        host_star_name: str,
+        add_host_if_missing: bool = True,
+        include_moons: bool = False
+    ) -> list[PlanetRecord]:
         """
         Queries and imports all confirmed exoplanets orbiting a given host star.
         If host star is missing and add_host_if_missing is True, attempts to resolve it first.
+        If include_moons is True, also imports any natural satellites/exomoons in the system.
         """
         clean_host = host_star_name.strip()
         has_host = clean_host in self.star_indices or clean_host.upper() in self.star_indices
@@ -880,6 +961,10 @@ class CelestialImporter:
             added_planets.append(p)
 
         print(f"Successfully imported {len(added_planets)} exoplanet(s) for host '{clean_host}'.")
+
+        if include_moons:
+            self.add_moons_for_star(clean_host)
+
         return added_planets
 
     def add_exoplanets_in_region(
@@ -999,40 +1084,154 @@ class CelestialImporter:
         print(f"Imported {len(added)} rogue planet(s).")
         return added
 
+    def add_moon_record(self, moon: MoonRecord, orbit: OrbitRecord | None = None) -> None:
+        """
+        Adds a decoupled MoonRecord (and optional OrbitRecord) to the simulation,
+        automatically resolving its host_planet_index and orbit_index.
+        """
+        host_idx = -1
+        if moon.host_planet_name and moon.host_planet_name in self.planet_indices:
+            host_idx = self.planet_indices[moon.host_planet_name]
+        elif moon.host_planet_id and moon.host_planet_id in self.planet_indices:
+            host_idx = self.planet_indices[moon.host_planet_id]
+        elif moon.host_planet_name:
+            for p_name, idx in self.planet_indices.items():
+                if moon.host_planet_name.upper() == p_name.upper():
+                    host_idx = idx
+                    break
+
+        # If host planet is not loaded yet, attempt to load it automatically from planet resolver
+        if host_idx < 0 and moon.host_planet_name:
+            host_planet = self.planet_resolver.get_known_planet(moon.host_planet_name)
+            if host_planet is not None:
+                self.add_planet_record(host_planet)
+                host_idx = self.planet_indices.get(host_planet.name, -1)
+
+        moon.host_planet_index = host_idx
+
+        # Orbit
+        orb = orbit if orbit is not None else moon.orbit
+        if orb is not None:
+            self.orbits.append(orb.to_engine_dict())
+            moon.orbit_index = len(self.orbits) - 1
+        else:
+            moon.orbit_index = -1
+
+        m_dict = moon.to_engine_dict()
+        self.moons.append(m_dict)
+        idx = len(self.moons) - 1
+        self.moon_indices[moon.name] = idx
+        self.moon_indices[moon.body_id] = idx
+        m_class_name = moon.moon_class.name if hasattr(moon.moon_class, 'name') else str(moon.moon_class)
+        print(f"Added moon {moon.name} ({m_class_name}) -> Host: {moon.host_planet_name} (index {host_idx})")
+
+    def add_moons_for_planet(self, planet_name: str, **kwargs: Any) -> list[MoonRecord]:
+        """
+        Resolves and imports all natural satellites for a specified host planet.
+        Gracefully handles the case where the Sun is passed as target:
+        The Sun is a star, not a planet; natural satellites orbit planets. Redirects to add Solar System moons.
+        """
+        clean_name = planet_name.strip()
+        if clean_name.upper() in ("SUN", "SOL", "THE SUN"):
+            print("Notice: 'Sun' is a central star, not a planet. Natural satellites orbit planets. Importing Solar System moons...")
+            return self.add_moons_for_star("Sun", **kwargs)
+
+        moons = self.moon_resolver.resolve_moons_for_planet(clean_name, **kwargs)
+        added: list[MoonRecord] = []
+        for m in moons:
+            if m.name in self.moon_indices or m.body_id in self.moon_indices:
+                continue
+            self.add_moon_record(m)
+            added.append(m)
+
+        print(f"Imported {len(added)} moon(s) for planet '{clean_name}'.")
+        return added
+
+    def add_moons_for_star(self, star_name: str, **kwargs: Any) -> list[MoonRecord]:
+        """
+        Resolves and imports all natural satellites in the planetary system of a specified star.
+        For 'Sun' / 'Sol', imports all Solar System moons.
+        """
+        clean_name = star_name.strip()
+        moons = self.moon_resolver.resolve_moons_for_star(clean_name, **kwargs)
+        added: list[MoonRecord] = []
+        for m in moons:
+            if m.name in self.moon_indices or m.body_id in self.moon_indices:
+                continue
+            self.add_moon_record(m)
+            added.append(m)
+
+        print(f"Imported {len(added)} moon(s) for star/system '{clean_name}'.")
+        return added
+
+    def add_moons_in_region(
+        self,
+        center: str | SkyCoord,
+        radius_degrees: float,
+        **kwargs: Any
+    ) -> list[MoonRecord]:
+        """
+        Discovers and imports moons within a sky cone around center.
+        Takes into account exceptions when querying the Sun as target:
+        Avoids querying sky catalogs for the Sun and returns Solar System moons.
+        """
+        if isinstance(center, str) and center.strip().upper() in ("SUN", "SOL", "THE SUN"):
+            print("Notice: Target is the Sun (coordinate origin). Importing Solar System natural satellites...")
+            return self.add_moons_for_star("Sun", **kwargs)
+
+        moons = self.moon_resolver.resolve_moons_in_region(center, radius_degrees, **kwargs)
+        added: list[MoonRecord] = []
+        for m in moons:
+            if m.name in self.moon_indices or m.body_id in self.moon_indices:
+                continue
+            self.add_moon_record(m)
+            added.append(m)
+
+        print(f"Imported {len(added)} moon(s) in region around target.")
+        return added
+
     def add_moon(self, name: str, body_id: str, jpl_id: str, center_id: str, host_planet_name: str, **kwargs: Any) -> None:
-        """Fetches orbital data from JPL Horizons and adds a moon."""
-        orbit_idx: int
-        position: dict[str, float]
-        elements: Table
-        orbit_idx, position, elements = self._fetch_orbit_jpl(jpl_id, center_id)
-        
-        moon: dict[str, Any] = {
-            "name": name,
-            "body_id": body_id,
-            "host_planet_index": self.planet_indices[host_planet_name],
-            "orbit_index": orbit_idx,
-            "position": position,
-            "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
-            "semi_major_axis_km": safe_float(elements['a'][0]) * (AU_TO_METERS / 1000.0),
-            "eccentricity": safe_float(elements['e'][0]),
-            "inclination_rad": safe_float(elements['incl'][0]) * DEG_TO_RAD,
-            "longitude_ascending_node_rad": safe_float(elements['Omega'][0]) * DEG_TO_RAD,
-            "argument_periapsis_rad": safe_float(elements['w'][0]) * DEG_TO_RAD,
-            "mean_anomaly_rad": safe_float(elements['M'][0]) * DEG_TO_RAD,
-            "orbital_period_days": safe_float(elements['P'][0]),
-        }
+        """Fetches orbital data from JPL Horizons or precision catalog and adds a moon."""
+        known = self.moon_resolver.get_known_moon(name)
+        if known is not None:
+            for k, v in kwargs.items():
+                if hasattr(known, k):
+                    setattr(known, k, v)
+            self.add_moon_record(known)
+            return
 
-        # Auto-compute surface gravity if mass and radius are present
-        mass: float | None = kwargs.get("mass_kg")
-        radius: float | None = kwargs.get("radius_m")
-        if mass and radius and radius > 0:
-            if "surface_gravity_m_s2" not in kwargs:
-                moon["surface_gravity_m_s2"] = (G_CONST * mass) / (radius ** 2)
+        try:
+            orbit_idx, position, elements = self._fetch_orbit_jpl(jpl_id, center_id)
+            moon: dict[str, Any] = {
+                "name": name,
+                "body_id": body_id,
+                "host_planet_index": self.planet_indices.get(host_planet_name, -1),
+                "orbit_index": orbit_idx,
+                "position": position,
+                "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                "semi_major_axis_km": safe_float(elements['a'][0]) * (AU_TO_METERS / 1000.0),
+                "eccentricity": safe_float(elements['e'][0]),
+                "inclination_rad": safe_float(elements['incl'][0]) * DEG_TO_RAD,
+                "longitude_ascending_node_rad": safe_float(elements['Omega'][0]) * DEG_TO_RAD,
+                "argument_periapsis_rad": safe_float(elements['w'][0]) * DEG_TO_RAD,
+                "mean_anomaly_rad": safe_float(elements['M'][0]) * DEG_TO_RAD,
+                "orbital_period_days": safe_float(elements['P'][0]),
+            }
 
-        for k, v in kwargs.items():
-            moon[k] = v.value if isinstance(v, Enum) else v
-        self.moons.append(moon)
-        print(f"Added moon {name}")
+            mass: float | None = kwargs.get("mass_kg")
+            radius: float | None = kwargs.get("radius_m")
+            if mass and radius and radius > 0:
+                if "surface_gravity_m_s2" not in kwargs:
+                    moon["surface_gravity_m_s2"] = (G_CONST * mass) / (radius ** 2)
+
+            for k, v in kwargs.items():
+                moon[k] = v.value if isinstance(v, Enum) else v
+            self.moons.append(moon)
+            self.moon_indices[name] = len(self.moons) - 1
+            self.moon_indices[body_id] = len(self.moons) - 1
+            print(f"Added moon {name}")
+        except Exception as e:
+            print(f"Failed to fetch orbit from JPL for {name} ({e})")
 
     def add_solar_system(self, include_moons: bool = True, include_dwarf_planets: bool = True) -> None:
         """
@@ -1208,242 +1407,7 @@ class CelestialImporter:
         # 3. Major Moons
         # ---------------------------------------------------------------------
         if include_moons:
-            # --- Earth's Moon ---
-            self.add_moon(
-                name="Moon", body_id="LUNA", jpl_id="301", center_id="@399", host_planet_name="Earth",
-                moon_class=MoonClass.ROCKY,
-                radius_m=1737400, mass_kg=7.342e22,
-                surface_temperature_k=250.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=27.321661,
-                albedo=0.12
-            )
-
-            # --- Mars's Moons ---
-            self.add_moon(
-                name="Phobos", body_id="PHOBOS", jpl_id="401", center_id="@499", host_planet_name="Mars",
-                moon_class=MoonClass.CAPTURED,
-                radius_m=11262, mass_kg=1.0659e16,
-                surface_temperature_k=233.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=0.3189,
-                albedo=0.071
-            )
-            self.add_moon(
-                name="Deimos", body_id="DEIMOS", jpl_id="402", center_id="@499", host_planet_name="Mars",
-                moon_class=MoonClass.CAPTURED,
-                radius_m=6255, mass_kg=1.4762e15,
-                surface_temperature_k=233.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=1.263,
-                albedo=0.068
-            )
-
-            # --- Jupiter's Galilean Moons ---
-            self.add_moon(
-                name="Io", body_id="IO", jpl_id="501", center_id="@599", host_planet_name="Jupiter",
-                moon_class=MoonClass.VOLCANIC,
-                radius_m=1821600, mass_kg=8.9319e22,
-                surface_temperature_k=130.0,
-                atmosphere_type=AtmosphereType.THIN,
-                is_tidally_locked=1,
-                rotation_period_days=1.769,
-                albedo=0.63
-            )
-            self.add_moon(
-                name="Europa", body_id="EUROPA", jpl_id="502", center_id="@599", host_planet_name="Jupiter",
-                moon_class=MoonClass.ICY,
-                radius_m=1560800, mass_kg=4.7998e22,
-                surface_temperature_k=102.0,
-                atmosphere_type=AtmosphereType.THIN,
-                is_tidally_locked=1,
-                rotation_period_days=3.551,
-                albedo=0.67
-            )
-            self.add_moon(
-                name="Ganymede", body_id="GANYMEDE", jpl_id="503", center_id="@599", host_planet_name="Jupiter",
-                moon_class=MoonClass.ICY,
-                radius_m=2634100, mass_kg=1.4819e23,
-                surface_temperature_k=110.0,
-                atmosphere_type=AtmosphereType.THIN,
-                is_tidally_locked=1,
-                rotation_period_days=7.154,
-                albedo=0.43
-            )
-            self.add_moon(
-                name="Callisto", body_id="CALLISTO", jpl_id="504", center_id="@599", host_planet_name="Jupiter",
-                moon_class=MoonClass.ICY,
-                radius_m=2410300, mass_kg=1.0759e23,
-                surface_temperature_k=134.0,
-                atmosphere_type=AtmosphereType.THIN,
-                is_tidally_locked=1,
-                rotation_period_days=16.689,
-                albedo=0.22
-            )
-
-            # --- Saturn's Major Moons ---
-            self.add_moon(
-                name="Mimas", body_id="MIMAS", jpl_id="601", center_id="@699", host_planet_name="Saturn",
-                moon_class=MoonClass.ICY,
-                radius_m=198200, mass_kg=3.75e19,
-                surface_temperature_k=64.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=0.942,
-                albedo=0.96
-            )
-            self.add_moon(
-                name="Enceladus", body_id="ENCELADUS", jpl_id="602", center_id="@699", host_planet_name="Saturn",
-                moon_class=MoonClass.ICY,
-                radius_m=252100, mass_kg=1.08e20,
-                surface_temperature_k=75.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=1.370,
-                albedo=0.99
-            )
-            self.add_moon(
-                name="Tethys", body_id="TETHYS", jpl_id="603", center_id="@699", host_planet_name="Saturn",
-                moon_class=MoonClass.ICY,
-                radius_m=531100, mass_kg=6.17e20,
-                surface_temperature_k=86.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=1.888,
-                albedo=0.8
-            )
-            self.add_moon(
-                name="Dione", body_id="DIONE", jpl_id="604", center_id="@699", host_planet_name="Saturn",
-                moon_class=MoonClass.ICY,
-                radius_m=561400, mass_kg=1.095e21,
-                surface_temperature_k=87.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=2.737,
-                albedo=0.6
-            )
-            self.add_moon(
-                name="Rhea", body_id="RHEA", jpl_id="605", center_id="@699", host_planet_name="Saturn",
-                moon_class=MoonClass.ICY,
-                radius_m=763800, mass_kg=2.306e21,
-                surface_temperature_k=76.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=4.518,
-                albedo=0.95
-            )
-            self.add_moon(
-                name="Titan", body_id="TITAN", jpl_id="606", center_id="@699", host_planet_name="Saturn",
-                moon_class=MoonClass.ROCKY,
-                radius_m=2574700, mass_kg=1.3452e23,
-                surface_temperature_k=94.0,
-                atmosphere_type=AtmosphereType.DENSE,
-                surface_pressure_pa=146700.0,
-                is_tidally_locked=1,
-                rotation_period_days=15.945,
-                albedo=0.22
-            )
-            self.add_moon(
-                name="Iapetus", body_id="IAPETUS", jpl_id="608", center_id="@699", host_planet_name="Saturn",
-                moon_class=MoonClass.ICY,
-                radius_m=734500, mass_kg=1.805e21,
-                surface_temperature_k=110.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=79.321,
-                albedo=0.2
-            )
-
-            # --- Uranus's Major Moons ---
-            self.add_moon(
-                name="Miranda", body_id="MIRANDA", jpl_id="705", center_id="@799", host_planet_name="Uranus",
-                moon_class=MoonClass.ICY,
-                radius_m=235800, mass_kg=6.59e19,
-                surface_temperature_k=60.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=1.413,
-                albedo=0.32
-            )
-            self.add_moon(
-                name="Ariel", body_id="ARIEL", jpl_id="701", center_id="@799", host_planet_name="Uranus",
-                moon_class=MoonClass.ICY,
-                radius_m=578900, mass_kg=1.25e21,
-                surface_temperature_k=60.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=2.520,
-                albedo=0.39
-            )
-            self.add_moon(
-                name="Umbriel", body_id="UMBRIEL", jpl_id="702", center_id="@799", host_planet_name="Uranus",
-                moon_class=MoonClass.ICY,
-                radius_m=584700, mass_kg=1.27e21,
-                surface_temperature_k=75.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=4.144,
-                albedo=0.21
-            )
-            self.add_moon(
-                name="Titania", body_id="TITANIA", jpl_id="703", center_id="@799", host_planet_name="Uranus",
-                moon_class=MoonClass.ICY,
-                radius_m=788400, mass_kg=3.40e21,
-                surface_temperature_k=70.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=8.706,
-                albedo=0.27
-            )
-            self.add_moon(
-                name="Oberon", body_id="OBERON", jpl_id="704", center_id="@799", host_planet_name="Uranus",
-                moon_class=MoonClass.ICY,
-                radius_m=761400, mass_kg=3.01e21,
-                surface_temperature_k=75.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=13.463,
-                albedo=0.23
-            )
-
-            # --- Neptune's Major Moons ---
-            self.add_moon(
-                name="Proteus", body_id="PROTEUS", jpl_id="808", center_id="@899", host_planet_name="Neptune",
-                moon_class=MoonClass.ICY,
-                radius_m=210000, mass_kg=4.4e19,
-                surface_temperature_k=51.0,
-                atmosphere_type=AtmosphereType.NONE,
-                is_tidally_locked=1,
-                rotation_period_days=1.122,
-                albedo=0.096
-            )
-            self.add_moon(
-                name="Triton", body_id="TRITON", jpl_id="801", center_id="@899", host_planet_name="Neptune",
-                moon_class=MoonClass.ICY,
-                radius_m=1353400, mass_kg=2.14e22,
-                surface_temperature_k=38.0,
-                atmosphere_type=AtmosphereType.THIN,
-                surface_pressure_pa=1.4,
-                is_tidally_locked=1,
-                rotation_period_days=-5.877,
-                albedo=0.76
-            )
-
-            # --- Pluto's Moon Charon ---
-            if include_dwarf_planets and ("Pluto" in self.planet_indices or "PLUTO" in self.planet_indices):
-                self.add_moon(
-                    name="Charon", body_id="CHARON", jpl_id="901", center_id="@999", host_planet_name="Pluto",
-                    moon_class=MoonClass.ICY,
-                    radius_m=606000, mass_kg=1.586e21,
-                    surface_temperature_k=53.0,
-                    atmosphere_type=AtmosphereType.NONE,
-                    is_tidally_locked=1,
-                    rotation_period_days=-6.387,
-                    albedo=0.38
-                )
+            self.add_moons_for_star("Sun", include_dwarf_planet_moons=include_dwarf_planets)
 
         print("Completed importing Solar System data.")
 

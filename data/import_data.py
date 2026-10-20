@@ -4,25 +4,28 @@ import argparse
 from core.celestial_importer import CelestialImporter, Time
 
 def file_name_builder(args: argparse.Namespace):
-    file_name = "real_world_data"
-    file_name += "_target_" + args.target.replace(" ", "-")
-    file_name += "_" + args.source
-    if args.max_mag is not None:
-        file_name += "_maxmag_" + str(args.max_mag)
+    file_name = "celenginedata"
+    file_name += "_target-" + args.target.replace(" ", "-")
+    if args.source is not None and args.source != "auto":
+        file_name += "_source-" + args.source
+    if args.max_mag is not None and args.max_mag != -1:
+        file_name += "_maxmag-" + str(args.max_mag)
     if args.limit is not None and args.limit != -1:
-        file_name += "_limit_" + str(args.limit)
-    if args.drop_unmeasured is not None:
-        file_name += "_drop_unmeasured_" + str(args.drop_unmeasured)
+        file_name += "_limit-" + str(args.limit)
+    if args.drop_unmeasured is not None and args.drop_unmeasured != False:
+        file_name += "_drop-unmeasured"
     if args.distance_pc is not None:
-        file_name += "_distance_pc_" + str(args.distance_pc)
+        file_name += "_distance-pc-" + str(args.distance_pc)
     if args.bj_mode is not None:
-        file_name += "_bj_mode_" + args.bj_mode
-    if args.enrich_simbad is not None:
-        file_name += "_enrich_simbad"
+        file_name += "_bj-" + args.bj_mode
+    if args.enrich_simbad is not None and args.enrich_simbad != False:
+        file_name += "_enrich-simbad"
     if getattr(args, "include_exoplanets", False):
         file_name += "_exoplanets"
     if getattr(args, "include_rogue_planets", False):
         file_name += "_rogue"
+    if getattr(args, "include_moons", False):
+        file_name += "_moons"
     file_name += "_" + str(args.degrees) + "deg.json"
     return file_name
 
@@ -63,7 +66,8 @@ def main():
     parser.add_argument("--skip-solar-system", action="store_true", default=False, help="Skip adding Sun, planets and moons")
     parser.add_argument("--include-exoplanets", action="store_true", default=False, help="Import confirmed exoplanets orbiting stars in the region")
     parser.add_argument("--include-rogue-planets", action="store_true", default=False, help="Import free-floating rogue planets")
-    parser.add_argument("--exoplanet-host", type=str, default=None, help="Target a specific exoplanet host star (e.g., 'TRAPPIST-1', 'Proxima Centauri')")
+    parser.add_argument("--include-moons", action="store_true", default=False, help="Import natural satellites and moons orbiting planets in the region")
+    parser.add_argument("--exoplanet-host", type=str, default=None, help="Target a specific exoplanet host star (e.g., 'TRAPPIST-1', 'Proxima Centauri', 'Kepler-1625')")
     parser.add_argument("--output", type=str, default=None, help="Output JSON path (default: real_world_data_<target>_<source>_<degrees>deg.json)")
     parser.add_argument("--date", type=str, default="2024-10-05T12:30:00", help="Simulation epoch date (default: 2024-10-05T12:30:00)")
     args = parser.parse_args()
@@ -80,6 +84,7 @@ def main():
     print(f"Keep Unmeasured Photometry: {keep_unmeasured}")
     print(f"Include Exoplanets: {args.include_exoplanets}")
     print(f"Include Rogue Planets: {args.include_rogue_planets}")
+    print(f"Include Moons: {args.include_moons}")
 
     importer = CelestialImporter(
         Time(args.date),
@@ -98,7 +103,7 @@ def main():
     # SPECIFIC EXOPLANET HOST STAR (if explicitly requested)
     # -------------------------------------------------------------------------
     if args.exoplanet_host:
-        importer.add_exoplanets_for_star(args.exoplanet_host)
+        importer.add_exoplanets_for_star(args.exoplanet_host, include_moons=args.include_moons)
 
     # -------------------------------------------------------------------------
     # STELLAR OBJECTS & 3D PRECISION MAPPING
@@ -110,7 +115,8 @@ def main():
             limit=args.limit,
             default_distance_pc=args.distance_pc,
             use_precise_distances=args.enrich_simbad,
-            include_exoplanets=args.include_exoplanets
+            include_exoplanets=args.include_exoplanets,
+            include_moons=args.include_moons
         )
     else:
         importer.add_stars_from_catalog(
@@ -119,7 +125,8 @@ def main():
             source=args.source,
             limit=args.limit,
             default_distance_pc=args.distance_pc,
-            include_exoplanets=args.include_exoplanets
+            include_exoplanets=args.include_exoplanets,
+            include_moons=args.include_moons
         )
 
     # -------------------------------------------------------------------------

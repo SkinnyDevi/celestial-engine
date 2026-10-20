@@ -411,5 +411,56 @@ class TestCelestialImporterIntegration(unittest.TestCase):
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
+    def test_exoplanet_auto_add_missing_host_star(self):
+        """
+        Tests that an exoplanet whose host star is not initially in the star array
+        (e.g. HAT-P-16 b) automatically triggers creation of its host star at its
+        true 3D interstellar position, preventing host_star_index from being -1
+        and thus preventing the exoplanet from revolving around the Sun.
+        """
+        importer = CelestialImporter(Time("2024-01-01"))
+        importer.add_solar_system(include_moons=False, include_dwarf_planets=False)
+
+        hat_p_16_b = PlanetRecord(
+            name="HAT-P-16 b",
+            body_id="HAT_P_16_B",
+            host_star_name="HAT-P-16",
+            planet_class=PlanetClass.GAS_GIANT,
+            right_ascension_rad=0.167081,
+            declination_rad=0.741121,
+            distance_pc=226.637,
+            mass_kg=8.012e27,
+            radius_m=93550265.0,
+            orbit=OrbitRecord(
+                semimajor_axis=6178392059.91,
+                eccentricity=0.0462,
+                inclination=1.542871,
+                longitude_of_ascending_node=0.0,
+                argument_of_periapsis=3.717551,
+                mean_anomaly_at_epoch=2.294009,
+                orbital_period_days=2.775967,
+            )
+        )
+
+        importer.add_planet_record(hat_p_16_b)
+
+        # Host star must have been automatically synthesized and added
+        self.assertIn("HAT-P-16", importer.star_indices)
+        host_idx = importer.star_indices["HAT-P-16"]
+        self.assertGreaterEqual(host_idx, 0)
+        self.assertNotEqual(importer.stars[host_idx]["name"], "Sun")
+
+        # Planet must point to that host star index
+        planet_dict = [p for p in importer.planets if p["name"] == "HAT-P-16 b"][0]
+        self.assertEqual(planet_dict["host_star_index"], host_idx)
+        self.assertGreater(planet_dict["host_star_index"], 0)
+
+        # Host star distance must be ~226.6 pc, far from the Sun at (0, 0, 0)
+        host_star_dict = importer.stars[host_idx]
+        self.assertAlmostEqual(host_star_dict["distance_pc"], 226.637, places=2)
+        star_pos = host_star_dict["position"]
+        dist_from_origin = math.sqrt(star_pos["x"]**2 + star_pos["y"]**2 + star_pos["z"]**2)
+        self.assertGreater(dist_from_origin, 1e18)
+
 if __name__ == "__main__":
     unittest.main()

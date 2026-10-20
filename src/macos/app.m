@@ -41,7 +41,7 @@ static RendererHandle handler;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
-  LOG_INFO("Application will terminating.", NULL);
+  LOG_INFO("Application will terminate.", NULL);
   if (cli_wants_save_state()) {
     RenderHandler_SaveStateToInstanceData(handler);
     exec_flag_save_state();
