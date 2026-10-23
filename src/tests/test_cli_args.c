@@ -105,4 +105,6 @@ Test(cli_args_suite, test_multi_data_file_loading_with_deduplication) {
 
   remove(file1);
   remove(file2);
+  remove("test_multi_1.json.cache");
+  remove("test_multi_2.json.cache");
 }

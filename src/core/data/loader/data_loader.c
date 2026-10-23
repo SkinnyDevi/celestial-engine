@@ -1,5 +1,12 @@
 #include "data_loader.h"
 
+#include "core/log/log.h"
+
+#include "core/space/moon.h"
+#include "core/space/orbit.h"
+#include "core/space/planet.h"
+#include "core/space/star.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +29,50 @@ const DataLoader *data_loader_get_by_ext(const char *ext) {
   }
 
   return NULL;
+}
+
+LoadedSimulationBodies *data_loader_load(const char *filename) {
+  if (!filename)
+    return NULL;
+
+  const char *ext = get_file_ext(filename);
+  if (!ext) {
+    LOG_ERROR("File extension not found for file %s", filename);
+    return NULL;
+  }
+
+  // Try recovering cache first
+  LoadedSimulationBodies *bodies = NULL;
+  const DataLoader *cache_data_loader = data_loader_get_by_ext(".cache");
+  if (cache_data_loader) {
+    bodies = cache_data_loader->load(filename);
+    if (bodies) {
+      LOG_INFO("Loaded simulation bodies from cache: %s.cache", filename);
+      return bodies;
+    }
+  }
+
+  // Fallback to extension data loader if no cache found
+  const DataLoader *loader = data_loader_get_by_ext(ext);
+  if (!loader) {
+    LOG_ERROR("Data loader not found for file extension: %s", ext);
+    return NULL;
+  }
+
+  bodies = loader->load(filename);
+  if (!bodies) {
+    LOG_ERROR("Failed to load data from file %s", filename);
+    return NULL;
+  }
+
+  if (strcmp(ext, ".cache") != 0 && cache_data_loader) {
+    if (cache_data_loader->save(filename, bodies))
+      LOG_INFO("Cached simulation bodies to: %s.cache", filename);
+    else
+      LOG_WARN("Failed to save cache for %s", filename);
+  }
+
+  return bodies;
 }
 
 void loaded_simulation_bodies_init(LoadedSimulationBodies *bodies) {
@@ -80,4 +131,5 @@ void data_loader_register_loaders(void) {
   DynamicArray_init(&REGISTERED_LOADERS, sizeof(const DataLoader *));
 
   data_loader_register(&DATA_LOADER_JSON);
+  data_loader_register(&DATA_LOADER_CACHE);
 }

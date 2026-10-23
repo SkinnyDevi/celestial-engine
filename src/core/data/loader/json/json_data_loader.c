@@ -1,6 +1,11 @@
 #include "json_data_loader.h"
 #include "core/log/log.h"
 
+#include "core/space/moon.h"
+#include "core/space/orbit.h"
+#include "core/space/planet.h"
+#include "core/space/star.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

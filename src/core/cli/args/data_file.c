@@ -5,6 +5,11 @@
 #include "core/data/loader/data_loader.h"
 #include "core/log/log.h"
 
+#include "core/space/moon.h"
+#include "core/space/orbit.h"
+#include "core/space/planet.h"
+#include "core/space/star.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -133,18 +138,7 @@ void cli_flag_load_data_file(int argc, char **argv) {
       const char *ext = get_file_ext(file_path);
       LOG_INFO("Loading data from file %s", file_path);
 
-      if (ext == NULL) {
-        LOG_ERROR("File extension not found for file %s", file_path);
-        exit(EXIT_FAILURE);
-      }
-
-      const DataLoader *data_loader = data_loader_get_by_ext(ext);
-      if (data_loader == NULL) {
-        LOG_ERROR("Data loader not found for file extension: %s", ext);
-        exit(EXIT_FAILURE);
-      }
-
-      LoadedSimulationBodies *bodies = data_loader->load(file_path);
+      LoadedSimulationBodies *bodies = data_loader_load(file_path);
       if (bodies == NULL) {
         LOG_ERROR("Failed to load data from file %s", file_path);
         exit(EXIT_FAILURE);

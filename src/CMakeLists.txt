@@ -15,6 +15,7 @@ add_executable(celengine
   core/data/loader/data_loader.c
   core/data/loader/loader_registry.c
   core/data/loader/json/json_data_loader.c
+  core/data/loader/cache/cache_data_loader.c
   core/cli/functions.c
   core/cli/instance_data.c
   core/cli/args/data_file.c

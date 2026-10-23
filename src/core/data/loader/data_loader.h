@@ -5,11 +5,6 @@
 
 #include "core/cli/args/cli_flag.h"
 
-#include "core/space/moon.h"
-#include "core/space/orbit.h"
-#include "core/space/planet.h"
-#include "core/space/star.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -30,6 +25,7 @@ typedef struct {
   bool (*save)(const char *filename, const LoadedSimulationBodies *bodies);
 } DataLoader;
 
+LoadedSimulationBodies *data_loader_load(const char *filename);
 const char *get_file_ext(const char *filename);
 DynamicArray *data_loader_get_registered_loaders(void);
 const DataLoader *data_loader_get_by_ext(const char *ext);
@@ -38,6 +34,7 @@ void data_loader_register_loaders(void);
 #ifndef DATA_LOADER_REGISTRY
 #define DATA_LOADER_REGISTRY
 extern const DataLoader DATA_LOADER_JSON;
+extern const DataLoader DATA_LOADER_CACHE;
 
 #endif
 
