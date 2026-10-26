@@ -1,0 +1,514 @@
+#include <metal_stdlib>
+using namespace metal;
+
+// -----------------------------------------------------------------------------
+// Uniform & Parameter Structures
+// -----------------------------------------------------------------------------
+
+// Parameters for compute texture generation
+struct StarTextureParams {
+    float4 baseColor;          // Base spectral color (RGBA)
+    float4 hotColor;           // Hot granule / flare highlight color (RGBA)
+    float4 coolColor;          // Intergranular lane / cooler plasma color (RGBA)
+    float4 spotColor;          // Sunspot umbra color (RGBA)
+    float time;                // Elapsed animation time in seconds
+    float granulationScale;    // Frequency of convection cells (default: ~28.0)
+    float turbulence;          // Plasma flow turbulence intensity (default: ~1.0)
+    float spotIntensity;       // Sunspot prominence (0.0 = none, 1.0 = active)
+    float limbDarkeningCoeff;  // Limb darkening strength (default: ~0.65)
+    float coronaGlow;          // Radiant corona glow intensity (default: ~0.4)
+    float rotationSpeed;       // Differential surface rotation rate
+    float seed;                // Procedural variation seed
+    uint2 textureSize;         // Output texture width & height
+    float2 _pad;               // 16-byte alignment padding
+};
+
+// Uniforms for 3D sphere mesh rendering
+struct StarMeshUniforms {
+    float4x4 mvpMatrix;        // Model-View-Projection matrix
+    float4x4 modelMatrix;      // Model-to-world matrix
+    float4 baseColor;          // Base spectral color
+    float4 hotColor;           // Hot granule highlight color
+    float4 coolColor;          // Intergranular lane color
+    float4 spotColor;          // Sunspot umbra color
+    packed_float3 cameraPos;   // Camera world position (for view angle & limb darkening)
+    float time;                // Simulation time
+    float granulationScale;    // Convection cell frequency
+    float turbulence;          // Plasma turbulence intensity
+    float spotIntensity;       // Sunspot prominence
+    float limbDarkening;       // Limb darkening coefficient
+};
+
+// Uniforms for 2D billboard star rendering
+struct StarBillboardUniforms {
+    float4x4 viewMatrix;       // View matrix
+    float4x4 projectionMatrix; // Projection matrix
+    float4 baseColor;          // Base spectral color
+    float4 hotColor;           // Hot highlight color
+    float4 coolColor;          // Cool lane color
+    float4 spotColor;          // Sunspot umbra color
+    float radius;              // Star radius in render units
+    float time;                // Animation time
+    float granulationScale;    // Convection frequency
+    float turbulence;          // Turbulence intensity
+    float spotIntensity;       // Sunspot intensity
+    float coronaGlow;          // Corona intensity
+    float limbDarkening;       // Limb darkening coefficient
+    float closeFactor;         // Transition factor between point and sphere
+    float2 _pad;               // Alignment padding
+};
+
+// 3D Sphere Vertex Inputs & Outputs
+struct StarMeshVertexIn {
+    packed_float3 position;    // Matches PackedFloat3 (12 bytes)
+};
+
+struct StarMeshVertexOut {
+    float4 position [[position]];
+    float3 worldPos;
+    float3 normal;
+    float2 uv;
+};
+
+// Billboard Vertex Inputs & Outputs
+struct StarBillboardVertexOut {
+    float4 position [[position]];
+    float2 uv;
+    float4 baseColor;
+    float closeFactor;
+    float3 cam_right;
+    float3 cam_up;
+    float3 cam_back;
+};
+
+struct StarBillboardFragmentOut {
+    float4 color [[color(0)]];
+    float depth [[depth(any)]];
+};
+
+// -----------------------------------------------------------------------------
+// Procedural Mathematical Utilities (Hash, Noise, Voronoi, FBM)
+// -----------------------------------------------------------------------------
+
+// Fast 3D pseudo-random hash
+inline float3 star_hash33(float3 p) {
+    p = fract(p * float3(0.1031f, 0.1030f, 0.0973f));
+    p += dot(p, p.yxz + 33.33f);
+    return fract((p.xxy + p.yxx) * p.zyx);
+}
+
+// 3D Gradient Vector for smooth Perlin/Simplex-style noise
+inline float3 star_gradient(float3 p) {
+    float3 h = star_hash33(p);
+    float z = 1.0f - 2.0f * h.x;
+    float r = sqrt(max(0.0f, 1.0f - z * z));
+    float phi = 6.28318530718f * h.y;
+    return float3(r * cos(phi), r * sin(phi), z);
+}
+
+// 3D Gradient Noise with quintic Hermite interpolation (C2 continuous)
+inline float star_noise3d(float3 p) {
+    float3 i = floor(p);
+    float3 f = fract(p);
+    float3 u = f * f * f * (f * (f * 6.0f - 15.0f) + 10.0f);
+
+    float n000 = dot(star_gradient(i + float3(0.0f, 0.0f, 0.0f)), f - float3(0.0f, 0.0f, 0.0f));
+    float n100 = dot(star_gradient(i + float3(1.0f, 0.0f, 0.0f)), f - float3(1.0f, 0.0f, 0.0f));
+    float n010 = dot(star_gradient(i + float3(0.0f, 1.0f, 0.0f)), f - float3(0.0f, 1.0f, 0.0f));
+    float n110 = dot(star_gradient(i + float3(1.0f, 1.0f, 0.0f)), f - float3(1.0f, 1.0f, 0.0f));
+    float n001 = dot(star_gradient(i + float3(0.0f, 0.0f, 1.0f)), f - float3(0.0f, 0.0f, 1.0f));
+    float n101 = dot(star_gradient(i + float3(1.0f, 0.0f, 1.0f)), f - float3(1.0f, 0.0f, 1.0f));
+    float n011 = dot(star_gradient(i + float3(0.0f, 1.0f, 1.0f)), f - float3(0.0f, 1.0f, 1.0f));
+    float n111 = dot(star_gradient(i + float3(1.0f, 1.0f, 1.0f)), f - float3(1.0f, 1.0f, 1.0f));
+
+    return mix(
+        mix(mix(n000, n100, u.x), mix(n010, n110, u.x), u.y),
+        mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y),
+        u.z
+    );
+}
+
+// Multi-octave Fractional Brownian Motion (FBM)
+inline float star_fbm3d(float3 p, int octaves) {
+    float v = 0.0f;
+    float a = 0.5f;
+    float3 shift = float3(100.0f);
+    for (int i = 0; i < octaves; ++i) {
+        v += a * star_noise3d(p);
+        p = p * 2.05f + shift;
+        a *= 0.5f;
+    }
+    return v;
+}
+
+// 3D Voronoi / Cellular Noise for Photospheric Convection Granules
+// Returns float2(d1, d2) where d1 is distance to cell center, d2 is distance to neighbor
+inline float2 star_voronoi3d(float3 p) {
+    float3 i = floor(p);
+    float3 f = fract(p);
+
+    float d1 = 8.0f;
+    float d2 = 8.0f;
+
+    for (int z = -1; z <= 1; z++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+                float3 neighbor = float3(float(x), float(y), float(z));
+                float3 point = star_hash33(i + neighbor);
+                float3 diff = neighbor + point - f;
+                float dist = length(diff);
+                if (dist < d1) {
+                    d2 = d1;
+                    d1 = dist;
+                } else if (dist < d2) {
+                    d2 = dist;
+                }
+            }
+        }
+    }
+    return float2(d1, d2);
+}
+
+// Rotation around Y axis (polar axis)
+inline float3 star_rotate_y(float3 v, float angle) {
+    float s = sin(angle);
+    float c = cos(angle);
+    return float3(c * v.x + s * v.z, v.y, -s * v.x + c * v.z);
+}
+
+// Equirectangular UV to 3D unit sphere normal direction
+inline float3 star_uv_to_sphere(float2 uv) {
+    float phi = uv.x * 6.28318530718f - 3.14159265359f;
+    float theta = (uv.y - 0.5f) * 3.14159265359f;
+    float cosT = cos(theta);
+    return float3(cosT * sin(phi), sin(theta), cosT * cos(phi));
+}
+
+// -----------------------------------------------------------------------------
+// Core Stellar Surface Evaluation (Granules, Plasma Flow, Sunspots)
+// -----------------------------------------------------------------------------
+
+struct StarSurfaceSample {
+    float3 color;        // Final RGB emissive surface color
+    float alpha;        // Surface opacity / disc alpha
+    float emission;     // High dynamic range emission factor
+};
+
+inline StarSurfaceSample evaluate_star_surface(
+    float3 sphereDir,
+    float time,
+    float4 baseColor,
+    float4 hotColor,
+    float4 coolColor,
+    float4 spotColor,
+    float granulationScale,
+    float turbulence,
+    float spotIntensity,
+    float rotationSpeed,
+    float seed)
+{
+    // 1. Surface Rotation
+    float3 pRot = star_rotate_y(sphereDir, time * rotationSpeed + seed * 10.0f);
+
+    // 2. Multi-stage Domain Warping (Turbulent Plasma Flow)
+    float3 flowCoord = pRot * 3.5f;
+    float flowTime = time * 0.12f;
+
+    float3 q = float3(
+        star_fbm3d(flowCoord + float3(0.0f, flowTime, 1.7f), 3),
+        star_fbm3d(flowCoord + float3(4.3f, -flowTime * 0.8f, 2.8f), 3),
+        star_fbm3d(flowCoord + float3(1.9f, flowTime * 0.6f, -3.1f), 3)
+    );
+
+    float3 r = float3(
+        star_fbm3d(flowCoord + 2.5f * q + float3(5.2f, flowTime * 0.4f, 1.3f), 3),
+        star_fbm3d(flowCoord + 2.5f * q + float3(-1.7f, -flowTime * 0.5f, 4.6f), 3),
+        star_fbm3d(flowCoord + 2.5f * q + float3(2.8f, flowTime * 0.3f, -0.9f), 3)
+    );
+
+    float plasmaTurbulence = star_fbm3d(flowCoord + 2.0f * r, 4) * 0.5f + 0.5f;
+
+    // 3. Photospheric Convection Granules (Voronoi Convection Cells)
+    // Granule positions are perturbed by plasma flow to avoid rigid geometry
+    float3 granuleCoord = (pRot + r * 0.15f * turbulence) * granulationScale;
+    float2 cells = star_voronoi3d(granuleCoord);
+    float d1 = cells.x; // Distance to cell center
+    float d2 = cells.y; // Distance to neighboring cell
+    float cellBorder = d2 - d1;
+
+    // Granule core: hot buoyant rising gas (brightest)
+    float granuleCore = pow(max(0.0f, 1.0f - d1 * 1.35f), 1.25f);
+    // Intergranular lane: cooler plasma sinking back into star (darker border)
+    float intergranularLane = smoothstep(0.03f, 0.24f, cellBorder);
+    float granule = mix(0.40f, 1.0f, granuleCore) * intergranularLane;
+
+    // Micro-granulation detail overlay
+    float microGranulation = star_fbm3d(pRot * (granulationScale * 2.8f), 2) * 0.15f;
+    granule = clamp(granule + microGranulation, 0.0f, 1.2f);
+
+    // 4. Sunspots / Starspots (Active Magnetic Depressions)
+    // Active regions concentrated in mid-to-low latitudes (|y| <= 0.65)
+    float latitudeMask = smoothstep(0.70f, 0.40f, abs(pRot.y));
+    float2 spotCell = star_voronoi3d(pRot * 3.8f + float3(seed * 7.13f, 0.0f, seed * 3.71f));
+    float spotDist = spotCell.x;
+
+    // Umbra (dark core) and Penumbra (striated outer fringe)
+    float effectiveSpotIntensity = clamp(spotIntensity, 0.0f, 1.0f);
+    float umbraThreshold = 0.08f * effectiveSpotIntensity;
+    float penumbraThreshold = 0.25f * effectiveSpotIntensity;
+
+    float umbra = smoothstep(umbraThreshold, umbraThreshold * 0.3f, spotDist) * latitudeMask;
+    float penumbra = smoothstep(penumbraThreshold, umbraThreshold, spotDist) * (1.0f - umbra) * latitudeMask;
+
+    // Magnetic penumbra striation filaments
+    float azimuth = atan2(pRot.z, pRot.x);
+    float striations = 0.85f + 0.15f * sin(azimuth * 42.0f + star_fbm3d(pRot * 18.0f, 2) * 5.0f);
+    penumbra *= striations;
+
+    // Bright faculae (magnetic plages around active spot margins)
+    float faculae = smoothstep(penumbraThreshold * 1.4f, penumbraThreshold, spotDist) *
+                    (1.0f - penumbra - umbra) * latitudeMask * 0.4f;
+
+    // 5. Chromatic Color Composition
+    // Base temperature blend: cool lanes -> base photosphere -> hot granule tops
+    float3 plasmaColor = mix(coolColor.rgb, baseColor.rgb, smoothstep(0.1f, 0.6f, granule));
+    plasmaColor = mix(plasmaColor, hotColor.rgb, smoothstep(0.6f, 1.0f, granule) * 0.75f);
+
+    // Apply turbulent flow intensity modulation
+    plasmaColor *= (0.85f + 0.30f * plasmaTurbulence);
+
+    // Faculae brightness boost
+    plasmaColor += hotColor.rgb * faculae * 0.6f;
+
+    // Apply penumbra and umbra darkening
+    plasmaColor = mix(plasmaColor, coolColor.rgb * 0.5f, penumbra * 0.75f);
+    plasmaColor = mix(plasmaColor, spotColor.rgb, umbra * 0.92f);
+
+    StarSurfaceSample result;
+    result.color = plasmaColor;
+    result.alpha = 1.0f;
+    result.emission = 1.0f + granuleCore * 0.5f + faculae;
+    return result;
+}
+
+// =============================================================================
+// 1. COMPUTE KERNEL: star_texture_compute
+// =============================================================================
+// Bakes/generates an equirectangular 2D star texture or dynamic texture atlas
+// into an MTLTexture (texture2d<float, access::write>).
+// Dispatched with standard threadgroup grid dimensions matching texture size.
+// =============================================================================
+
+kernel void star_texture_compute(
+    texture2d<float, access::write> outTexture [[texture(0)]],
+    constant StarTextureParams &params        [[buffer(0)]],
+    uint2 gid                                 [[thread_position_in_grid]])
+{
+    if (gid.x >= outTexture.get_width() || gid.y >= outTexture.get_height()) {
+        return;
+    }
+
+    // Normalized UV [0.0, 1.0]
+    float2 uv = (float2(gid) + 0.5f) / float2(outTexture.get_width(), outTexture.get_height());
+
+    // Map equirectangular UV to 3D unit sphere normal (seamless, zero poles)
+    float3 sphereDir = star_uv_to_sphere(uv);
+
+    // Evaluate procedural photosphere
+    StarSurfaceSample surface = evaluate_star_surface(
+        sphereDir,
+        params.time,
+        params.baseColor,
+        params.hotColor,
+        params.coolColor,
+        params.spotColor,
+        params.granulationScale > 0.0f ? params.granulationScale : 28.0f,
+        params.turbulence,
+        params.spotIntensity,
+        params.rotationSpeed,
+        params.seed
+    );
+
+    outTexture.write(float4(surface.color, 1.0f), gid);
+}
+
+// =============================================================================
+// 2. 3D SPHERE MESH RENDER PIPELINE: star_mesh_vertex & star_mesh_fragment
+// =============================================================================
+// Used with polygonal sphere meshes (e.g., generate_solid_sphere) to render
+// close-up resolved stars with 3D spherical curvature, realistic solar limb
+// darkening (Eddington quadratic approximation), and emissive hot highlights.
+// =============================================================================
+
+vertex StarMeshVertexOut star_mesh_vertex(
+    const device StarMeshVertexIn *vertices [[buffer(0)]],
+    constant StarMeshUniforms &uniforms     [[buffer(1)]],
+    uint vid                                [[vertex_id]])
+{
+    StarMeshVertexOut out;
+    float3 localPos = float3(vertices[vid].position);
+
+    float4 worldPos = uniforms.modelMatrix * float4(localPos, 1.0f);
+    out.position = uniforms.mvpMatrix * float4(localPos, 1.0f);
+    out.worldPos = worldPos.xyz;
+    out.normal = normalize((uniforms.modelMatrix * float4(localPos, 0.0f)).xyz);
+
+    // Spherical UV coordinates
+    float u = 0.5f + atan2(localPos.z, localPos.x) / (2.0f * 3.14159265359f);
+    float v = 0.5f - asin(clamp(localPos.y, -1.0f, 1.0f)) / 3.14159265359f;
+    out.uv = float2(u, v);
+
+    return out;
+}
+
+fragment float4 star_mesh_fragment(
+    StarMeshVertexOut in                [[stage_in]],
+    constant StarMeshUniforms &uniforms [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float mu = max(0.0f, dot(N, V)); // Cosine of viewing angle
+
+    // Evaluate procedural photosphere
+    StarSurfaceSample surface = evaluate_star_surface(
+        N,
+        uniforms.time,
+        uniforms.baseColor,
+        uniforms.hotColor,
+        uniforms.coolColor,
+        uniforms.spotColor,
+        uniforms.granulationScale > 0.0f ? uniforms.granulationScale : 28.0f,
+        uniforms.turbulence,
+        uniforms.spotIntensity,
+        0.05f,
+        0.0f
+    );
+
+    // Realistic Eddington solar limb darkening:
+    // I(mu) = I(1) * [1 - u * (1 - mu^alpha)]
+    float uCoeff = clamp(uniforms.limbDarkening, 0.0f, 1.0f);
+    float limbDarkening = 1.0f - uCoeff * (1.0f - pow(mu, 0.65f));
+
+    // Hot center core emission boost
+    float3 finalRGB = surface.color * limbDarkening + (uniforms.hotColor.rgb * 0.15f * pow(mu, 2.5f));
+
+    return float4(finalRGB, 1.0f);
+}
+
+// =============================================================================
+// 3. BILLBOARD STAR RENDER PIPELINE: star_billboard_vertex / star_billboard_fragment
+// =============================================================================
+// High-performance camera-facing quad shader with 3D sphere ray-intersection,
+// procedural granules, limb darkening, and ethereal solar corona streamers.
+// =============================================================================
+
+constant float2 star_quad_corners[6] = {
+    float2(-1.0f, -1.0f),
+    float2( 1.0f, -1.0f),
+    float2(-1.0f,  1.0f),
+    float2(-1.0f,  1.0f),
+    float2( 1.0f, -1.0f),
+    float2( 1.0f,  1.0f)
+};
+
+vertex StarBillboardVertexOut star_billboard_vertex(
+    uint vid                                   [[vertex_id]],
+    constant StarBillboardUniforms &uniforms   [[buffer(0)]])
+{
+    StarBillboardVertexOut out;
+
+    // View-space billboard expansion
+    // Margin of 1.4 provides room for atmospheric corona around the physical sphere (r=1.0)
+    float margin = 1.40f;
+    float scale = uniforms.radius * margin;
+
+    float2 corner = star_quad_corners[vid];
+    float4 viewPos = float4(corner * scale, -10.0f, 1.0f);
+
+    out.position = uniforms.projectionMatrix * viewPos;
+    out.uv = corner * margin; // r = 1.0 is the physical stellar limb
+    out.baseColor = uniforms.baseColor;
+    out.closeFactor = uniforms.closeFactor;
+
+    // Camera basis vectors in world space from viewMatrix rotation
+    out.cam_right = float3(uniforms.viewMatrix[0][0], uniforms.viewMatrix[1][0], uniforms.viewMatrix[2][0]);
+    out.cam_up    = float3(uniforms.viewMatrix[0][1], uniforms.viewMatrix[1][1], uniforms.viewMatrix[2][1]);
+    out.cam_back  = float3(uniforms.viewMatrix[0][2], uniforms.viewMatrix[1][2], uniforms.viewMatrix[2][2]);
+
+    return out;
+}
+
+fragment StarBillboardFragmentOut star_billboard_fragment(
+    StarBillboardVertexOut in                  [[stage_in]],
+    constant StarBillboardUniforms &uniforms   [[buffer(0)]])
+{
+    StarBillboardFragmentOut out;
+    float r = length(in.uv);
+
+    // Quad bounds check
+    if (r > 1.40f) {
+        discard_fragment();
+    }
+
+    float4 finalColor = float4(0.0f);
+
+    if (r <= 1.0f) {
+        // --- INSIDE PHYSICAL STELLAR SPHERE ---
+        // 3D spherical ray projection in view space: z = sqrt(1 - r^2)
+        float Nz = sqrt(max(0.0f, 1.0f - r * r));
+        float3 N_view = float3(in.uv.x, in.uv.y, Nz);
+        // Transform normal to 3D world coordinates so star reacts to camera rotation
+        float3 sphereNormal = normalize(N_view.x * in.cam_right + N_view.y * in.cam_up + N_view.z * in.cam_back);
+
+        // Evaluate procedural photosphere
+        StarSurfaceSample surface = evaluate_star_surface(
+            sphereNormal,
+            uniforms.time,
+            uniforms.baseColor,
+            uniforms.hotColor,
+            uniforms.coolColor,
+            uniforms.spotColor,
+            uniforms.granulationScale > 0.0f ? uniforms.granulationScale : 28.0f,
+            uniforms.turbulence,
+            uniforms.spotIntensity,
+            0.04f,
+            0.0f
+        );
+
+        // Limb darkening
+        float limbDarkening = 1.0f - uniforms.limbDarkening * (1.0f - pow(Nz, 0.65f));
+
+        // Antialiased crisp limb boundary
+        float edgeAlpha = smoothstep(1.0f, 0.985f, r);
+
+        float3 surfaceColor = surface.color * limbDarkening + (uniforms.hotColor.rgb * 0.18f * pow(Nz, 2.2f));
+        finalColor = float4(surfaceColor, edgeAlpha);
+        out.depth = in.position.z;
+    } else {
+        // --- OUTSIDE PHYSICAL SPHERE: SOLAR CORONA & PROMINENCES ---
+        float coronaDist = (r - 1.0f) / 0.40f; // 0.0 at limb, 1.0 at quad boundary
+        float3 ray_world = normalize(in.uv.x * in.cam_right + in.uv.y * in.cam_up);
+
+        // Coronal magnetic streamer noise in 3D world space
+        float streamer1 = star_noise3d(ray_world * 2.5f + float3(0.0f, 0.0f, uniforms.time * 0.2f));
+        float streamer2 = star_noise3d(ray_world * 4.5f + float3(0.0f, 0.0f, -uniforms.time * 0.15f));
+        float streamers = 0.7f + 0.3f * (streamer1 + streamer2 * 0.5f);
+
+        // Exponential / power-law falloff
+        float coronaFalloff = pow(max(0.0f, 1.0f - coronaDist), 2.8f);
+        float coronaAlpha = coronaFalloff * streamers * uniforms.coronaGlow;
+
+        // Corona spectral tint: blend from hot core to base color
+        float3 coronaColor = mix(uniforms.baseColor.rgb, uniforms.hotColor.rgb, pow(max(0.0f, 1.0f - coronaDist), 2.0f));
+
+        finalColor = float4(coronaColor, coronaAlpha);
+        out.depth = 1.0f; // Corona doesn't occlude depth
+    }
+
+    if (finalColor.a < 0.005f) {
+        discard_fragment();
+    }
+
+    out.color = finalColor;
+    return out;
+}

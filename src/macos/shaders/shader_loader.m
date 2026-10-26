@@ -125,6 +125,77 @@ static NSURL *resolve_shader_url(NSString *shader_name) {
   return nil;
 }
 
+static NSString *preprocess_shader_includes(NSString *source,
+                                            NSString *parent_dir,
+                                            NSMutableSet<NSString *> *visited) {
+  if (!visited)
+    visited = [NSMutableSet set];
+
+  NSMutableString *result = [NSMutableString string];
+  NSArray<NSString *> *lines = [source componentsSeparatedByString:@"\n"];
+  NSFileManager *fm = [NSFileManager defaultManager];
+
+  for (NSString *line in lines) {
+    NSString *trimmed =
+        [line stringByTrimmingCharactersInSet:[NSCharacterSet
+                                                  whitespaceCharacterSet]];
+    if ([trimmed hasPrefix:@"#include \""] && [trimmed hasSuffix:@"\""]) {
+      NSRange firstQuote = [trimmed rangeOfString:@"\""];
+      NSRange lastQuote = [trimmed rangeOfString:@"\""
+                                         options:NSBackwardsSearch];
+
+      if (firstQuote.location != NSNotFound &&
+          lastQuote.location != NSNotFound &&
+          lastQuote.location > firstQuote.location) {
+        NSString *inc_name = [trimmed
+            substringWithRange:NSMakeRange(firstQuote.location + 1,
+                                           lastQuote.location -
+                                               firstQuote.location - 1)];
+        NSURL *inc_url = resolve_shader_url(inc_name);
+
+        if (!inc_url && parent_dir) {
+          NSString *local_path =
+              [parent_dir stringByAppendingPathComponent:inc_name];
+
+          if ([fm fileExistsAtPath:local_path])
+            inc_url =
+                [NSURL fileURLWithPath:[local_path stringByStandardizingPath]];
+        }
+
+        if (inc_url) {
+          NSString *canonical_path = [inc_url path];
+          if (![visited containsObject:canonical_path]) {
+            [visited addObject:canonical_path];
+            NSError *err = nil;
+            NSString *inc_source =
+                [NSString stringWithContentsOfURL:inc_url
+                                         encoding:NSUTF8StringEncoding
+                                            error:&err];
+
+            if (inc_source) {
+              NSString *expanded = preprocess_shader_includes(
+                  inc_source,
+                  [canonical_path stringByDeletingLastPathComponent], visited);
+
+              [result appendFormat:@"// --- BEGIN INCLUDE: %@ ---\n%@\n// --- "
+                                   @"END INCLUDE: %@ ---\n",
+                                   inc_name, expanded, inc_name];
+              continue;
+            }
+          } else {
+            // Already included, skip to prevent multiple symbol definition
+            continue;
+          }
+        }
+      }
+    }
+
+    [result appendString:line];
+    [result appendString:@"\n"];
+  }
+  return result;
+}
+
 const char *load_shader_file(const char *shader_name) {
   if (!shader_name) {
     LOG_ERROR("%s", "Failed to find shader: shader name is NULL");
@@ -153,7 +224,12 @@ const char *load_shader_file(const char *shader_name) {
     exit(EXIT_FAILURE);
   }
 
-  return strdup(shaderSource.UTF8String);
+  NSString *parent_dir = [[shaderURL path] stringByDeletingLastPathComponent];
+  NSMutableSet *visited = [NSMutableSet setWithObject:[shaderURL path]];
+  NSString *processed =
+      preprocess_shader_includes(shaderSource, parent_dir, visited);
+
+  return strdup(processed.UTF8String);
 }
 
 void compile_grid_shader_lib(RenderState *state, const char *shader_name) {

@@ -1,4 +1,5 @@
 #include <metal_stdlib>
+#include "generic_star_texture.msl"
 using namespace metal;
 
 struct StarInstance {
@@ -11,6 +12,8 @@ struct StarUniforms {
     float4x4 viewMatrix;
     float4x4 projectionMatrix;
     float minSizeFactor;
+    float time;
+    float2 _pad;
 };
 
 struct StarVertexOut {
@@ -18,6 +21,11 @@ struct StarVertexOut {
     float2 uv;
     float4 color;
     float close_factor;
+    float time;
+    float3 cam_right;
+    float3 cam_up;
+    float3 cam_back;
+    float seed;
 };
 
 struct StarFragmentOut {
@@ -53,6 +61,11 @@ vertex StarVertexOut star_vertex(
         out.uv = float2(0.0f);
         out.color = float4(0.0f);
         out.close_factor = 0.0f;
+        out.time = 0.0f;
+        out.cam_right = float3(1.0f, 0.0f, 0.0f);
+        out.cam_up = float3(0.0f, 1.0f, 0.0f);
+        out.cam_back = float3(0.0f, 0.0f, 1.0f);
+        out.seed = 0.0f;
         return out;
     }
 
@@ -81,6 +94,16 @@ vertex StarVertexOut star_vertex(
     out.uv = corner * margin; // uv distance 1.0 is the physical boundary
     out.color = star.color;
     out.close_factor = close_factor;
+    out.time = uniforms.time;
+
+    // Extract camera basis vectors in world space from viewMatrix rotation
+    out.cam_right = float3(uniforms.viewMatrix[0][0], uniforms.viewMatrix[1][0], uniforms.viewMatrix[2][0]);
+    out.cam_up    = float3(uniforms.viewMatrix[0][1], uniforms.viewMatrix[1][1], uniforms.viewMatrix[2][1]);
+    out.cam_back  = float3(uniforms.viewMatrix[0][2], uniforms.viewMatrix[1][2], uniforms.viewMatrix[2][2]);
+
+    // Unique per-star procedural seed based on world position
+    out.seed = fract(sin(dot(float3(star.position), float3(12.9898f, 78.233f, 45.164f))) * 43758.5453f);
+
     return out;
 }
 
@@ -113,27 +136,59 @@ fragment StarFragmentOut star_fragment(StarVertexOut in [[stage_in]]) {
     float distant_alpha = mix(distant_glow, distant_core, 0.5f);
     float4 distant_color = float4(in.color.rgb, distant_alpha);
 
-    // A clearly defined spherical body with a crisp limb edge, 3D spherical curvature,
-    // and a subtle corona outside the limb
+    // A clearly defined spherical body with procedural photosphere granulation,
+    // boiling plasma turbulence, sunspots, and dynamic solar corona
     float4 close_color;
     if (r <= 1.0f) {
         // Inside the solid physical sphere:
-        // Calculate 3D sphere normal Z component: Nz = sqrt(1 - r^2)
+        // Calculate 3D sphere normal Z component in view space: Nz = sqrt(1 - r^2)
         float Nz = sqrt(max(0.0f, 1.0f - r * r));
+        float3 N_view = float3(in.uv.x, in.uv.y, Nz);
+
+        // Transform normal to 3D world space so the star reacts to camera orbit/rotation
+        float3 N_world = normalize(N_view.x * in.cam_right + N_view.y * in.cam_up + N_view.z * in.cam_back);
+
+        // Derive hot and cool spectral tones from in.color
+        float4 baseCol = in.color;
+        float4 hotCol = float4(mix(baseCol.rgb, float3(1.0f), 0.75f), 1.0f);
+        float4 coolCol = float4(baseCol.rgb * float3(0.70f, 0.45f, 0.25f), 1.0f);
+        float4 spotCol = float4(baseCol.rgb * 0.12f, 1.0f);
+
+        // Evaluate procedural photosphere in world coordinates
+        StarSurfaceSample surface = evaluate_star_surface(
+            N_world,
+            in.time,
+            baseCol,
+            hotCol,
+            coolCol,
+            spotCol,
+            28.0f,    // Granulation scale
+            1.0f,     // Turbulence
+            0.65f,    // Sunspots
+            0.05f,    // Differential rotation speed
+            in.seed   // Unique per-star seed
+        );
 
         // Realistic solar limb darkening: center is brightest, limb darkens smoothly
-        float limb_darkening = 0.68f + 0.32f * pow(Nz, 0.55f);
+        float limb_darkening = 0.65f + 0.35f * pow(Nz, 0.65f);
 
         // Crisp, antialiased limb edge (narrow 1.5% transition to avoid pixel jaggies)
         float edge_alpha = smoothstep(1.0f, 0.985f, r);
 
         // Emissive surface with hot center
-        float3 surface_rgb = in.color.rgb * limb_darkening + float3(0.18f) * pow(Nz, 2.2f);
+        float3 surface_rgb = surface.color * limb_darkening + (hotCol.rgb * 0.15f * pow(Nz, 2.2f));
         close_color = float4(surface_rgb, edge_alpha);
     } else {
-        // Outside the physical sphere: subtle glowing corona / solar atmosphere
-        float corona = pow(max(0.0f, 1.0f - (r - 1.0f) / 0.25f), 2.5f) * 0.35f;
-        close_color = float4(in.color.rgb, corona);
+        // Outside the physical sphere: glowing corona with 3D world-anchored magnetic streamers
+        float coronaDist = (r - 1.0f) / 0.25f;
+        float3 ray_world = normalize(in.uv.x * in.cam_right + in.uv.y * in.cam_up);
+        float streamer = star_noise3d(ray_world * 3.5f + float3(0.0f, 0.0f, in.time * 0.2f));
+        float streamers = 0.75f + 0.25f * streamer;
+
+        float coronaFalloff = pow(max(0.0f, 1.0f - coronaDist), 2.5f);
+        float coronaAlpha = coronaFalloff * streamers * 0.35f;
+        float3 coronaColor = mix(in.color.rgb, float3(1.0f), pow(max(0.0f, 1.0f - coronaDist), 2.0f) * 0.4f);
+        close_color = float4(coronaColor, coronaAlpha);
     }
 
     // Smoothly blend between distant radiant glow and close-up defined sphere

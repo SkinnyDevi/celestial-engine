@@ -8,6 +8,7 @@
 #include "macos/render/state/render_state.h"
 
 #include "macos/render/shape/vertex.h"
+#include "macos/shaders/generic_star_texture.h"
 #include <simd/simd.h>
 
 typedef struct {
@@ -20,7 +21,8 @@ typedef struct {
   simd_float4x4 viewMatrix;
   simd_float4x4 projectionMatrix;
   float minSizeFactor;
-  float _pad[3];
+  float time;
+  float _pad[2];
 } StarUniforms;
 
 typedef struct MTLStarGraphicsClass {

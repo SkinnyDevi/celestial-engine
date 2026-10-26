@@ -42,6 +42,9 @@ typedef struct {
   id<MTLDepthStencilState> starDepthState;
   id<MTLBuffer> starInstanceBuffer;
   size_t starInstanceCount;
+  id<MTLRenderPipelineState> starMeshPipelineState;
+  id<MTLComputePipelineState> starComputePipeline;
+  id<MTLTexture> starTexture;
   DynamicArray stars;
   DynamicArray planets;
   DynamicArray moons;
@@ -76,6 +79,9 @@ RenderState *RenderState_Create(void) {
   impl->starDepthState = nil;
   impl->starInstanceBuffer = nil;
   impl->starInstanceCount = 0;
+  impl->starMeshPipelineState = nil;
+  impl->starComputePipeline = nil;
+  impl->starTexture = nil;
   impl->depthTexture = nil;
   impl->depthStencilState = nil;
   impl->camera_debug_overlay = nil;
@@ -279,6 +285,51 @@ void RenderState_SetStarInstanceCount(RenderState *state, size_t count) {
     return;
 
   ((RenderStateImpl *)state)->starInstanceCount = count;
+}
+
+void *RenderState_GetStarMeshPipelineState(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->starMeshPipelineState;
+}
+
+void RenderState_SetStarMeshPipelineState(RenderState *state,
+                                         void *pipelineState) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->starMeshPipelineState =
+      (__bridge id<MTLRenderPipelineState>)pipelineState;
+}
+
+void *RenderState_GetStarComputePipeline(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->starComputePipeline;
+}
+
+void RenderState_SetStarComputePipeline(RenderState *state, void *pipeline) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->starComputePipeline =
+      (__bridge id<MTLComputePipelineState>)pipeline;
+}
+
+void *RenderState_GetStarTexture(RenderState *state) {
+  if (!state)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->starTexture;
+}
+
+void RenderState_SetStarTexture(RenderState *state, void *texture) {
+  if (!state)
+    return;
+
+  ((RenderStateImpl *)state)->starTexture = (__bridge id<MTLTexture>)texture;
 }
 
 DynamicArray *RenderState_GetStars(RenderState *state) {

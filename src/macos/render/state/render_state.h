@@ -53,6 +53,13 @@ void RenderState_SetStarDepthState(RenderState *state, void *depthState);
 void RenderState_SetStarInstanceBuffer(RenderState *state, void *buffer);
 void RenderState_SetStarInstanceCount(RenderState *state, size_t count);
 
+void *RenderState_GetStarMeshPipelineState(RenderState *state);
+void RenderState_SetStarMeshPipelineState(RenderState *state, void *pipelineState);
+void *RenderState_GetStarComputePipeline(RenderState *state);
+void RenderState_SetStarComputePipeline(RenderState *state, void *pipeline);
+void *RenderState_GetStarTexture(RenderState *state);
+void RenderState_SetStarTexture(RenderState *state, void *texture);
+
 DynamicArray *RenderState_GetStars(RenderState *state);
 DynamicArray *RenderState_GetPlanets(RenderState *state);
 DynamicArray *RenderState_GetMoons(RenderState *state);

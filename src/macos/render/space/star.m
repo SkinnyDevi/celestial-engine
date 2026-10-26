@@ -9,9 +9,12 @@
 #import "core/space/units.h"
 
 #import "macos/render/grid/displaced_mesh.h"
+#import "macos/render/shape/solid_sphere.h"
+#import "macos/shaders/generic_star_texture.h"
 #import "macos/shaders/shader_loader.h"
 
 #import <dispatch/dispatch.h>
+#import <mach/mach_time.h>
 
 #define MAX_STAR_CLUSTERS 64
 
@@ -73,32 +76,35 @@ simd_float4 get_star_color(StarSpectralType spectral_type) {
 
 void MTLStarGraphicsClass_init(MTLStarGraphicsClass *star,
                                RenderState *render_state) {
-  star->vertex_buffer = NULL;
-  star->index_buffer = NULL;
-  star->index_count = 0;
-  star->pipeline_state = NULL;
+  void *vbuf = NULL;
+  void *ibuf = NULL;
+  int idx_count = 0;
+  get_shared_solid_sphere_buffers(render_state, &vbuf, &ibuf, &idx_count);
+
+  star->vertex_buffer = vbuf;
+  star->index_buffer = ibuf;
+  star->index_count = idx_count;
+  star->pipeline_state = RenderState_GetStarMeshPipelineState(render_state);
 }
 
 void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
                                RenderState *render_state, void *encoder_ptr) {
-  // Fallback for drawing an individual star if ever called directly
+  // Draw star as a textured 3D sphere mesh
   if (!star || !star->vertex_buffer || !star->index_buffer)
     return;
 
   id<MTLRenderCommandEncoder> encoder =
       (__bridge id<MTLRenderCommandEncoder>)encoder_ptr;
-  simd_float4 color = get_star_color(star->body->spectral_type);
 
-  DisplacedMeshUniforms uniforms;
-  id<MTLBuffer> uniform_buffer =
-      (__bridge id<MTLBuffer>)RenderState_GetUniformBuffer(render_state);
-  if (uniform_buffer) {
-    memcpy(&uniforms, [uniform_buffer contents], sizeof(uniforms));
-  } else {
-    memset(&uniforms, 0, sizeof(uniforms));
-  }
+  static uint64_t star_mesh_start_time = 0;
+  if (star_mesh_start_time == 0)
+    star_mesh_start_time = mach_absolute_time();
 
-  float base_scale = (float)(star->body->radius_m * METERS_TO_RENDER_UNITS);
+  uint64_t cur_time = mach_absolute_time();
+  mach_timebase_info_data_t tb;
+  mach_timebase_info(&tb);
+  float elapsed_sec = (float)(cur_time - star_mesh_start_time) *
+                      (float)tb.numer / (float)tb.denom / 1e9f;
 
   Camera *camera = RenderState_GetCamera(render_state);
   simd_float3 cam_pos = camera_orbit_position(camera);
@@ -112,6 +118,7 @@ void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
       simd_make_float3((float)rel_x, (float)rel_y, (float)rel_z);
 
   float dist = simd_distance(cam_pos, body_pos);
+  float base_scale = (float)(star->body->radius_m * METERS_TO_RENDER_UNITS);
   float min_visual_size = dist * 0.0018f;
   float render_scale =
       base_scale > min_visual_size ? base_scale : min_visual_size;
@@ -122,17 +129,46 @@ void MTLStarGraphicsClass_draw(MTLStarGraphicsClass *star,
   model.columns[2] = simd_make_float4(0.0f, 0.0f, render_scale, 0.0f);
   model.columns[3] = simd_make_float4(body_pos.x, body_pos.y, body_pos.z, 1.0f);
 
-  uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
-  uniforms.gridColor = color;
+  CAMetalLayer *metal_layer =
+      (__bridge CAMetalLayer *)RenderState_GetMetalLayer(render_state);
+  float aspect = metal_layer.drawableSize.width /
+                 MAX(metal_layer.drawableSize.height, 1.0f);
+  float near_plane, far_plane;
+  camera_get_clipping_planes(camera, &near_plane, &far_plane);
+  simd_float4x4 view_proj =
+      simd_mul(camera_perspective(70.0f * (float)M_PI / 180.0f, aspect,
+                                  near_plane, far_plane),
+               camera_view_matrix(camera));
+
+  StarMeshUniforms uniforms;
+  uniforms.mvpMatrix = simd_mul(view_proj, model);
+  uniforms.modelMatrix = model;
+  get_star_spectral_palette(star->body->spectral_type, &uniforms.baseColor,
+                            &uniforms.hotColor, &uniforms.coolColor,
+                            &uniforms.spotColor);
+  uniforms.cameraPos = (PackedFloat3){cam_pos.x, cam_pos.y, cam_pos.z};
+  uniforms.time = elapsed_sec;
+  uniforms.granulationScale = 28.0f;
+  uniforms.turbulence = 1.0f;
+  uniforms.spotIntensity = 0.65f;
+  uniforms.limbDarkening = 0.65f;
+
+  id<MTLRenderPipelineState> pipeline =
+      star->pipeline_state
+          ? (__bridge id<MTLRenderPipelineState>)star->pipeline_state
+          : (__bridge id<MTLRenderPipelineState>)
+                RenderState_GetStarMeshPipelineState(render_state);
+  if (pipeline)
+    [encoder setRenderPipelineState:pipeline];
+
+  id<MTLDepthStencilState> depth_state =
+      (__bridge id<MTLDepthStencilState>)RenderState_GetStarDepthState(
+          render_state);
+  if (depth_state)
+    [encoder setDepthStencilState:depth_state];
 
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
-
-  if (star->pipeline_state) {
-    id<MTLRenderPipelineState> pipeline =
-        (__bridge id<MTLRenderPipelineState>)star->pipeline_state;
-    [encoder setRenderPipelineState:pipeline];
-  }
 
   id<MTLBuffer> vbuf = (__bridge id<MTLBuffer>)star->vertex_buffer;
   [encoder setVertexBuffer:vbuf offset:0 atIndex:0];
@@ -171,21 +207,127 @@ void MTLStarGraphics_Destroy(MTLStarGraphicsClass *star_graphics) {
   free(star_graphics);
 }
 
+static void bake_primary_star_texture(RenderState *state,
+                                      id<MTLDevice> device) {
+  id<MTLComputePipelineState> compute_pipe =
+      (__bridge id<MTLComputePipelineState>)RenderState_GetStarComputePipeline(
+          state);
+  id<MTLCommandQueue> queue =
+      (__bridge id<MTLCommandQueue>)RenderState_GetCommandQueue(state);
+  if (!compute_pipe || !queue)
+    return;
+
+  NSUInteger width = 1024;
+  NSUInteger height = 512;
+  MTLTextureDescriptor *texDesc = [MTLTextureDescriptor
+      texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+                                   width:width
+                                  height:height
+                               mipmapped:NO];
+  texDesc.usage = MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+  texDesc.storageMode = MTLStorageModeShared;
+  id<MTLTexture> star_texture = [device newTextureWithDescriptor:texDesc];
+  if (!star_texture)
+    return;
+
+  StarTextureParams params;
+  memset(&params, 0, sizeof(params));
+  get_star_spectral_palette(SPECTRAL_CLASS_G, &params.baseColor,
+                            &params.hotColor, &params.coolColor,
+                            &params.spotColor);
+  params.time = 0.0f;
+  params.granulationScale = 28.0f;
+  params.turbulence = 1.0f;
+  params.spotIntensity = 0.65f;
+  params.limbDarkeningCoeff = 0.65f;
+  params.coronaGlow = 0.40f;
+  params.rotationSpeed = 0.05f;
+  params.seed = 42.0f;
+  params.textureSize = (simd_uint2){(uint32_t)width, (uint32_t)height};
+
+  id<MTLCommandBuffer> cmdBuf = [queue commandBuffer];
+  id<MTLComputeCommandEncoder> encoder = [cmdBuf computeCommandEncoder];
+  [encoder setComputePipelineState:compute_pipe];
+  [encoder setTexture:star_texture atIndex:0];
+  [encoder setBytes:&params length:sizeof(params) atIndex:0];
+
+  MTLSize threadsPerGroup = MTLSizeMake(16, 16, 1);
+  MTLSize numGroups = MTLSizeMake((width + 15) / 16, (height + 15) / 16, 1);
+  [encoder dispatchThreadgroups:numGroups
+          threadsPerThreadgroup:threadsPerGroup];
+  [encoder endEncoding];
+  [cmdBuf commit];
+  [cmdBuf waitUntilCompleted];
+
+  RenderState_SetStarTexture(state, (__bridge void *)star_texture);
+  LOG_INFO("Baked primary star procedural texture (%lux%lu)", width, height);
+}
+
 void create_star_render_pipeline(RenderState *state) {
   CAMetalLayer *metal_layer =
       (__bridge CAMetalLayer *)RenderState_GetMetalLayer(state);
   if (!metal_layer)
     return;
 
+  NSError *error = nil;
+  MTLCompileOptions *options = [MTLCompileOptions new];
+
+  // 1. Compile generic star texture shader library
+  const char *star_tex_src = load_shader_file("generic_star_texture");
+  if (star_tex_src) {
+    NSString *star_tex_str = [NSString stringWithUTF8String:star_tex_src];
+    id<MTLLibrary> star_tex_lib =
+        [metal_layer.device newLibraryWithSource:star_tex_str
+                                         options:options
+                                           error:&error];
+    if (star_tex_lib) {
+      // Compute pipeline for star texture baking
+      id<MTLFunction> compute_fn =
+          [star_tex_lib newFunctionWithName:@"star_texture_compute"];
+      if (compute_fn) {
+        id<MTLComputePipelineState> compute_pipe =
+            [metal_layer.device newComputePipelineStateWithFunction:compute_fn
+                                                              error:&error];
+        if (compute_pipe) {
+          RenderState_SetStarComputePipeline(state,
+                                             (__bridge void *)compute_pipe);
+        }
+      }
+
+      // 3D solid sphere mesh render pipeline
+      id<MTLFunction> mesh_vfn =
+          [star_tex_lib newFunctionWithName:@"star_mesh_vertex"];
+      id<MTLFunction> mesh_ffn =
+          [star_tex_lib newFunctionWithName:@"star_mesh_fragment"];
+      if (mesh_vfn && mesh_ffn) {
+        MTLRenderPipelineDescriptor *mesh_desc =
+            [[MTLRenderPipelineDescriptor alloc] init];
+
+        mesh_desc.vertexFunction = mesh_vfn;
+        mesh_desc.fragmentFunction = mesh_ffn;
+        mesh_desc.colorAttachments[0].pixelFormat = metal_layer.pixelFormat;
+        mesh_desc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+        id<MTLRenderPipelineState> mesh_pipe =
+            [metal_layer.device newRenderPipelineStateWithDescriptor:mesh_desc
+                                                               error:&error];
+        if (mesh_pipe)
+          RenderState_SetStarMeshPipelineState(state,
+                                               (__bridge void *)mesh_pipe);
+      }
+
+      // Bake procedural texture on GPU
+      bake_primary_star_texture(state, metal_layer.device);
+    }
+  }
+
+  // 2. Compile instanced star billboard rendering pipeline
   const char *shader_src = load_shader_file("celestialbody_instance");
   if (!shader_src) {
     LOG_ERROR("%s", "Failed to load celestialbody_instance shader");
     exit(EXIT_FAILURE);
   }
 
-  NSError *error = nil;
   NSString *source_str = [NSString stringWithUTF8String:shader_src];
-  MTLCompileOptions *options = [MTLCompileOptions new];
   id<MTLLibrary> library = [metal_layer.device newLibraryWithSource:source_str
                                                             options:options
                                                               error:&error];
@@ -591,14 +733,23 @@ void draw_stars_instanced(RenderState *state, void *encoder_ptr) {
   if (last_visible_count == 0)
     return;
 
+  static uint64_t star_inst_start_time = 0;
+  if (star_inst_start_time == 0)
+    star_inst_start_time = mach_absolute_time();
+  uint64_t current_time = mach_absolute_time();
+  mach_timebase_info_data_t timebase;
+  mach_timebase_info(&timebase);
+  float elapsed_seconds = (float)(current_time - star_inst_start_time) *
+                          (float)timebase.numer / (float)timebase.denom / 1e9f;
+
   StarUniforms uniforms;
   uniforms.viewMatrix = camera_view_matrix(camera);
   uniforms.projectionMatrix = camera_perspective(70.0f * (float)M_PI / 180.0f,
                                                  aspect, near_plane, far_plane);
   uniforms.minSizeFactor = 0.0018f;
+  uniforms.time = elapsed_seconds;
   uniforms._pad[0] = 0.0f;
   uniforms._pad[1] = 0.0f;
-  uniforms._pad[2] = 0.0f;
 
   [encoder setRenderPipelineState:pipeline];
   if (depth_state)
