@@ -14,21 +14,16 @@ A celestial mechanics simulation and 3D visualization engine written in C and Ob
 
 ## Showcase
 
-<video controls="" width="800" height="500" muted="" loop="" autoplay="">
-<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/first_look_sim.mp4" type="video/mp4">
-</video>
+<video src="https://github.com/SkinnyDevi/celestial-engine/raw/master/docs/first_look_sim.mp4" controls="controls" muted="muted" width="100%"></video>
+<br/>
 
-<video controls="" width="800" height="500" muted="" loop="" autoplay="">
-<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/zoom_in_feat.mp4" type="video/mp4">
-</video>
+<video src="https://github.com/SkinnyDevi/celestial-engine/raw/master/docs/zoom_in_feat.mp4" controls="controls" muted="muted" width="100%"></video>
+<br/>
 
-<video controls="" width="800" height="500" muted="" loop="" autoplay="">
-<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/zoom_far_out.mp4" type="video/mp4">
-</video>
+<video src="https://github.com/SkinnyDevi/celestial-engine/raw/master/docs/zoom_far_out.mp4" controls="controls" muted="muted" width="100%"></video>
+<br/>
 
-<video controls="" width="800" height="500" muted="" loop="" autoplay="">
-<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/zoom_back_in.mp4" type="video/mp4">
-</video>
+<video src="https://github.com/SkinnyDevi/celestial-engine/raw/master/docs/zoom_back_in.mp4" controls="controls" muted="muted" width="100%"></video>
 
 ## Prerequisites
 - macOS (Metal API support required)
