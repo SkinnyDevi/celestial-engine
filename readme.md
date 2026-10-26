@@ -14,13 +14,21 @@ A celestial mechanics simulation and 3D visualization engine written in C and Ob
 
 ## Showcase
 
-![first_look_sim](docs/first_look_sim.mp4)
+<video controls="" width="800" height="500" muted="" loop="" autoplay="">
+<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/first_look_sim.mp4" type="video/mp4">
+</video>
 
-![zoom_in_feat](docs/zoom_in_feat.mp4)
+<video controls="" width="800" height="500" muted="" loop="" autoplay="">
+<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/zoom_in_feat.mp4" type="video/mp4">
+</video>
 
-![zoom_far_out](docs/zoom_far_out.mp4)
+<video controls="" width="800" height="500" muted="" loop="" autoplay="">
+<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/zoom_far_out.mp4" type="video/mp4">
+</video>
 
-![zoom_back_in](docs/zoom_back_in.mp4)
+<video controls="" width="800" height="500" muted="" loop="" autoplay="">
+<source src="https://github.com/SkinnyDevi/celestial-engine/raw/refs/heads/master/docs/zoom_back_in.mp4" type="video/mp4">
+</video>
 
 ## Prerequisites
 - macOS (Metal API support required)
