@@ -2,6 +2,8 @@
 
 A celestial mechanics simulation and 3D visualization engine written in C and Objective-C. It utilizes Apple's Metal framework for high-performance graphics on macOS and features real-time celestial motion based on imported datasets.
 
+![Thumbnail](docs/thumbnail.gif)
+
 ## Features
 - **3D Rendering:** Native Metal integration for smooth macOS visualization.
 - **Modular Data Loaders:** Expandable data format support (currently supports `.json`).
@@ -9,6 +11,16 @@ A celestial mechanics simulation and 3D visualization engine written in C and Ob
 - **State Saving:** Save simulation states as a checkpoint to resume later.
 - **Interactive Camera:** Orbit and zoom around the generated solar system.
 - **Debug Overlays:** Real-time metrics including FPS, camera position, simulation date, and wireframe views.
+
+## Showcase
+
+![first_look_sim](docs/first_look_sim.mp4)
+
+![zoom_in_feat](docs/zoom_in_feat.mp4)
+
+![zoom_far_out](docs/zoom_far_out.mp4)
+
+![zoom_back_in](docs/zoom_back_in.mp4)
 
 ## Prerequisites
 - macOS (Metal API support required)
