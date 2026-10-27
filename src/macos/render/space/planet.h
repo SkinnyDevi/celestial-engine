@@ -23,6 +23,9 @@ typedef struct MTLPlanetGraphicsClass {
 } MTLPlanetGraphicsClass;
 
 #include <stdbool.h>
+#include <simd/simd.h>
+
+simd_float4 get_planet_color(PlanetClass planet_class);
 
 MTLPlanetGraphicsClass *MTLPlanetGraphics_Create(CelestialBody_Planet *body);
 bool MTLPlanetGraphicsClass_draw(MTLPlanetGraphicsClass *planet,

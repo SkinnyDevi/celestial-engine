@@ -204,6 +204,7 @@ RendererHandle init_metal_window(int width, int height, const char *title) {
   create_render_pipeline(state);
   create_star_render_pipeline(state);
   create_planet_render_pipelines(state);
+  create_moon_render_pipelines(state);
   generate_debug_graphics(state);
   init_celestial_bodies(state);
   create_scale_bar((__bridge void *)window);

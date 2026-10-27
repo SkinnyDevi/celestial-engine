@@ -8,7 +8,7 @@ CelestialBody_Moon PHOBOS = {
     .name = "Phobos",
     .body_id = "PHOBOS",
     .host_planet_id = "MARS",
-    .moon_class = MOON_CLASS_ROCKY,
+    .moon_class = MOON_CLASS_CAPTURED,
     // ~9,377 km from Mars
     .position = {.x = 9.3772e6, .y = 0, .z = 0},
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
@@ -22,7 +22,7 @@ CelestialBody_Moon DEIMOS = {
     .name = "Deimos",
     .body_id = "DEIMOS",
     .host_planet_id = "MARS",
-    .moon_class = MOON_CLASS_ROCKY,
+    .moon_class = MOON_CLASS_CAPTURED,
     // ~23,460 km from Mars
     .position = {.x = 23.460e6, .y = 0, .z = 0},
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
@@ -51,7 +51,7 @@ CelestialBody_Moon IO = {
     .name = "Io",
     .body_id = "IO",
     .host_planet_id = "JUPITER",
-    .moon_class = MOON_CLASS_ROCKY,
+    .moon_class = MOON_CLASS_VOLCANIC,
     // 421,700 km from Jupiter
     .position = {.x = 421700000.0, .y = 0, .z = 0},
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
@@ -65,7 +65,7 @@ CelestialBody_Moon EUROPA = {
     .name = "Europa",
     .body_id = "EUROPA",
     .host_planet_id = "JUPITER",
-    .moon_class = MOON_CLASS_ROCKY,
+    .moon_class = MOON_CLASS_ICY,
     // 671,100 km from Jupiter
     .position = {.x = 671100000.0, .y = 0, .z = 0},
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
@@ -79,7 +79,7 @@ CelestialBody_Moon TITAN = {
     .name = "Titan",
     .body_id = "TITAN",
     .host_planet_id = "SATURN",
-    .moon_class = MOON_CLASS_ROCKY,
+    .moon_class = MOON_CLASS_ICY,
     // ~1,222,000 km from Saturn
     .position = {.x = 1221870000.0, .y = 0, .z = 0},
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},
@@ -93,7 +93,7 @@ CelestialBody_Moon TRITON = {
     .name = "Triton",
     .body_id = "TRITON",
     .host_planet_id = "NEPTUNE",
-    .moon_class = MOON_CLASS_ROCKY,
+    .moon_class = MOON_CLASS_ICY,
     // ~354,760 km from Neptune
     .position = {.x = 354760000.0, .y = 0, .z = 0},
     .rotation = {.x = 0, .y = 0, .z = 0, .w = 1},

@@ -46,6 +46,7 @@ typedef struct {
   id<MTLComputePipelineState> starComputePipeline;
   id<MTLTexture> starTexture;
   id<MTLRenderPipelineState> planetPipelines[5];
+  id<MTLRenderPipelineState> moonPipelines[4];
   DynamicArray stars;
   DynamicArray planets;
   DynamicArray moons;
@@ -86,6 +87,9 @@ RenderState *RenderState_Create(void) {
 
   for (int i = 0; i < 5; i++)
     impl->planetPipelines[i] = nil;
+
+  for (int i = 0; i < 4; i++)
+    impl->moonPipelines[i] = nil;
 
   impl->depthTexture = nil;
   impl->depthStencilState = nil;
@@ -156,6 +160,9 @@ void RenderState_Destroy(RenderState *state) {
 
   for (int i = 0; i < 5; i++)
     impl->planetPipelines[i] = nil;
+
+  for (int i = 0; i < 4; i++)
+    impl->moonPipelines[i] = nil;
 
   impl->depthTexture = nil;
   impl->depthStencilState = nil;
@@ -359,6 +366,22 @@ void RenderState_SetPlanetPipeline(RenderState *state, PlanetClass planet_class,
     return;
 
   ((RenderStateImpl *)state)->planetPipelines[planet_class] =
+      (__bridge id<MTLRenderPipelineState>)pipelineState;
+}
+
+void *RenderState_GetMoonPipeline(RenderState *state, MoonClass moon_class) {
+  if (!state || (int)moon_class < 0 || (int)moon_class >= 4)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)->moonPipelines[moon_class];
+}
+
+void RenderState_SetMoonPipeline(RenderState *state, MoonClass moon_class,
+                                 void *pipelineState) {
+  if (!state || (int)moon_class < 0 || (int)moon_class >= 4)
+    return;
+
+  ((RenderStateImpl *)state)->moonPipelines[moon_class] =
       (__bridge id<MTLRenderPipelineState>)pipelineState;
 }
 

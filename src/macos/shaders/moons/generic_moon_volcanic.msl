@@ -1,0 +1,86 @@
+#include <metal_stdlib>
+#include "moon_common.h"
+#include "moon_noise.h"
+using namespace metal;
+
+vertex MoonVertexOut moon_volcanic_vertex(
+    const device MoonVertexIn *vertices [[buffer(0)]],
+    constant MoonUniforms &uniforms     [[buffer(1)]],
+    uint vid                            [[vertex_id]])
+{
+    return moon_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 moon_volcanic_fragment(
+    MoonVertexOut in                    [[stage_in]],
+    constant MoonUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // 3D rotation in model space
+    float3 pRot = moon_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // 1. Volcanic Calderas (Paterae) via Voronoi centers
+    float2 vorCaldera = moon_voronoi3d(pRot * 4.5f + 17.0f);
+    float calderaDist = vorCaldera.x;
+    
+    // Caldera floor: dark basalt / molten lava lake
+    float caldera = 1.0f - smoothstep(0.0f, 0.22f, calderaDist);
+    
+    // Glowing lava ring along caldera fault boundary
+    float lavaRing = smoothstep(0.16f, 0.22f, calderaDist) * (1.0f - smoothstep(0.22f, 0.28f, calderaDist));
+
+    // Giant sulfur plume fallout rings (halo surrounding volcanic centers)
+    float plumeRing = smoothstep(0.35f, 0.48f, calderaDist) * (1.0f - smoothstep(0.48f, 0.65f, calderaDist));
+
+    // 2. Radiating Lava Flows & Tectonic Cracking
+    float lavaFlowNoise = moon_fbm3d(pRot * 10.0f + float3(2.5f, 7.1f, 1.3f), 4);
+    float lavaFlows = smoothstep(0.55f, 0.68f, lavaFlowNoise) * smoothstep(0.20f, 0.50f, calderaDist);
+
+    // 3. Sulfur Allotrope Surface Variegation
+    // Mixture of elemental yellow sulfur, white SO2 frost, and orange/brown disulfur
+    float sulfurVariegation = moon_fbm3d(pRot * 3.5f, 5);
+    float frostPatch = smoothstep(0.60f, 0.75f, moon_fbm3d(pRot * 6.0f + 100.0f, 4));
+
+    // 4. Color Palette Compositing
+    float3 sulfurYellow = uniforms.baseColor.rgb;
+    float3 sulfurOrange = uniforms.secondaryColor.rgb;
+    float3 lavaGlow = uniforms.accentColor.rgb;
+    float3 whiteFrost = float3(0.95f, 0.96f, 0.98f);
+    float3 darkBasalt = float3(0.12f, 0.10f, 0.08f);
+
+    float3 surfaceColor = mix(sulfurYellow, sulfurOrange, sulfurVariegation);
+    surfaceColor = mix(surfaceColor, whiteFrost, frostPatch * 0.70f);
+
+    // Halo plume deposits (reddish-orange ring around calderas)
+    surfaceColor = mix(surfaceColor, sulfurOrange * 1.2f, plumeRing * 0.65f);
+
+    // Caldera floor: dark basalt
+    surfaceColor = mix(surfaceColor, darkBasalt, caldera * 0.90f);
+
+    // Radiating basalt lava flows
+    surfaceColor = mix(surfaceColor, darkBasalt * 1.3f, lavaFlows * 0.75f);
+
+    // 5. Thermal Emission from Active Lava (Independent of sunlight!)
+    // Lava pulses subtly with internal tidal flexure
+    float pulse = 0.85f + 0.15f * sin(uniforms.time * 2.5f + uniforms.seed);
+    float emissionIntensity = (lavaRing * 1.8f + caldera * 0.5f) * pulse;
+    float3 emission = lavaGlow * emissionIntensity;
+
+    // 6. Lighting: Airless sulfur surface + Planetshine
+    float NdotL = max(dot(N, L), 0.0f);
+    float terminator = smoothstep(-0.01f, 0.04f, dot(N, L));
+    float diffuse = NdotL * terminator;
+
+    // Secondary Illumination: Planetshine from Host Planet (e.g. Jupiter)
+    float3 P_dir = normalize(float3(uniforms.hostPlanetPos) - in.worldPos);
+    float NdotP = max(dot(N, P_dir), 0.0f);
+    float3 planetshine = uniforms.hostPlanetColor.rgb * (NdotP * uniforms.planetshineIntensity * 0.35f);
+
+    float3 ambient = float3(0.010f);
+
+    float3 finalColor = surfaceColor * (diffuse * uniforms.lightIntensity + planetshine + ambient) + emission;
+    return float4(finalColor, 1.0f);
+}

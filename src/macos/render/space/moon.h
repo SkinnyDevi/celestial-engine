@@ -35,4 +35,6 @@ void init_celestial_body_moons(RenderState *render_state);
 void load_celestial_body_moons_from_file(RenderState *render_state,
                                          LoadedSimulationBodies *bodies);
 
+void create_moon_render_pipelines(RenderState *state);
+
 #endif

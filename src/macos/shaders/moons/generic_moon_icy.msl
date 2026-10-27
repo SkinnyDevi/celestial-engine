@@ -1,0 +1,81 @@
+#include <metal_stdlib>
+#include "moon_common.h"
+#include "moon_noise.h"
+using namespace metal;
+
+vertex MoonVertexOut moon_icy_vertex(
+    const device MoonVertexIn *vertices [[buffer(0)]],
+    constant MoonUniforms &uniforms     [[buffer(1)]],
+    uint vid                            [[vertex_id]])
+{
+    return moon_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 moon_icy_fragment(
+    MoonVertexOut in                    [[stage_in]],
+    constant MoonUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // 3D rotation in model space
+    float3 pRot = moon_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // 1. Tectonic Fracture Networks (Lineae / Cracks)
+    // Multi-directional intersecting rift systems
+    float crack1 = abs(sin(moon_fbm3d(pRot * 6.5f + float3(1.2f, 4.3f, 0.5f), 4) * 8.0f));
+    float crack2 = abs(sin(moon_fbm3d(pRot * 8.0f + float3(8.5f, 1.1f, 3.7f), 4) * 10.0f));
+    float fractures = (1.0f - smoothstep(0.0f, 0.12f, crack1)) + (1.0f - smoothstep(0.0f, 0.08f, crack2));
+    fractures = clamp(fractures, 0.0f, 1.0f);
+
+    // Dilation bands: wider reddish-brown mineral tracks along major rifts
+    float broadBands = 1.0f - smoothstep(0.0f, 0.28f, crack1);
+
+    // 2. Lenticulae / Chaos Terrain (warm ice diapir upwellings)
+    float2 vorChaos = moon_voronoi3d(pRot * 5.0f + 23.0f);
+    float chaosPlates = smoothstep(0.15f, 0.35f, vorChaos.y - vorChaos.x);
+    float chaosDisruption = moon_fbm3d(pRot * 16.0f, 3) * (1.0f - chaosPlates);
+
+    // 3. Ice Crust Variegation & Micro-roughness
+    float iceRoughness = moon_fbm3d(pRot * 12.0f, 4);
+
+    // 4. Color Compositing
+    float3 iceColor = uniforms.baseColor.rgb;
+    float3 saltColor = uniforms.secondaryColor.rgb;
+    float3 oceanGlowColor = uniforms.accentColor.rgb;
+
+    // Base ice with faint bluish / crystalline tints
+    float3 surfaceColor = iceColor;
+    surfaceColor += float3(-0.02f, 0.03f, 0.06f) * (iceRoughness - 0.5f);
+
+    // Mineral salt staining along tectonic rifts & chaos patches
+    surfaceColor = mix(surfaceColor, saltColor, broadBands * 0.75f);
+    surfaceColor = mix(surfaceColor, saltColor * 0.85f, fractures * 0.90f);
+    surfaceColor = mix(surfaceColor, saltColor * 1.1f + float3(0.05f), chaosDisruption * 0.45f);
+
+    // Subsurface ocean radiance glowing through deep fractures
+    surfaceColor += oceanGlowColor * fractures * 0.25f;
+
+    // 5. Lighting: Airless ice reflection + specular glints
+    float NdotL = max(dot(N, L), 0.0f);
+    float3 H = normalize(L + V);
+    float NdotH = max(dot(N, H), 0.0f);
+    float specular = pow(NdotH, 48.0f) * (1.0f - fractures * 0.8f) * uniforms.albedo * 0.85f;
+
+    // Airless terminator
+    float terminator = smoothstep(-0.01f, 0.04f, dot(N, L));
+    float diffuse = NdotL * terminator;
+
+    // 6. Secondary Illumination: Planetshine
+    float3 P_dir = normalize(float3(uniforms.hostPlanetPos) - in.worldPos);
+    float NdotP = max(dot(N, P_dir), 0.0f);
+    float3 planetshine = uniforms.hostPlanetColor.rgb * (NdotP * uniforms.planetshineIntensity * 0.38f);
+
+    float3 ambient = float3(0.015f);
+
+    float3 finalColor = surfaceColor * (diffuse * uniforms.lightIntensity + planetshine + ambient) +
+                        float3(1.0f, 0.98f, 0.95f) * specular * uniforms.lightIntensity * terminator;
+
+    return float4(finalColor, 1.0f);
+}

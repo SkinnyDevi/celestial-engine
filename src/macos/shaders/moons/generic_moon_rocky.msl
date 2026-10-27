@@ -1,0 +1,81 @@
+#include <metal_stdlib>
+#include "moon_common.h"
+#include "moon_noise.h"
+using namespace metal;
+
+vertex MoonVertexOut moon_rocky_vertex(
+    const device MoonVertexIn *vertices [[buffer(0)]],
+    constant MoonUniforms &uniforms     [[buffer(1)]],
+    uint vid                            [[vertex_id]])
+{
+    return moon_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 moon_rocky_fragment(
+    MoonVertexOut in                    [[stage_in]],
+    constant MoonUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // 3D rotation in model space
+    float3 pRot = moon_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // 1. Continental Maria vs Highland Basins
+    float mariaNoise = moon_fbm3d(pRot * 1.8f, 5);
+    float maria = smoothstep(0.42f, 0.58f, mariaNoise);
+
+    // 2. Multi-scale Impact Craters via Cellular Voronoi
+    // Large impact basins
+    float2 vorLarge = moon_voronoi3d(pRot * 3.5f + 12.0f);
+    float craterLarge = 1.0f - smoothstep(0.0f, 0.45f, vorLarge.x);
+    float craterRimLarge = smoothstep(0.38f, 0.45f, vorLarge.x) * (1.0f - smoothstep(0.45f, 0.55f, vorLarge.x));
+
+    // Medium craters
+    float2 vorMed = moon_voronoi3d(pRot * 9.0f + 45.0f);
+    float craterMed = 1.0f - smoothstep(0.0f, 0.40f, vorMed.x);
+    float craterRimMed = smoothstep(0.32f, 0.40f, vorMed.x) * (1.0f - smoothstep(0.40f, 0.50f, vorMed.x));
+
+    // Micro-crater regolith roughness
+    float microCraters = moon_fbm3d(pRot * 28.0f, 4);
+
+    // 3. Bright Rayed Crater Ejecta (like Tycho)
+    float3 rayOrigin = normalize(float3(0.55f, -0.65f, 0.52f));
+    float distToRayOrigin = length(pRot - rayOrigin);
+    float rayAngle = atan2(pRot.z - rayOrigin.z, pRot.x - rayOrigin.x);
+    float rayStreaks = pow(abs(sin(rayAngle * 14.0f + moon_noise3d(pRot * 10.0f) * 2.0f)), 8.0f);
+    float rays = rayStreaks * exp(-distToRayOrigin * 2.2f) * 0.75f;
+
+    // 4. Color blending
+    float3 highlandColor = uniforms.baseColor.rgb;
+    float3 mariaColor = uniforms.secondaryColor.rgb;
+    float3 ejectaColor = uniforms.accentColor.rgb;
+
+    // Regolith color variation
+    float3 surfaceColor = mix(highlandColor, mariaColor, maria);
+    surfaceColor = mix(surfaceColor, surfaceColor * 0.75f, (craterLarge + craterMed) * 0.6f);
+    surfaceColor += ejectaColor * (craterRimLarge * 0.6f + craterRimMed * 0.4f + rays);
+    surfaceColor += (microCraters - 0.5f) * 0.08f;
+
+    // 5. Lunar Rough-surface Lighting (Lommel-Seeliger approximation)
+    float NdotL = dot(N, L);
+    float NdotV = max(dot(N, V), 0.001f);
+    float diffuse = max(NdotL, 0.0f) / (max(NdotL, 0.0f) + NdotV + 0.05f) * 1.8f;
+    diffuse = clamp(diffuse, 0.0f, 1.0f);
+
+    // Harsh airless terminator
+    float terminator = smoothstep(-0.02f, 0.05f, NdotL);
+    diffuse *= terminator;
+
+    // 6. Secondary Illumination: Planetshine from Host Planet
+    float3 P_dir = normalize(float3(uniforms.hostPlanetPos) - in.worldPos);
+    float NdotP = max(dot(N, P_dir), 0.0f);
+    float3 planetshine = uniforms.hostPlanetColor.rgb * (NdotP * uniforms.planetshineIntensity * 0.35f);
+
+    // Subtle ambient starlight in deep space
+    float3 ambient = float3(0.012f);
+
+    float3 finalColor = surfaceColor * (diffuse * uniforms.lightIntensity + planetshine + ambient);
+    return float4(finalColor, 1.0f);
+}

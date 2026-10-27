@@ -1,0 +1,108 @@
+#include <metal_stdlib>
+#include "moon_common.h"
+#include "moon_noise.h"
+using namespace metal;
+
+// Displace unit sphere into an irregular triaxial potato asteroid shape
+inline float3 potato_displacement(float3 p, float seed) {
+    // Triaxial ellipsoid stretching: elongated in X, flattened in Z
+    float triaxial = 1.0f + 0.28f * (p.x * p.x) - 0.18f * (p.z * p.z);
+    
+    // Low-frequency asteroid lumpy terrain
+    float lump1 = moon_noise3d(p * 1.4f + seed) * 0.18f;
+    float lump2 = moon_noise3d(p * 2.8f + seed * 2.1f) * 0.08f;
+    
+    // Huge monolithic impact crater depression (like Stickney on Phobos)
+    float3 stickneyCenter = normalize(float3(0.7f, 0.2f, 0.6f));
+    float dStickney = length(p - stickneyCenter);
+    float stickney = smoothstep(0.0f, 0.75f, dStickney) - 1.0f;
+    float stickneyDepression = stickney * 0.22f;
+
+    float r = triaxial + lump1 + lump2 + stickneyDepression;
+    return p * r;
+}
+
+vertex MoonVertexOut moon_captured_vertex(
+    const device MoonVertexIn *vertices [[buffer(0)]],
+    constant MoonUniforms &uniforms     [[buffer(1)]],
+    uint vid                            [[vertex_id]])
+{
+    MoonVertexOut out;
+    float3 basePos = normalize(float3(vertices[vid].position));
+    
+    // Displace vertex to non-spherical potato shape
+    float3 displacedLocal = potato_displacement(basePos, uniforms.seed);
+    
+    // Compute numerical normal on displaced surface
+    float eps = 0.015f;
+    float3 dp1 = potato_displacement(normalize(basePos + float3(eps, 0.0f, 0.0f)), uniforms.seed);
+    float3 dp2 = potato_displacement(normalize(basePos + float3(0.0f, eps, 0.0f)), uniforms.seed);
+    float3 normalLocal = normalize(cross(dp1 - displacedLocal, dp2 - displacedLocal));
+    if (dot(normalLocal, basePos) < 0.0f) normalLocal = -normalLocal;
+
+    float4 worldPos = uniforms.modelMatrix * float4(displacedLocal, 1.0f);
+    out.position = uniforms.mvpMatrix * float4(displacedLocal, 1.0f);
+    out.worldPos = worldPos.xyz;
+    out.normal = normalize((uniforms.modelMatrix * float4(normalLocal, 0.0f)).xyz);
+    out.localPos = basePos;
+
+    float u = 0.5f + atan2(basePos.z, basePos.x) / (2.0f * 3.14159265359f);
+    float v = 0.5f - asin(clamp(basePos.y, -1.0f, 1.0f)) / 3.14159265359f;
+    out.uv = float2(u, v);
+    return out;
+}
+
+fragment float4 moon_captured_fragment(
+    MoonVertexOut in                    [[stage_in]],
+    constant MoonUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // 3D rotation in model space
+    float3 pRot = moon_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // 1. Giant Monolithic Impact Crater (Stickney)
+    float3 stickneyCenter = normalize(float3(0.7f, 0.2f, 0.6f));
+    float dStickney = length(pRot - stickneyCenter);
+    float stickneyFloor = 1.0f - smoothstep(0.0f, 0.65f, dStickney);
+    float stickneyRim = smoothstep(0.55f, 0.65f, dStickney) * (1.0f - smoothstep(0.65f, 0.80f, dStickney));
+
+    // 2. Parallel Stress Grooves (Tidal fracture chains radiating across body)
+    float grooveCoords = pRot.y * 14.0f + moon_noise3d(pRot * 3.5f) * 1.5f;
+    float grooveLines = abs(sin(grooveCoords * 3.14159f));
+    float grooves = 1.0f - smoothstep(0.0f, 0.22f, grooveLines);
+
+    // 3. Dense Impact Battering / Regolith Breccia
+    float2 vorSmall = moon_voronoi3d(pRot * 14.0f + 3.0f);
+    float craterSmall = 1.0f - smoothstep(0.0f, 0.38f, vorSmall.x);
+
+    float regolithFbm = moon_fbm3d(pRot * 22.0f, 4);
+
+    // 4. Color Palette Compositing
+    float3 darkChondrite = uniforms.baseColor.rgb;
+    float3 dustColor = uniforms.secondaryColor.rgb;
+    float3 rimColor = uniforms.accentColor.rgb;
+
+    float3 surfaceColor = darkChondrite;
+    surfaceColor = mix(surfaceColor, dustColor, regolithFbm * 0.5f);
+    surfaceColor = mix(surfaceColor, surfaceColor * 0.70f, stickneyFloor * 0.6f + craterSmall * 0.35f);
+    surfaceColor = mix(surfaceColor, rimColor, stickneyRim * 0.5f);
+    surfaceColor = mix(surfaceColor, dustColor * 0.6f, grooves * 0.4f);
+
+    // 5. Lighting: Harsh airless scattering with zero atmosphere
+    float NdotL = max(dot(N, L), 0.0f);
+    float terminator = smoothstep(-0.02f, 0.04f, dot(N, L));
+    float diffuse = NdotL * terminator;
+
+    // 6. Secondary Illumination: Planetshine from Host Planet
+    float3 P_dir = normalize(float3(uniforms.hostPlanetPos) - in.worldPos);
+    float NdotP = max(dot(N, P_dir), 0.0f);
+    float3 planetshine = uniforms.hostPlanetColor.rgb * (NdotP * uniforms.planetshineIntensity * 0.32f);
+
+    float3 ambient = float3(0.008f);
+
+    float3 finalColor = surfaceColor * (diffuse * uniforms.lightIntensity + planetshine + ambient);
+    return float4(finalColor, 1.0f);
+}
