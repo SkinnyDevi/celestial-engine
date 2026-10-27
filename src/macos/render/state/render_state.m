@@ -45,6 +45,7 @@ typedef struct {
   id<MTLRenderPipelineState> starMeshPipelineState;
   id<MTLComputePipelineState> starComputePipeline;
   id<MTLTexture> starTexture;
+  id<MTLRenderPipelineState> planetPipelines[5];
   DynamicArray stars;
   DynamicArray planets;
   DynamicArray moons;
@@ -82,6 +83,10 @@ RenderState *RenderState_Create(void) {
   impl->starMeshPipelineState = nil;
   impl->starComputePipeline = nil;
   impl->starTexture = nil;
+
+  for (int i = 0; i < 5; i++)
+    impl->planetPipelines[i] = nil;
+
   impl->depthTexture = nil;
   impl->depthStencilState = nil;
   impl->camera_debug_overlay = nil;
@@ -145,6 +150,13 @@ void RenderState_Destroy(RenderState *state) {
   impl->starPipelineState = nil;
   impl->starDepthState = nil;
   impl->starInstanceBuffer = nil;
+  impl->starMeshPipelineState = nil;
+  impl->starComputePipeline = nil;
+  impl->starTexture = nil;
+
+  for (int i = 0; i < 5; i++)
+    impl->planetPipelines[i] = nil;
+
   impl->depthTexture = nil;
   impl->depthStencilState = nil;
   impl->commandQueue = nil;
@@ -295,7 +307,7 @@ void *RenderState_GetStarMeshPipelineState(RenderState *state) {
 }
 
 void RenderState_SetStarMeshPipelineState(RenderState *state,
-                                         void *pipelineState) {
+                                          void *pipelineState) {
   if (!state)
     return;
 
@@ -330,6 +342,24 @@ void RenderState_SetStarTexture(RenderState *state, void *texture) {
     return;
 
   ((RenderStateImpl *)state)->starTexture = (__bridge id<MTLTexture>)texture;
+}
+
+void *RenderState_GetPlanetPipeline(RenderState *state,
+                                    PlanetClass planet_class) {
+  if (!state || (int)planet_class < 0 || (int)planet_class >= 5)
+    return NULL;
+
+  return (__bridge void *)((RenderStateImpl *)state)
+      ->planetPipelines[planet_class];
+}
+
+void RenderState_SetPlanetPipeline(RenderState *state, PlanetClass planet_class,
+                                   void *pipelineState) {
+  if (!state || (int)planet_class < 0 || (int)planet_class >= 5)
+    return;
+
+  ((RenderStateImpl *)state)->planetPipelines[planet_class] =
+      (__bridge id<MTLRenderPipelineState>)pipelineState;
 }
 
 DynamicArray *RenderState_GetStars(RenderState *state) {

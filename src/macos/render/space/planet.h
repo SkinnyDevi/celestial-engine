@@ -35,4 +35,6 @@ void init_celestial_body_planets(RenderState *render_state);
 void load_celestial_body_planets_from_file(RenderState *render_state,
                                            LoadedSimulationBodies *bodies);
 
+void create_planet_render_pipelines(RenderState *state);
+
 #endif

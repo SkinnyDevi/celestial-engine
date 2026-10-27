@@ -1,0 +1,116 @@
+#include <metal_stdlib>
+#include "planet_common.h"
+#include "planet_noise.h"
+using namespace metal;
+
+vertex PlanetVertexOut planet_terrestrial_vertex(
+    const device PlanetVertexIn *vertices [[buffer(0)]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]],
+    uint vid                              [[vertex_id]])
+{
+    return planet_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 planet_terrestrial_fragment(
+    PlanetVertexOut in                    [[stage_in]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // 3D rotation in model space around polar axis Y:
+    float3 pRot = planet_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // Procedural terrain heightmap with multi-stage domain warping
+    float3 q = float3(
+        planet_fbm3d(pRot * 2.2f + float3(uniforms.seed * 3.1f), 3),
+        planet_fbm3d(pRot * 2.2f + float3(4.3f, uniforms.seed * 1.7f, 2.1f), 3),
+        planet_fbm3d(pRot * 2.2f - float3(2.1f, 1.4f, uniforms.seed * 2.5f), 3)
+    );
+    float height = planet_fbm3d(pRot * 2.8f + 0.35f * q, 5);
+
+    // Biome mapping
+    float seaLevel = 0.02f;
+    bool isOcean = height < seaLevel;
+
+    float3 albedo;
+    float spec = 0.0f;
+
+    if (isOcean) {
+        // Ocean depth: deep blue to shallow turquoise
+        float depthFactor = smoothstep(seaLevel - 0.25f, seaLevel, height);
+        float3 deepOcean = float3(0.015f, 0.08f, 0.24f);
+        float3 shallowOcean = float3(0.04f, 0.28f, 0.42f);
+        albedo = mix(deepOcean, shallowOcean, depthFactor);
+
+        // Blinn-Phong ocean specular highlight reflecting host star
+        float3 H = normalize(L + V);
+        spec = pow(max(0.0f, dot(N, H)), 48.0f) * 0.85f;
+    } else {
+        // Land terrain: shore -> grassland -> mountain rock -> snow
+        float elevation = (height - seaLevel) / max(0.001f, 1.0f - seaLevel);
+        float3 beach = float3(0.72f, 0.65f, 0.48f);
+        float3 lowland = uniforms.secondaryColor.rgb; // Grassland / forest green
+        float3 highland = float3(0.48f, 0.42f, 0.32f); // Mountain rock
+        float3 snow = float3(0.92f, 0.95f, 0.98f);
+
+        if (elevation < 0.05f) {
+            albedo = mix(beach, lowland, elevation / 0.05f);
+        } else if (elevation < 0.45f) {
+            albedo = mix(lowland, highland, (elevation - 0.05f) / 0.40f);
+        } else if (elevation < 0.75f) {
+            albedo = mix(highland, snow, (elevation - 0.45f) / 0.30f);
+        } else {
+            albedo = snow;
+        }
+    }
+
+    // Polar ice caps
+    float polarLat = abs(pRot.y);
+    float iceThreshold = 0.72f + planet_noise3d(pRot * 5.0f) * 0.06f;
+    if (polarLat > iceThreshold) {
+        float iceFactor = smoothstep(iceThreshold, iceThreshold + 0.08f, polarLat);
+        albedo = mix(albedo, float3(0.95f, 0.97f, 1.0f), iceFactor);
+        if (isOcean) spec *= (1.0f - iceFactor * 0.7f);
+    }
+
+    // Cloud layer (rotating independently)
+    float3 pClouds = planet_rotate_y(in.localPos, uniforms.time * (uniforms.rotationSpeed * 1.35f) + uniforms.seed * 5.0f);
+    float cloudNoise = planet_fbm3d(pClouds * 3.5f, 4);
+    float cloudCoverage = smoothstep(0.40f, 0.75f, cloudNoise);
+
+    // Cloud shadow on the ground
+    float3 pCloudShadow = planet_rotate_y(in.localPos - L * 0.035f, uniforms.time * (uniforms.rotationSpeed * 1.35f) + uniforms.seed * 5.0f);
+    float shadowNoise = planet_fbm3d(pCloudShadow * 3.5f, 3);
+    float cloudShadow = smoothstep(0.42f, 0.75f, shadowNoise) * 0.45f;
+    albedo *= (1.0f - cloudShadow);
+
+    // Blend clouds over surface
+    float3 cloudColor = float3(1.0f);
+    albedo = mix(albedo, cloudColor, cloudCoverage);
+
+    // Lighting: Day / Night terminator
+    float NdotL = dot(N, L);
+    float dayFactor = smoothstep(-0.15f, 0.15f, NdotL);
+    float diffuse = max(0.0f, NdotL) * uniforms.lightIntensity;
+
+    // Night side city lights (only on dry land, not clouds or oceans or ice)
+    float3 nightColor = float3(0.002f, 0.003f, 0.006f); // Dark ambient
+    if (!isOcean && polarLat <= iceThreshold) {
+        float cityMap = smoothstep(0.60f, 0.88f, planet_fbm3d(pRot * 20.0f, 3));
+        float cityLights = cityMap * (1.0f - cloudCoverage) * (1.0f - dayFactor);
+        nightColor += float3(1.0f, 0.82f, 0.45f) * cityLights * 1.8f;
+    }
+
+    // Atmospheric rim / Rayleigh scattering
+    float NdotV = max(0.0f, dot(N, V));
+    float rim = pow(max(0.0f, 1.0f - NdotV), 3.5f);
+    float sunlitRim = rim * max(0.0f, dot(L, V) * 0.5f + 0.5f) * uniforms.atmosphereDensity;
+    float3 atmosGlow = uniforms.atmosphereColor.rgb * sunlitRim;
+
+    float3 dayColor = albedo * (diffuse + 0.04f) + (float3(spec * (1.0f - cloudCoverage) * diffuse));
+    float3 finalColor = mix(nightColor, dayColor, dayFactor) + atmosGlow;
+
+    return float4(finalColor, 1.0f);
+}

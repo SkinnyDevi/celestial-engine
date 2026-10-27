@@ -1,0 +1,81 @@
+#include <metal_stdlib>
+#include "planet_common.h"
+#include "planet_noise.h"
+using namespace metal;
+
+vertex PlanetVertexOut planet_ice_giant_vertex(
+    const device PlanetVertexIn *vertices [[buffer(0)]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]],
+    uint vid                              [[vertex_id]])
+{
+    return planet_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 planet_ice_giant_fragment(
+    PlanetVertexOut in                    [[stage_in]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // Base rotation around polar axis Y
+    float3 pRot = planet_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // Subtle zonal wind flow
+    float jetStream = sin(pRot.y * 12.0f) * 0.04f;
+    float3 pWind = planet_rotate_y(pRot, uniforms.time * jetStream);
+
+    // Deep methane atmosphere banding
+    float bandTurbulence = planet_fbm3d(pWind * float3(2.0f, 8.0f, 2.0f) + uniforms.seed, 3) * 0.35f;
+    float band = sin(pWind.y * 18.0f + bandTurbulence) * 0.5f + 0.5f;
+
+    // Palette: rich deep azure blue to vibrant cyan
+    float3 colDeep = uniforms.baseColor.rgb;       // Deep azure
+    float3 colCyan = uniforms.secondaryColor.rgb;  // Bright cyan/frost
+    float3 colPale = float3(0.70f, 0.90f, 0.98f);  // Pale upper haze
+
+    float3 atmosColor = mix(colDeep, colCyan, band * 0.65f);
+
+    // High-altitude wispy methane cirrus cloud streaks
+    float3 pCirrus = planet_rotate_y(pWind, uniforms.time * 0.05f);
+    float cirrusNoise = planet_fbm3d(pCirrus * float3(3.5f, 20.0f, 3.5f) + uniforms.seed * 3.1f, 4);
+    float cirrus = smoothstep(0.52f, 0.82f, cirrusNoise);
+
+    // Great Dark Spot (Neptune-style anticyclone)
+    float2 stormPos = float2(pWind.x, pWind.y);
+    float2 stormCenter = float2(-0.25f, -0.28f);
+    float stormDist = length((stormPos - stormCenter) * float2(1.0f, 2.4f));
+
+    if (stormDist < 0.20f) {
+        float stormFactor = smoothstep(0.20f, 0.04f, stormDist);
+        float3 darkSpot = colDeep * 0.45f;
+        atmosColor = mix(atmosColor, darkSpot, stormFactor * 0.75f);
+        // Bright companion cirrus cloud on the poleward edge of the storm
+        float companionDist = length((stormPos - (stormCenter + float2(0.04f, -0.10f))) * float2(1.0f, 1.8f));
+        if (companionDist < 0.08f) {
+            float compFactor = smoothstep(0.08f, 0.02f, companionDist);
+            cirrus = max(cirrus, compFactor * 0.85f);
+        }
+    }
+
+    // Blend cirrus clouds over methane atmosphere
+    atmosColor = mix(atmosColor, colPale, cirrus * 0.75f);
+
+    // Lighting with deep atmospheric scattering
+    float NdotL = dot(N, L);
+    float dayFactor = smoothstep(-0.20f, 0.20f, NdotL);
+    float diffuse = max(0.0f, NdotL) * uniforms.lightIntensity;
+
+    // Deep Rayleigh scattering and vibrant cyan limb glow
+    float NdotV = max(0.0f, dot(N, V));
+    float limbDarkening = 0.65f + 0.35f * pow(NdotV, 0.70f);
+    float rim = pow(max(0.0f, 1.0f - NdotV), 2.5f) * uniforms.atmosphereDensity;
+    float3 rimColor = uniforms.atmosphereColor.rgb * rim * (max(0.0f, dot(L, V) * 0.5f + 0.5f) + 0.3f);
+
+    float3 nightColor = colDeep * 0.008f;
+    float3 dayColor = atmosColor * (diffuse * limbDarkening + 0.02f);
+    float3 finalColor = mix(nightColor, dayColor, dayFactor) + rimColor;
+
+    return float4(finalColor, 1.0f);
+}

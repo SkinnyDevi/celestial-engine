@@ -16,16 +16,28 @@ static NSURL *resolve_by_bundle(NSFileManager *filemanager,
                                 NSString *base_name) {
   NSURL *bundle_URL = [[NSBundle mainBundle] URLForResource:base_name
                                               withExtension:@"msl"];
-  if (bundle_URL && [filemanager fileExistsAtPath:bundle_URL.path]) {
+  if (bundle_URL && [filemanager fileExistsAtPath:bundle_URL.path])
     return bundle_URL;
-  }
+
+  NSURL *planet_URL = [[NSBundle mainBundle] URLForResource:base_name
+                                              withExtension:@"msl"
+                                               subdirectory:@"planets"];
+  if (planet_URL && [filemanager fileExistsAtPath:planet_URL.path])
+    return planet_URL;
+
   return nil;
 }
 
 static NSURL *resolve_by_workdir(NSFileManager *filemanager,
                                  NSString *filename) {
   NSArray<NSString *> *subpaths = @[
-    filename, [NSString stringWithFormat:@"shaders/%@", filename],
+    filename, [NSString stringWithFormat:@"planets/%@", filename],
+    [NSString stringWithFormat:@"shaders/%@", filename],
+    [NSString stringWithFormat:@"shaders/planets/%@", filename],
+    [NSString stringWithFormat:@"src/macos/shaders/%@", filename],
+    [NSString stringWithFormat:@"src/macos/shaders/planets/%@", filename],
+    [NSString stringWithFormat:@"macos/shaders/%@", filename],
+    [NSString stringWithFormat:@"macos/shaders/planets/%@", filename],
     [NSString stringWithFormat:@"src/renderer/macos/shaders/%@", filename],
     [NSString stringWithFormat:@"renderer/macos/shaders/%@", filename],
     [NSString stringWithFormat:@"../src/renderer/macos/shaders/%@", filename],
@@ -65,19 +77,26 @@ static NSURL *resolve_by_workdir(NSFileManager *filemanager,
   NSString *current = cwd;
   for (int i = 0; i < 5 && current.length > 1; i++) {
     NSString *candidate1 = [current
-        stringByAppendingPathComponent:[NSString
-                                           stringWithFormat:@"src/renderer/"
-                                                            @"macos/shaders/%@",
-                                                            filename]];
-    if ([filemanager fileExistsAtPath:candidate1]) {
+        stringByAppendingPathComponent:[NSString stringWithFormat:@"src/macos/"
+                                                                  @"shaders/%@",
+                                                                  filename]];
+    if ([filemanager fileExistsAtPath:candidate1])
       return [NSURL fileURLWithPath:[candidate1 stringByStandardizingPath]];
-    }
+
+    NSString *candidate1b =
+        [current stringByAppendingPathComponent:
+                     [NSString stringWithFormat:@"src/macos/"
+                                                @"shaders/planets/%@",
+                                                filename]];
+    if ([filemanager fileExistsAtPath:candidate1b])
+      return [NSURL fileURLWithPath:[candidate1b stringByStandardizingPath]];
+
     NSString *candidate2 = [current
         stringByAppendingPathComponent:[NSString stringWithFormat:@"shaders/%@",
                                                                   filename]];
-    if ([filemanager fileExistsAtPath:candidate2]) {
+    if ([filemanager fileExistsAtPath:candidate2])
       return [NSURL fileURLWithPath:[candidate2 stringByStandardizingPath]];
-    }
+
     current = [current stringByDeletingLastPathComponent];
   }
 
@@ -90,24 +109,16 @@ static NSURL *resolve_shader_url(NSString *shader_name) {
   NSString *filename = [base_name stringByAppendingPathExtension:@"msl"];
 
   NSURL *resolve_by_shadername = resolve_file(filemanager, shader_name);
-  if (resolve_by_shadername) {
+  if (resolve_by_shadername)
     return resolve_by_shadername;
-  }
 
   NSURL *resolve_by_filename = resolve_file(filemanager, filename);
-  if (resolve_by_filename) {
+  if (resolve_by_filename)
     return resolve_by_filename;
-  }
 
   NSURL *bundle_url = resolve_by_bundle(filemanager, base_name);
-  if (bundle_url) {
+  if (bundle_url)
     return bundle_url;
-  }
-
-  NSURL *bundle_sub_url = resolve_by_bundle(filemanager, base_name);
-  if (bundle_sub_url) {
-    return bundle_sub_url;
-  }
 
 #ifdef SHADER_SOURCE_DIR
   NSString *compile_path =
@@ -115,12 +126,29 @@ static NSURL *resolve_shader_url(NSString *shader_name) {
   if ([filemanager fileExistsAtPath:compile_path]) {
     return [NSURL fileURLWithPath:[compile_path stringByStandardizingPath]];
   }
+  NSString *planets_compile_path =
+      [NSString stringWithFormat:@"%s/planets/%@", SHADER_SOURCE_DIR, filename];
+  if ([filemanager fileExistsAtPath:planets_compile_path])
+    return [NSURL
+        fileURLWithPath:[planets_compile_path stringByStandardizingPath]];
+
+  NSString *stars_compile_path =
+      [NSString stringWithFormat:@"%s/stars/%@", SHADER_SOURCE_DIR, filename];
+  if ([filemanager fileExistsAtPath:stars_compile_path])
+    return
+        [NSURL fileURLWithPath:[stars_compile_path stringByStandardizingPath]];
+
+  NSString *moons_compile_path =
+      [NSString stringWithFormat:@"%s/moons/%@", SHADER_SOURCE_DIR, filename];
+  if ([filemanager fileExistsAtPath:moons_compile_path])
+    return
+        [NSURL fileURLWithPath:[moons_compile_path stringByStandardizingPath]];
+
 #endif
 
   NSURL *resolved_in_workdir = resolve_by_workdir(filemanager, filename);
-  if (resolved_in_workdir) {
+  if (resolved_in_workdir)
     return resolved_in_workdir;
-  }
 
   return nil;
 }
@@ -193,6 +221,7 @@ static NSString *preprocess_shader_includes(NSString *source,
     [result appendString:line];
     [result appendString:@"\n"];
   }
+
   return result;
 }
 

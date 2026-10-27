@@ -1,0 +1,81 @@
+#include <metal_stdlib>
+#include "planet_common.h"
+#include "planet_noise.h"
+using namespace metal;
+
+vertex PlanetVertexOut planet_dwarf_vertex(
+    const device PlanetVertexIn *vertices [[buffer(0)]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]],
+    uint vid                              [[vertex_id]])
+{
+    return planet_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 planet_dwarf_fragment(
+    PlanetVertexOut in                    [[stage_in]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // Base rotation around polar axis Y
+    float3 pRot = planet_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // Multi-octave rocky terrain relief
+    float terrain = planet_fbm3d(pRot * 4.0f + uniforms.seed, 5);
+
+    // Impact craters (Voronoi cellular depressions with raised rims)
+    float2 craterCell = planet_voronoi3d(pRot * 10.0f + uniforms.seed * 2.3f);
+    float craterDist = craterCell.x;
+    float craterRim = smoothstep(0.18f, 0.12f, craterDist) * smoothstep(0.06f, 0.12f, craterDist) * 0.35f;
+    float craterFloor = smoothstep(0.12f, 0.03f, craterDist) * 0.45f;
+
+    // Volatile nitrogen/methane ice plain (e.g. Sputnik Planitia heart feature)
+    float plainRegion = smoothstep(0.40f, 0.70f, planet_fbm3d(pRot * 2.0f - float3(1.2f, 0.5f, 0.8f), 3));
+    float2 plainCell = planet_voronoi3d(pRot * 8.0f);
+    float cellBorder = plainCell.y - plainCell.x;
+    float plainCellChannels = smoothstep(0.02f, 0.12f, cellBorder);
+
+    // Tectonic fracture graben scarps
+    float chasmNoise = abs(planet_fbm3d(pRot * 6.5f + float3(2.5f), 3));
+    float chasm = smoothstep(0.04f, 0.005f, chasmNoise) * 0.40f;
+
+    // Palette: tholin brown rock, dark regolith, and bright nitrogen ice
+    float3 colRock = uniforms.baseColor.rgb;            // Regolith grey/brown
+    float3 colTholin = float3(0.55f, 0.28f, 0.18f);     // Tholin reddish-brown
+    float3 colIce = uniforms.secondaryColor.rgb;        // Nitrogen/methane frost
+
+    float3 surfaceColor = mix(colRock, colTholin, smoothstep(0.3f, 0.7f, terrain));
+
+    // Apply crater darkening
+    surfaceColor = surfaceColor * (1.0f - craterFloor * 0.6f) + float3(0.15f) * craterRim;
+
+    // Apply chasm valleys
+    surfaceColor = mix(surfaceColor, float3(0.10f, 0.08f, 0.07f), chasm);
+
+    // Apply smooth nitrogen ice plains
+    float3 plainColor = colIce * (0.85f + 0.15f * plainCellChannels);
+    surfaceColor = mix(surfaceColor, plainColor, plainRegion * 0.85f);
+
+    // Airless stark illumination: crisp razor-sharp terminator
+    float NdotL = dot(N, L);
+    float diffuse = max(0.0f, NdotL) * uniforms.lightIntensity;
+
+    // Subtle micro-shadows from crater rims at grazing light angles
+    if (NdotL > 0.0f && NdotL < 0.25f) {
+        float shadowFactor = smoothstep(0.0f, 0.25f, NdotL);
+        diffuse *= (shadowFactor * (1.0f - craterFloor * 0.5f));
+    }
+
+    // Tenuous limb haze (if any atmosphere density specified, e.g. Pluto's blue haze layers)
+    float NdotV = max(0.0f, dot(N, V));
+    float rim = pow(max(0.0f, 1.0f - NdotV), 4.5f) * uniforms.atmosphereDensity;
+    float3 atmosHaze = uniforms.atmosphereColor.rgb * rim * max(0.0f, dot(L, V) * 0.5f + 0.5f);
+
+    float3 nightColor = float3(0.001f);
+    float3 dayColor = surfaceColor * (diffuse + 0.015f);
+    float3 finalColor = mix(nightColor, dayColor, smoothstep(-0.02f, 0.02f, NdotL)) + atmosHaze;
+
+    return float4(finalColor, 1.0f);
+}

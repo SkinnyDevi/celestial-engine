@@ -1,0 +1,72 @@
+#include <metal_stdlib>
+#include "planet_common.h"
+#include "planet_noise.h"
+using namespace metal;
+
+vertex PlanetVertexOut planet_rogue_vertex(
+    const device PlanetVertexIn *vertices [[buffer(0)]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]],
+    uint vid                              [[vertex_id]])
+{
+    return planet_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 planet_rogue_fragment(
+    PlanetVertexOut in                    [[stage_in]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // Base rotation around polar axis Y
+    float3 pRot = planet_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // Dark volcanic / frozen basalt crust
+    float crustNoise = planet_fbm3d(pRot * 4.5f + uniforms.seed, 4);
+    float3 crustColor = uniforms.baseColor.rgb * (0.6f + 0.4f * crustNoise);
+
+    // Geothermal magma fissures & tectonic rifts (cracked crust revealing molten interior)
+    float3 pFissure = pRot + 0.10f * planet_fbm3d(pRot * 8.0f, 2);
+    float2 fissureCell = planet_voronoi3d(pFissure * 6.0f + uniforms.seed * 3.1f);
+    float edgeDist = fissureCell.y - fissureCell.x;
+
+    float fissureWidth = 0.055f;
+    float fissure = smoothstep(fissureWidth, 0.008f, edgeDist);
+    float lavaCore = smoothstep(0.022f, 0.005f, edgeDist);
+
+    // Magma color: deep red crust edge -> blazing orange-yellow core
+    float3 lavaRed = float3(0.92f, 0.18f, 0.04f);
+    float3 lavaYellow = float3(1.0f, 0.88f, 0.35f);
+    float3 magmaGlow = mix(lavaRed, lavaYellow, lavaCore) * fissure * 2.5f;
+
+    // Cryo-volcanic / bioluminescent mineral deposits near vents
+    float ventNoise = smoothstep(0.12f, 0.02f, fissureCell.x) * smoothstep(0.55f, 0.85f, planet_noise3d(pRot * 16.0f));
+    float3 ventColor = float3(0.15f, 0.75f, 0.95f) * ventNoise * 1.6f;
+
+    // Polar auroral curtains (strong magnetic field interacting with interstellar particles)
+    float polarLat = pow(abs(pRot.y), 3.0f);
+    float auroraWaves = planet_fbm3d(pRot * float3(3.0f, 1.0f, 3.0f) + float3(0.0f, uniforms.time * 0.2f, 0.0f), 3);
+    float3 auroraGlow = uniforms.atmosphereColor.rgb * polarLat * smoothstep(0.35f, 0.75f, auroraWaves) * 1.2f;
+
+    // Ambient interstellar starlight (rogue planets drift in deep night)
+    float NdotL = dot(N, L);
+    float diffuse = max(0.0f, NdotL) * uniforms.lightIntensity;
+    float ambient = 0.035f; // Faint ambient starlight
+
+    // Subtle specular glaze on frozen nitrogen/methane ice
+    float3 H = normalize(L + V);
+    float spec = pow(max(0.0f, dot(N, H)), 24.0f) * 0.35f * diffuse;
+
+    // Atmospheric rim glow
+    float NdotV = max(0.0f, dot(N, V));
+    float rim = pow(max(0.0f, 1.0f - NdotV), 3.0f) * uniforms.atmosphereDensity;
+    float3 atmosHaze = uniforms.atmosphereColor.rgb * rim * 0.4f;
+
+    // Final composition: dark surface illuminated by ambient starlight + emissive magma + auroras
+    float3 surfaceLit = crustColor * (diffuse + ambient) + spec;
+    float3 emissive = magmaGlow + ventColor + auroraGlow;
+    float3 finalColor = surfaceLit + emissive + atmosHaze;
+
+    return float4(finalColor, 1.0f);
+}

@@ -82,6 +82,16 @@ void draw_orbit_ellipse(RenderState *state, id<MTLRenderCommandEncoder> encoder,
   uniforms.mvpMatrix = simd_mul(uniforms.mvpMatrix, model);
   uniforms.gridColor = (simd_float4){1.0f, 1.0f, 1.0f, 0.5f};
 
+  id<MTLRenderPipelineState> pipeline =
+      (__bridge id<MTLRenderPipelineState>)RenderState_GetPipelineState(state);
+  if (pipeline)
+    [encoder setRenderPipelineState:pipeline];
+
+  id<MTLDepthStencilState> depth_state =
+      (__bridge id<MTLDepthStencilState>)RenderState_GetDepthStencilState(state);
+  if (depth_state)
+    [encoder setDepthStencilState:depth_state];
+
   [encoder setVertexBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:1];
   [encoder setVertexBuffer:buffer offset:0 atIndex:0];

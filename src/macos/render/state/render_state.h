@@ -4,6 +4,7 @@
 #include "core/data/dyn_array.h"
 #include "core/renderer/camera/camera.h"
 #include "core/space/astro_time.h"
+#include "core/space/planet.h"
 
 #include "macos/render/renderer.h"
 
@@ -59,6 +60,10 @@ void *RenderState_GetStarComputePipeline(RenderState *state);
 void RenderState_SetStarComputePipeline(RenderState *state, void *pipeline);
 void *RenderState_GetStarTexture(RenderState *state);
 void RenderState_SetStarTexture(RenderState *state, void *texture);
+
+void *RenderState_GetPlanetPipeline(RenderState *state, PlanetClass planet_class);
+void RenderState_SetPlanetPipeline(RenderState *state, PlanetClass planet_class,
+                                   void *pipelineState);
 
 DynamicArray *RenderState_GetStars(RenderState *state);
 DynamicArray *RenderState_GetPlanets(RenderState *state);

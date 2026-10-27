@@ -1,0 +1,88 @@
+#include <metal_stdlib>
+#include "planet_common.h"
+#include "planet_noise.h"
+using namespace metal;
+
+vertex PlanetVertexOut planet_gas_giant_vertex(
+    const device PlanetVertexIn *vertices [[buffer(0)]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]],
+    uint vid                              [[vertex_id]])
+{
+    return planet_vertex_impl(vertices, uniforms, vid);
+}
+
+fragment float4 planet_gas_giant_fragment(
+    PlanetVertexOut in                    [[stage_in]],
+    constant PlanetUniforms &uniforms     [[buffer(1)]])
+{
+    float3 N = normalize(in.normal);
+    float3 V = normalize(float3(uniforms.cameraPos) - in.worldPos);
+    float3 L = normalize(float3(uniforms.lightDirection));
+
+    // Base rotation around polar axis Y
+    float3 pRot = planet_rotate_y(in.localPos, uniforms.time * uniforms.rotationSpeed + uniforms.seed);
+
+    // Latitudinal differential wind shear (alternating jet streams)
+    float jetStream = sin(pRot.y * 18.0f) * 0.06f;
+    float3 pWind = planet_rotate_y(pRot, uniforms.time * jetStream);
+
+    // Multi-frequency turbulent cloud bands
+    float bandTurbulence1 = planet_fbm3d(pWind * float3(2.5f, 6.0f, 2.5f) + float3(uniforms.seed * 3.7f), 3);
+    float bandTurbulence2 = planet_fbm3d(pWind * float3(5.0f, 14.0f, 5.0f) - float3(uniforms.seed * 2.1f), 2);
+
+    float bandCoord = pWind.y * 28.0f + bandTurbulence1 * 1.6f + bandTurbulence2 * 0.4f;
+    float band = sin(bandCoord) * 0.5f + 0.5f;
+
+    // Atmospheric palette: cream white, golden amber, terracotta, deep brown
+    float3 colWhite = float3(0.92f, 0.88f, 0.80f);
+    float3 colCream = uniforms.baseColor.rgb;
+    float3 colAmber = uniforms.secondaryColor.rgb;
+    float3 colDark  = float3(0.45f, 0.22f, 0.10f);
+
+    float3 bandColor;
+    if (band < 0.33f) {
+        bandColor = mix(colWhite, colCream, band / 0.33f);
+    } else if (band < 0.66f) {
+        bandColor = mix(colCream, colAmber, (band - 0.33f) / 0.33f);
+    } else {
+        bandColor = mix(colAmber, colDark, (band - 0.66f) / 0.34f);
+    }
+
+    // Great Red Spot / Anticyclonic storm vortex
+    float2 stormPos = float2(pWind.x, pWind.y);
+    float2 stormCenter = float2(0.18f, -0.32f);
+    float stormDist = length((stormPos - stormCenter) * float2(1.0f, 2.2f));
+
+    if (stormDist < 0.22f) {
+        float angle = atan2(stormPos.y - stormCenter.y, stormPos.x - stormCenter.x);
+        float spiral = sin(angle * 3.0f - stormDist * 28.0f + uniforms.time * 0.5f) * 0.5f + 0.5f;
+        float stormFactor = smoothstep(0.22f, 0.04f, stormDist);
+        float3 spotColor = float3(0.82f, 0.28f, 0.12f) * (0.85f + 0.30f * spiral);
+        bandColor = mix(bandColor, spotColor, stormFactor);
+    }
+
+    // Secondary smaller vortices (white ovals)
+    float2 ovalCenter = float2(-0.45f, -0.55f);
+    float ovalDist = length((stormPos - ovalCenter) * float2(1.2f, 2.0f));
+    if (ovalDist < 0.08f) {
+        float ovalFactor = smoothstep(0.08f, 0.02f, ovalDist);
+        bandColor = mix(bandColor, colWhite * 1.1f, ovalFactor * 0.8f);
+    }
+
+    // Diffuse lighting with atmospheric softening
+    float NdotL = dot(N, L);
+    float dayFactor = smoothstep(-0.25f, 0.20f, NdotL);
+    float diffuse = max(0.0f, NdotL) * uniforms.lightIntensity;
+
+    // Atmospheric limb darkening & forward scattering
+    float NdotV = max(0.0f, dot(N, V));
+    float limbDarkening = 0.70f + 0.30f * pow(NdotV, 0.65f);
+    float rim = pow(max(0.0f, 1.0f - NdotV), 2.8f) * uniforms.atmosphereDensity;
+    float3 atmosHaze = uniforms.atmosphereColor.rgb * rim * (max(0.0f, dot(L, V) * 0.5f + 0.5f) + 0.2f);
+
+    float3 nightColor = bandColor * 0.005f;
+    float3 dayColor = bandColor * (diffuse * limbDarkening + 0.03f);
+    float3 finalColor = mix(nightColor, dayColor, dayFactor) + atmosHaze;
+
+    return float4(finalColor, 1.0f);
+}
