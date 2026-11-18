@@ -105,3 +105,18 @@ The test suite validates:
 
 **Continuous Integration (CI)**
 A GitHub Actions workflow (`.github/workflows/tests.yml`) is included to automatically build the engine and run the full test suite on every push to the `master` branch.
+
+## Future Feature Implementations
+
+- Added search bar for celestial bodies (with hotkeys)
+- Implement man made satellite data fetching
+- Implement man made satellite rendering
+- Add CLI flag to skip rendering shader textures
+- Add planet ring rendering (e.g: Saturn)
+- Implement Asteroid belt rendering
+- Implement Neutron star rendering
+- Implement Pulsars
+- Implement Black hole rendering
+- Implement Quasars
+- Add realistic lighting (sun at center, etc...)
+- Add celestial body fixed viewing point (for watching celestial bodies from a body's surface)

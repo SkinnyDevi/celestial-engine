@@ -3,7 +3,7 @@
 
 #include "core/space/orbit.h"
 #include "macos/render/state/render_state.h"
-#import <Metal/Metal.h>
+#include <Metal/Metal.h>
 
 void init_orbit_graphics(RenderState *state, CelestialBody_Orbit *orbit,
                          id<MTLBuffer> *out_buffer, int *out_vertex_count);
